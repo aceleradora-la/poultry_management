@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Reportes de Producción -->
+    <record id="action_poultry_production_report_wizard" model="ir.actions.act_window">
+        <field name="name">Reporte de Producción por Galpón</field>
+        <field name="res_model">poultry.production.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Reportes de Mortalidad -->
+    <record id="action_poultry_mortality_report_wizard" model="ir.actions.act_window">
+        <field name="name">Reporte de Mortalidad</field>
+        <field name="res_model">poultry.mortality.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Reportes Comparativos -->
+    <record id="action_poultry_comparison_report_wizard" model="ir.actions.act_window">
+        <field name="name">Reporte Comparativo (Real vs Estándar)</field>
+        <field name="res_model">poultry.comparison.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Vistas de Wizard -->
+    <record id="view_poultry_production_report_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.production.report.wizard.form</field>
+        <field name="model">poultry.production.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte de Producción">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="group_by_date"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_generate_report" string="Generar Reporte" type="object" class="oe_highlight"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_mortality_report_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.mortality.report.wizard.form</field>
+        <field name="model">poultry.mortality.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte de Mortalidad">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="compare_with_standards"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_generate_report" string="Generar Reporte" type="object" class="oe_highlight"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_comparison_report_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.comparison.report.wizard.form</field>
+        <field name="model">poultry.comparison.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte Comparativo">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="genetics_id" required="1" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="report_type" widget="radio" options="{'horizontal': true}"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_generate_report" string="Generar Reporte" type="object" class="oe_highlight"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Menús de Reportes -->
+    <menuitem id="menu_poultry_reports" 
+              name="Reportes" 
+              parent="menu_poultry_management_root" 
+              sequence="60"/>
+
+    <menuitem id="menu_poultry_production_report" 
+              name="Producción por Galpón" 
+              parent="menu_poultry_reports" 
+              action="action_poultry_production_report_wizard" 
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_mortality_report" 
+              name="Mortalidad" 
+              parent="menu_poultry_reports" 
+              action="action_poultry_mortality_report_wizard" 
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_comparison_report" 
+              name="Comparativo (Real vs Estándar)" 
+              parent="menu_poultry_reports" 
+              action="action_poultry_comparison_report_wizard" 
+              sequence="30"/>
+</odoo>
+

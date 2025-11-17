@@ -30,6 +30,10 @@ class PoultryBatch(models.Model):
     notes = fields.Text(string='Notas')
     active = fields.Boolean(string='Activo', default=True)
     
+    # Relaciones con mortalidad
+    mortality_ids = fields.One2many('poultry.mortality', 'batch_id', string='Registros de Mortalidad')
+    mortality_count = fields.Integer(string='Registros de Mortalidad', compute='_compute_mortality_count')
+    
     # Edad del lote
     age_days = fields.Integer(string='Edad (días)', compute='_compute_age_days')
     days_in_coop = fields.Integer(string='Días en Galpón', compute='_compute_days_in_coop')
