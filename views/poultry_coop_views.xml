@@ -4,9 +4,9 @@
         <field name="name">poultry.coop.tree</field>
         <field name="model">poultry.coop</field>
         <field name="arch" type="xml">
-            <list string="Galpones" decoration-success="occupancy_percentage &lt; 80" 
-                  decoration-warning="occupancy_percentage &gt;= 80 and occupancy_percentage &lt; 100"
-                  decoration-danger="occupancy_percentage &gt;= 100">
+            <list string="Galpones" decoration-success="occupancy_percentage &lt; 0.8" 
+                  decoration-warning="occupancy_percentage &gt;= 0.8 and occupancy_percentage &lt; 1.0"
+                  decoration-danger="occupancy_percentage &gt;= 1.0">
                 <field name="code"/>
                 <field name="name"/>
                 <field name="size"/>

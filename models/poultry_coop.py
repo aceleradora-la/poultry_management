@@ -57,7 +57,7 @@ class PoultryCoop(models.Model):
         """Calcula el porcentaje de ocupación del galpón"""
         for coop in self:
             if coop.capacity > 0:
-                coop.occupancy_percentage = (coop.current_birds_count / coop.capacity) * 100
+                coop.occupancy_percentage = coop.current_birds_count / coop.capacity
             else:
                 coop.occupancy_percentage = 0.0
     
