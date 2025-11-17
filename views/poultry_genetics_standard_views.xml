@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_genetics_standard_tree" model="ir.ui.view">
+        <field name="name">poultry.genetics.standard.tree</field>
+        <field name="model">poultry.genetics.standard</field>
+        <field name="arch" type="xml">
+            <list string="Estándares" decoration-info="standard_type == 'mortality'" 
+                  decoration-success="standard_type == 'production'">
+                <field name="genetics_id"/>
+                <field name="week"/>
+                <field name="standard_type" widget="badge" 
+                       decoration-info="standard_type == 'mortality'"
+                       decoration-success="standard_type == 'production'"/>
+                <field name="standard_value" widget="percentage"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_genetics_standard_form" model="ir.ui.view">
+        <field name="name">poultry.genetics.standard.form</field>
+        <field name="model">poultry.genetics.standard</field>
+        <field name="arch" type="xml">
+            <form string="Estándar de Genética">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="week"/>
+                            <field name="standard_type" widget="radio" options="{'horizontal': true}"/>
+                            <field name="standard_value" widget="percentage"/>
+                        </group>
+                        <group>
+                            <field name="notes" placeholder="Información adicional sobre este estándar..."/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_genetics_standard_search" model="ir.ui.view">
+        <field name="name">poultry.genetics.standard.search</field>
+        <field name="model">poultry.genetics.standard</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Estándares">
+                <field name="genetics_id"/>
+                <field name="week"/>
+                <field name="standard_type"/>
+                <separator/>
+                <filter string="Mortalidad" name="mortality" domain="[('standard_type', '=', 'mortality')]"/>
+                <filter string="Producción" name="production" domain="[('standard_type', '=', 'production')]"/>
+                <separator/>
+                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
+                <separator/>
+                <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
+                <filter string="Por Semana" name="by_week" context="{'group_by': 'week'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_genetics_standard" model="ir.actions.act_window">
+        <field name="name">Estándares de Genética</field>
+        <field name="res_model">poultry.genetics.standard</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
+

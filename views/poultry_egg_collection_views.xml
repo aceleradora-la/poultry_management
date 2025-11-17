@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_egg_collection_tree" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.tree</field>
+        <field name="model">poultry.egg.collection</field>
+        <field name="arch" type="xml">
+            <list string="Recolecciones de Producción" decoration-info="state == 'draft'" 
+                  decoration-warning="state == 'counted'" 
+                  decoration-success="state == 'completed' or state == 'done'">
+                <field name="name"/>
+                <field name="coop_id"/>
+                <field name="product_id"/>
+                <field name="date"/>
+                <field name="total_produced_boxes"/>
+                <field name="production_count"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'"
+                       decoration-warning="state == 'counted'"
+                       decoration-success="state == 'completed' or state == 'done'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_egg_collection_form" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.form</field>
+        <field name="model">poultry.egg.collection</field>
+        <field name="arch" type="xml">
+            <form string="Recolección de Producción de Huevos">
+                <header>
+                    <button name="action_count_initial" type="object" string="Registrar Cantidad Inicial" 
+                            class="oe_highlight" 
+                            invisible="state != 'draft'"/>
+                    <button name="action_complete" type="object" string="Completar Recolección" 
+                            class="oe_highlight" 
+                            invisible="state != 'counted'"/>
+                    <button name="action_generate_productions" type="object" 
+                            string="Generar Órdenes de Fabricación" 
+                            class="oe_highlight" 
+                            invisible="state != 'completed'"/>
+                    <button name="action_view_productions" type="object" 
+                            string="Ver Órdenes Generadas" 
+                            invisible="production_count == 0"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_productions" type="object" class="oe_stat_button" 
+                                icon="fa-industry" invisible="production_count == 0">
+                            <field name="production_count" widget="statinfo" string="Órdenes de Fabricación"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Procesada" bg_color="text-success" 
+                            invisible="state != 'done'"/>
+                    <group>
+                        <group>
+                            <field name="name" placeholder="Ej: REC-0001"/>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}" 
+                                   readonly="state != 'draft'"/>
+                            <field name="product_tmpl_id" 
+                                   options="{'no_create': False, 'no_create_edit': False, 'no_open': True}" 
+                                   domain="[('type', '=', 'product'), ('active', '=', True)]"
+                                   context="{'default_type': 'product', 'search_default_active': 1}"
+                                   readonly="state != 'draft'"
+                                   placeholder="Seleccione un producto base. Se cargarán todas sus variantes en las líneas"/>
+                            <field name="date" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <group string="Totales Iniciales" invisible="state == 'draft'">
+                                <field name="total_initial_boxes" readonly="1"/>
+                                <field name="total_initial_maps" readonly="1"/>
+                                <field name="total_initial_eggs" readonly="1"/>
+                            </group>
+                            <group string="Totales Finales" invisible="state == 'draft' or state == 'counted'">
+                                <field name="total_final_boxes" readonly="1"/>
+                                <field name="total_final_maps" readonly="1"/>
+                                <field name="total_final_eggs" readonly="1"/>
+                            </group>
+                            <group string="Totales Producidos" invisible="state == 'draft' or state == 'counted'">
+                                <field name="total_produced_boxes" readonly="1" class="oe_read_only"/>
+                                <field name="total_produced_maps" readonly="1"/>
+                                <field name="total_produced_eggs" readonly="1"/>
+                            </group>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Líneas de Recolección" name="lines">
+                            <field name="line_ids" nolabel="1" readonly="state == 'done'" context="{'default_collection_id': id}">
+                                <list string="Líneas de Recolección" editable="bottom" create="0">
+                                    <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                                    <field name="product_variant_name" invisible="1"/>
+                                    <field name="collection_id" invisible="1"/>
+                                    <field name="initial_box" string="Cajón Inicial" 
+                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
+                                    <field name="initial_map" string="Maple Inicial" 
+                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
+                                    <field name="initial_egg" string="Huevo Inicial" 
+                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
+                                    <field name="final_box" string="Cajón Final" 
+                                           invisible="collection_id.state == 'draft'"/>
+                                    <field name="final_map" string="Maple Final" 
+                                           invisible="collection_id.state == 'draft'"/>
+                                    <field name="final_egg" string="Huevo Final" 
+                                           invisible="collection_id.state == 'draft'"/>
+                                    <field name="produced_box" string="Cajón Producido" readonly="1" 
+                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                                    <field name="produced_map" string="Maple Producido" readonly="1" 
+                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                                    <field name="produced_egg" string="Huevo Producido" readonly="1" 
+                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Órdenes de Fabricación" name="productions" invisible="production_count == 0">
+                            <field name="production_ids" nolabel="1" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="product_id"/>
+                                    <field name="product_qty"/>
+                                    <field name="state" widget="badge"/>
+                                    <field name="date_start"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="notes" placeholder="Notas adicionales sobre la recolección..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_egg_collection_search" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.search</field>
+        <field name="model">poultry.egg.collection</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Recolecciones">
+                <field name="name"/>
+                <field name="coop_id"/>
+                <field name="product_id"/>
+                <field name="date"/>
+                <separator/>
+                <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Cantidad Inicial Registrada" name="counted" domain="[('state', '=', 'counted')]"/>
+                <filter string="Completada" name="completed" domain="[('state', '=', 'completed')]"/>
+                <filter string="Procesada" name="done" domain="[('state', '=', 'done')]"/>
+                <separator/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Producto" name="by_product" context="{'group_by': 'product_id'}"/>
+                <filter string="Por Fecha" name="by_date" context="{'group_by': 'date'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_egg_collection" model="ir.actions.act_window">
+        <field name="name">Recolección de Producción de Huevos</field>
+        <field name="res_model">poultry.egg.collection</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear una nueva recolección de producción
+            </p>
+            <p>
+                Registre la producción de huevos por galpón. Ingrese las cantidades iniciales al iniciar
+                la recolección y las cantidades finales al finalizar. El sistema calculará automáticamente
+                la producción real y generará las Órdenes de Fabricación para los cajones producidos.
+            </p>
+        </field>
+    </record>
+</odoo>
+

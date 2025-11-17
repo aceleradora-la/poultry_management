@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_genetics_tree" model="ir.ui.view">
+        <field name="name">poultry.genetics.tree</field>
+        <field name="model">poultry.genetics</field>
+        <field name="arch" type="xml">
+            <list string="Genéticas">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="batch_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_genetics_form" model="ir.ui.view">
+        <field name="name">poultry.genetics.form</field>
+        <field name="model">poultry.genetics</field>
+        <field name="arch" type="xml">
+            <form string="Genética">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="Ej: GEN-001"/>
+                            <field name="name" placeholder="Ej: Lohmann Brown"/>
+                            <field name="description" placeholder="Descripción de la genética..."/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Lotes" name="batches">
+                            <field name="batch_ids" nolabel="1" readonly="1">
+                                <list>
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="birth_date"/>
+                                    <field name="coop_id"/>
+                                    <field name="bird_count"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Estándares de Mortalidad" name="mortality_standards">
+                            <field name="mortality_standard_ids" nolabel="1">
+                                <list string="Estándares de Mortalidad por Semana" editable="bottom">
+                                    <field name="week"/>
+                                    <field name="standard_value" string="Mortalidad Diaria (%)" widget="percentage"/>
+                                    <field name="notes"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Estándares de Producción" name="production_standards">
+                            <field name="production_standard_ids" nolabel="1">
+                                <list string="Estándares de Producción por Semana" editable="bottom">
+                                    <field name="week"/>
+                                    <field name="standard_value" string="Producción Diaria (%)" widget="percentage"/>
+                                    <field name="notes"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Registros de Mortalidad" name="mortality">
+                            <field name="mortality_ids" nolabel="1" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="coop_id"/>
+                                    <field name="batch_id"/>
+                                    <field name="dead_count"/>
+                                    <field name="batch_age_weeks"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_genetics_search" model="ir.ui.view">
+        <field name="name">poultry.genetics.search</field>
+        <field name="model">poultry.genetics</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Genéticas">
+                <field name="name"/>
+                <field name="code"/>
+                <separator/>
+                <filter string="Activas" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivas" name="inactive" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_genetics" model="ir.actions.act_window">
+        <field name="name">Genéticas de Aves</field>
+        <field name="res_model">poultry.genetics</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
+

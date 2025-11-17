@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_coop_tree" model="ir.ui.view">
+        <field name="name">poultry.coop.tree</field>
+        <field name="model">poultry.coop</field>
+        <field name="arch" type="xml">
+            <list string="Galpones" decoration-success="occupancy_percentage &lt; 80" 
+                  decoration-warning="occupancy_percentage &gt;= 80 and occupancy_percentage &lt; 100"
+                  decoration-danger="occupancy_percentage &gt;= 100">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="size"/>
+                <field name="capacity"/>
+                <field name="current_birds_count"/>
+                <field name="occupancy_percentage" widget="percentage"/>
+                <field name="batch_count"/>
+                <field name="active_bom_id" invisible="1"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_coop_form" model="ir.ui.view">
+        <field name="name">poultry.coop.form</field>
+        <field name="model">poultry.coop</field>
+        <field name="arch" type="xml">
+            <form string="Galpón">
+                <header>
+                    <button name="action_view_batches" type="object" string="Ver Lotes" 
+                            class="oe_highlight" icon="fa-list" 
+                            invisible="batch_count == 0"/>
+                    <button name="action_view_active_bom" type="object" string="Ver Lista Activa" 
+                            class="oe_highlight" icon="fa-list-alt" 
+                            invisible="not active_bom_id"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_batches" type="object" class="oe_stat_button" icon="fa-list">
+                            <field name="batch_count" widget="statinfo" string="Lotes"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Activo" bg_color="text-success" 
+                            invisible="not active"/>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="Ej: GAL-001"/>
+                            <field name="name" placeholder="Ej: Galpón Principal"/>
+                            <field name="size"/>
+                            <field name="capacity"/>
+                        </group>
+                        <group>
+                            <field name="current_birds_count" readonly="1"/>
+                            <field name="occupancy_percentage" widget="percentage" readonly="1"/>
+                            <field name="active_bom_id" readonly="1" 
+                                   invisible="not active_bom_id"/>
+                            <field name="active_bom_start_date" readonly="1"
+                                   invisible="not active_bom_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Lotes de Aves" name="batches">
+                            <field name="batch_ids" nolabel="1">
+                                <list string="Lotes Asignados" editable="bottom">
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="genetics_id"/>
+                                    <field name="birth_date"/>
+                                    <field name="assignment_date"/>
+                                    <field name="bird_count"/>
+                                    <field name="age_days"/>
+                                    <field name="days_in_coop"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Listas de Materiales" name="boms">
+                            <field name="coop_bom_ids" nolabel="1">
+                                <list string="Historial de Listas de Materiales">
+                                    <field name="name"/>
+                                    <field name="bom_id"/>
+                                    <field name="bom_product_id"/>
+                                    <field name="start_date"/>
+                                    <field name="end_date"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                                <form string="Lista de Materiales">
+                                    <sheet>
+                                        <group>
+                                            <group>
+                                                <field name="name"/>
+                                                <field name="coop_id" readonly="1"/>
+                                                <field name="bom_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                                                <field name="bom_product_id" readonly="1"/>
+                                            </group>
+                                            <group>
+                                                <field name="start_date"/>
+                                                <field name="end_date"/>
+                                                <field name="active" widget="boolean_toggle"/>
+                                                <field name="notes" placeholder="Notas adicionales..."/>
+                                            </group>
+                                        </group>
+                                    </sheet>
+                                    <header>
+                                        <button name="action_set_active" type="object" string="Activar" 
+                                                class="oe_highlight" invisible="active"/>
+                                        <button name="action_set_inactive" type="object" string="Desactivar" 
+                                                invisible="not active"/>
+                                    </header>
+                                </form>
+                            </field>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="notes" placeholder="Información adicional sobre el galpón..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_coop_search" model="ir.ui.view">
+        <field name="name">poultry.coop.search</field>
+        <field name="model">poultry.coop</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Galpones">
+                <field name="name" string="Nombre" filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
+                <field name="code"/>
+                <separator/>
+                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Con Capacidad Disponible" name="available_capacity" 
+                        domain="[('current_birds_count', '&lt;', 'capacity')]"/>
+                <filter string="Capacidad Llena" name="full_capacity" 
+                        domain="[('current_birds_count', '&gt;=', 'capacity')]"/>
+                <separator/>
+                <filter string="Sin Lista Activa" name="no_active_bom" 
+                        domain="[('active_bom_id', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_coop" model="ir.actions.act_window">
+        <field name="name">Galpones</field>
+        <field name="res_model">poultry.coop</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear un nuevo galpón
+            </p>
+            <p>
+                Los galpones son las estructuras físicas donde se alojan las aves.
+                Cada galpón tiene una capacidad máxima y puede tener asignados múltiples lotes de aves.
+            </p>
+        </field>
+    </record>
+</odoo>
+

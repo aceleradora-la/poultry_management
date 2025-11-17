@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="sequence_poultry_coop" model="ir.sequence">
+        <field name="name">Secuencia de Código de Galpón</field>
+        <field name="code">poultry.coop</field>
+        <field name="prefix">GAL</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+    </record>
+
+    <record id="sequence_poultry_batch" model="ir.sequence">
+        <field name="name">Secuencia de Código de Lote</field>
+        <field name="code">poultry.batch</field>
+        <field name="prefix">LOTE</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+    </record>
+
+    <record id="sequence_poultry_egg_collection" model="ir.sequence">
+        <field name="name">Secuencia de Recolección de Huevos</field>
+        <field name="code">poultry.egg.collection</field>
+        <field name="prefix">REC-</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+    </record>
+
+    <record id="sequence_poultry_mortality" model="ir.sequence">
+        <field name="name">Secuencia de Registro de Mortalidad</field>
+        <field name="code">poultry.mortality</field>
+        <field name="prefix">MORT-</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+    </record>
+</odoo>
+

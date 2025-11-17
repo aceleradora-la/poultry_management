@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_mortality_tree" model="ir.ui.view">
+        <field name="name">poultry.mortality.tree</field>
+        <field name="model">poultry.mortality</field>
+        <field name="arch" type="xml">
+            <list string="Registros de Mortalidad">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="coop_id"/>
+                <field name="genetics_id"/>
+                <field name="batch_id"/>
+                <field name="dead_count"/>
+                <field name="batch_age_weeks"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_mortality_form" model="ir.ui.view">
+        <field name="name">poultry.mortality.form</field>
+        <field name="model">poultry.mortality</field>
+        <field name="arch" type="xml">
+            <form string="Registro de Aves Muertas">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Activo" bg_color="text-success" 
+                            invisible="not active"/>
+                    <group>
+                        <group>
+                            <field name="name" placeholder="Ej: MORT-0001"/>
+                            <field name="date"/>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                        </group>
+                        <group>
+                            <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="dead_count"/>
+                            <field name="batch_age_weeks" readonly="1"/>
+                            <field name="notes" placeholder="Notas adicionales..."/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_mortality_search" model="ir.ui.view">
+        <field name="name">poultry.mortality.search</field>
+        <field name="model">poultry.mortality</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Registros de Mortalidad">
+                <field name="name"/>
+                <field name="coop_id"/>
+                <field name="genetics_id"/>
+                <field name="batch_id"/>
+                <field name="date"/>
+                <separator/>
+                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
+                <filter string="Por Fecha" name="by_date" context="{'group_by': 'date'}"/>
+                <filter string="Últimos 7 días" name="last_7_days" 
+                        domain="[('date', '>=', (datetime.datetime.now() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Últimos 30 días" name="last_30_days" 
+                        domain="[('date', '>=', (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_mortality" model="ir.actions.act_window">
+        <field name="name">Registro de Aves Muertas</field>
+        <field name="res_model">poultry.mortality</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear un nuevo registro de mortalidad
+            </p>
+            <p>
+                Registre diariamente la cantidad de aves muertas por galpón y genética.
+                Esta información se utilizará para comparar con los estándares de la genética.
+            </p>
+        </field>
+    </record>
+</odoo>
+

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="poultry_manager" model="res.groups">
+        <field name="name">Gestor Avícola</field>
+        <field name="category_id" ref="base.module_category_manufacturing"/>
+    </record>
+
+    <record id="poultry_user" model="res.groups">
+        <field name="name">Usuario Avícola</field>
+        <field name="category_id" ref="base.module_category_manufacturing"/>
+    </record>
+</odoo>
+

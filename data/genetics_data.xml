@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="genetics_lohmann_brown" model="poultry.genetics">
+        <field name="code">LB</field>
+        <field name="name">Lohmann Brown</field>
+        <field name="description">Genética de ponedoras conocida por su alta producción de huevos y buena conversión alimentaria.</field>
+    </record>
+
+    <record id="genetics_hy_line" model="poultry.genetics">
+        <field name="code">HL</field>
+        <field name="name">Hy-Line</field>
+        <field name="description">Genética de ponedoras con excelente persistencia en la puesta.</field>
+    </record>
+
+    <record id="genetics_isa_brown" model="poultry.genetics">
+        <field name="code">IB</field>
+        <field name="name">ISA Brown</field>
+        <field name="description">Genética de ponedoras con alta resistencia y buena adaptabilidad.</field>
+    </record>
+
+    <record id="genetics_cobb_500" model="poultry.genetics">
+        <field name="code">C500</field>
+        <field name="name">Cobb 500</field>
+        <field name="description">Genética de pollos de engorde con excelente crecimiento y conversión.</field>
+    </record>
+
+    <record id="genetics_ross_308" model="poultry.genetics">
+        <field name="code">R308</field>
+        <field name="name">Ross 308</field>
+        <field name="description">Genética de pollos de engorde con alta eficiencia alimentaria.</field>
+    </record>
+</odoo>
+

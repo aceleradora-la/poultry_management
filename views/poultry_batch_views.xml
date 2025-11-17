@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_batch_tree" model="ir.ui.view">
+        <field name="name">poultry.batch.tree</field>
+        <field name="model">poultry.batch</field>
+        <field name="arch" type="xml">
+            <list string="Lotes de Aves">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="genetics_id"/>
+                <field name="birth_date"/>
+                <field name="coop_id"/>
+                <field name="assignment_date"/>
+                <field name="bird_count"/>
+                <field name="age_days"/>
+                <field name="days_in_coop"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_form" model="ir.ui.view">
+        <field name="name">poultry.batch.form</field>
+        <field name="model">poultry.batch</field>
+        <field name="arch" type="xml">
+            <form string="Lote de Aves">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Activo" bg_color="text-success" 
+                            invisible="not active"/>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="Ej: LOTE-001"/>
+                            <field name="name" placeholder="Ej: Lote Principal"/>
+                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="birth_date"/>
+                        </group>
+                        <group>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="assignment_date"/>
+                            <field name="bird_count"/>
+                            <field name="supplier_id" domain="[('supplier_rank', '>', 0)]"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="age_days" readonly="1"/>
+                            <field name="days_in_coop" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="coop_id" invisible="1"/>
+                            <field name="genetics_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Información del Galpón" invisible="not coop_id">
+                        <group>
+                            <field name="coop_id" readonly="1" invisible="1"/>
+                            <field name="coop_id" readonly="1" widget="statinfo" 
+                                   string="Capacidad del Galpón" 
+                                   invisible="not coop_id">
+                                <list>
+                                    <field name="capacity"/>
+                                </list>
+                            </field>
+                        </group>
+                        <group>
+                            <field name="coop_id" readonly="1" invisible="1"/>
+                            <field name="coop_id" readonly="1" widget="statinfo" 
+                                   string="Ocupación Actual" 
+                                   invisible="not coop_id">
+                                <list>
+                                    <field name="occupancy_percentage" widget="percentage"/>
+                                </list>
+                            </field>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Notas" name="notes">
+                            <field name="notes" placeholder="Información adicional sobre el lote..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_search" model="ir.ui.view">
+        <field name="name">poultry.batch.search</field>
+        <field name="model">poultry.batch</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Lotes de Aves">
+                <field name="name" string="Nombre" filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
+                <field name="code"/>
+                <field name="genetics_id"/>
+                <field name="coop_id"/>
+                <separator/>
+                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Sin Asignar" name="no_coop" domain="[('coop_id', '=', False)]"/>
+                <separator/>
+                <filter string="Por Fecha de Nacimiento" name="by_birth_date" context="{'group_by': 'birth_date'}"/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_batch" model="ir.actions.act_window">
+        <field name="name">Lotes de Aves</field>
+        <field name="res_model">poultry.batch</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear un nuevo lote de aves
+            </p>
+            <p>
+                Los lotes de aves representan grupos de aves con características comunes
+                como fecha de nacimiento y genética. Cada lote puede ser asignado a un galpón.
+            </p>
+        </field>
+    </record>
+</odoo>
+

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_poultry_management_root" 
+              name="Gestión Avícola" 
+              sequence="100"
+              web_icon="poultry_management,static/description/icon.png"/>
+
+    <menuitem id="menu_poultry_coop" 
+              name="Galpones" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_coop" 
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_batch" 
+              name="Lotes de Aves" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_batch" 
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_coop_bom" 
+              name="Listas de Materiales por Galpón" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_coop_bom" 
+              sequence="30"/>
+
+    <menuitem id="menu_poultry_egg_collection" 
+              name="Recolección de Producción" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_egg_collection" 
+              sequence="50"/>
+
+    <menuitem id="menu_poultry_mortality" 
+              name="Registro de Aves Muertas" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_mortality" 
+              sequence="55"/>
+
+    <menuitem id="menu_poultry_genetics" 
+              name="Genéticas" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_genetics" 
+              sequence="40"/>
+
+    <menuitem id="menu_poultry_genetics_standards" 
+              name="Estándares de Genética" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_genetics_standard" 
+              sequence="45"/>
+
+    <menuitem id="menu_poultry_configuration" 
+              name="Configuración" 
+              parent="menu_poultry_management_root" 
+              sequence="90"/>
+</odoo>
+

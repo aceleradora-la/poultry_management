@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de formulario extendida - Agregamos campo galpón -->
+    <record id="view_mrp_production_form_poultry" model="ir.ui.view">
+        <field name="name">mrp.production.form.poultry</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <!-- Buscar el campo product_id dentro de un group dentro del sheet -->
+            <xpath expr="//sheet//group//field[@name='product_id']" position="after">
+                <field name="coop_id" 
+                       options="{'no_create': False, 'no_create_edit': False}" 
+                       readonly="state == 'done' or state == 'cancel'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_mrp_production_tree_poultry" model="ir.ui.view">
+        <field name="name">mrp.production.tree.poultry</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='product_id']" position="after">
+                <field name="coop_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+
