@@ -19,6 +19,7 @@
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/genetics_data.xml',
+        'views/product_template_views.xml',
         'views/poultry_genetics_views.xml',
         'views/poultry_coop_views.xml',
         'views/poultry_batch_views.xml',

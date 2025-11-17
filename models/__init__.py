@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from . import product_template
 from . import poultry_coop
 from . import poultry_batch
 from . import poultry_coop_bom

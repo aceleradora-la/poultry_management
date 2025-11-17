@@ -14,7 +14,7 @@ class PoultryEggCollection(models.Model):
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]", tracking=True)
     product_tmpl_id = fields.Many2one('product.template', string='Producto Base', required=True,
-                                      domain=[('type', '=', 'product'), ('active', '=', True)],
+                                      domain=[('type', '=', 'product'), ('active', '=', True), ('is_egg_production', '=', True)],
                                       help='Producto base para la recolección. Se mostrarán todas las variantes de este producto en las líneas.', tracking=True)
     
     product_id = fields.Many2one('product.product', string='Producto', 
@@ -59,17 +59,21 @@ class PoultryEggCollection(models.Model):
     def _compute_totals(self):
         """Calcula los totales de todas las líneas"""
         for collection in self:
+            # Calcular totales iniciales
             collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box'))
             collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map'))
             collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg'))
             
+            # Calcular totales finales
             collection.total_final_boxes = sum(collection.line_ids.mapped('final_box'))
             collection.total_final_maps = sum(collection.line_ids.mapped('final_map'))
             collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg'))
             
-            collection.total_produced_boxes = sum(collection.line_ids.mapped('produced_box'))
-            collection.total_produced_maps = sum(collection.line_ids.mapped('produced_map'))
-            collection.total_produced_eggs = sum(collection.line_ids.mapped('produced_egg'))
+            # Calcular totales producidos directamente desde final - inicial
+            # Esto asegura que siempre esté correcto, independientemente del estado de los campos computed
+            collection.total_produced_boxes = collection.total_final_boxes - collection.total_initial_boxes
+            collection.total_produced_maps = collection.total_final_maps - collection.total_initial_maps
+            collection.total_produced_eggs = collection.total_final_eggs - collection.total_initial_eggs
     
     @api.depends('production_ids')
     def _compute_production_count(self):
@@ -88,20 +92,14 @@ class PoultryEggCollection(models.Model):
     def _onchange_product_tmpl_id(self):
         """Al cambiar la plantilla del producto, actualiza las líneas con las variantes"""
         if self.product_tmpl_id:
-            # Buscar todas las variantes activas de la plantilla
-            variants = self.env['product.product'].search([
-                ('product_tmpl_id', '=', self.product_tmpl_id.id),
-                ('type', '=', 'product'),
-            ], order='id')
+            # Usar el método estándar de Odoo para obtener todas las variantes de la plantilla
+            # Esto incluye todas las variantes, activas e inactivas
+            variants = self.product_tmpl_id.product_variant_ids
             
-            # Si no encuentra variantes, crear una línea con el producto base
+            # Si no hay variantes, usar el producto base (product_variant_id) como recordset
             if not variants:
-                # Si la plantilla no tiene variantes, usar el producto base
-                base_product = self.env['product.product'].search([
-                    ('product_tmpl_id', '=', self.product_tmpl_id.id),
-                ], limit=1)
-                if base_product:
-                    variants = base_product
+                if self.product_tmpl_id.product_variant_id:
+                    variants = self.product_tmpl_id.product_variant_id
             
             # Limpiar líneas existentes y crear nuevas
             lines = []
@@ -131,16 +129,9 @@ class PoultryEggCollection(models.Model):
                 raise UserError('Debe registrar primero la cantidad inicial.')
             if not any(line.final_box or line.final_map or line.final_egg for line in record.line_ids):
                 raise UserError('Debe ingresar al menos una cantidad final.')
-            # Calcular producción
-            record._calculate_production()
+            # Los campos computed de las líneas se calcularán automáticamente
+            # Forzar recálculo de totales después de guardar
             record.state = 'completed'
-    
-    def _calculate_production(self):
-        """Calcula la producción real (final - inicial) para cada línea"""
-        for line in self.line_ids:
-            line.produced_box = line.final_box - line.initial_box
-            line.produced_map = line.final_map - line.initial_map
-            line.produced_egg = line.final_egg - line.initial_egg
     
     def action_generate_productions(self):
         """Genera automáticamente las Órdenes de Fabricación para los Cajones producidos"""
