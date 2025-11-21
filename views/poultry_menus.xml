@@ -5,51 +5,55 @@
               sequence="100"
               web_icon="poultry_management,static/description/icon.png"/>
 
+    <!-- Menú Principal: Producción -->
+    <menuitem id="menu_poultry_egg_collection" 
+              name="Producción" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_egg_collection" 
+              sequence="10"/>
+
+    <!-- Menú: Registro Aves Muertas -->
+    <menuitem id="menu_poultry_mortality" 
+              name="Registro Aves Muertas" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_mortality" 
+              sequence="20"/>
+
+    <!-- Menú: Reportes -->
+    <menuitem id="menu_poultry_reports" 
+              name="Reportes" 
+              parent="menu_poultry_management_root" 
+              sequence="30"/>
+
+    <!-- Menú: Configuración -->
+    <menuitem id="menu_poultry_configuration" 
+              name="Configuración" 
+              parent="menu_poultry_management_root" 
+              sequence="40"/>
+
+    <!-- Submenús de Configuración -->
     <menuitem id="menu_poultry_coop" 
               name="Galpones" 
-              parent="menu_poultry_management_root" 
+              parent="menu_poultry_configuration" 
               action="action_poultry_coop" 
               sequence="10"/>
 
     <menuitem id="menu_poultry_batch" 
               name="Lotes de Aves" 
-              parent="menu_poultry_management_root" 
+              parent="menu_poultry_configuration" 
               action="action_poultry_batch" 
               sequence="20"/>
 
-    <menuitem id="menu_poultry_coop_bom" 
-              name="Listas de Materiales por Galpón" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_coop_bom" 
-              sequence="30"/>
-
-    <menuitem id="menu_poultry_egg_collection" 
-              name="Recolección de Producción" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_egg_collection" 
-              sequence="50"/>
-
-    <menuitem id="menu_poultry_mortality" 
-              name="Registro de Aves Muertas" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_mortality" 
-              sequence="55"/>
-
     <menuitem id="menu_poultry_genetics" 
               name="Genéticas" 
-              parent="menu_poultry_management_root" 
+              parent="menu_poultry_configuration" 
               action="action_poultry_genetics" 
-              sequence="40"/>
+              sequence="30"/>
 
     <menuitem id="menu_poultry_genetics_standards" 
               name="Estándares de Genética" 
-              parent="menu_poultry_management_root" 
+              parent="menu_poultry_configuration" 
               action="action_poultry_genetics_standard" 
-              sequence="45"/>
-
-    <menuitem id="menu_poultry_configuration" 
-              name="Configuración" 
-              parent="menu_poultry_management_root" 
-              sequence="90"/>
+              sequence="40"/>
 </odoo>
 

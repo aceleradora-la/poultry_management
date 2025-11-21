@@ -48,9 +48,12 @@ class PoultryProductionReportWizard(models.TransientModel):
             'name': 'Reporte de Producción de Huevos',
             'type': 'ir.actions.act_window',
             'res_model': 'poultry.egg.collection',
-            'view_mode': 'list',
+            'view_mode': 'list,pivot,form',
             'domain': domain,
-            'context': {'search_default_group_by_date': self.group_by_date} if self.group_by_date else {},
+            'context': {
+                'search_default_group_by_date': self.group_by_date if self.group_by_date else False,
+                'pivot_measures': ['total_produced_boxes', 'total_produced_maps', 'total_produced_eggs'],
+            },
         }
 
 

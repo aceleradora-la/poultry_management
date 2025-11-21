@@ -155,10 +155,25 @@
         </field>
     </record>
 
+    <record id="view_poultry_egg_collection_pivot" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.pivot</field>
+        <field name="model">poultry.egg.collection</field>
+        <field name="arch" type="xml">
+            <pivot string="Reporte de Producción">
+                <field name="date" type="row" interval="day"/>
+                <field name="coop_id" type="col"/>
+                <field name="product_tmpl_id" type="col"/>
+                <field name="total_produced_boxes" type="measure"/>
+                <field name="total_produced_maps" type="measure"/>
+                <field name="total_produced_eggs" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
     <record id="action_poultry_egg_collection" model="ir.actions.act_window">
-        <field name="name">Recolección de Producción de Huevos</field>
+        <field name="name">Producción</field>
         <field name="res_model">poultry.egg.collection</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,pivot,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Crear una nueva recolección de producción
