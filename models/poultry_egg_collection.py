@@ -9,6 +9,15 @@ class PoultryEggCollection(models.Model):
     _description = 'Recolección de Producción de Huevos'
     _order = 'date desc, coop_id'
     _inherit = ['mail.thread', 'mail.activity.mixin']
+    
+    @api.model
+    def _read_group_groupby(self, groupby_spec, query):
+        """Override para evitar errores cuando se usa product_tmpl_id o product_id en pivot"""
+        # Si el groupby es product_tmpl_id o product_id, redirigir a product_variant_id
+        if groupby_spec == 'product_tmpl_id' or groupby_spec == 'product_id':
+            # Cambiar el groupby a product_variant_id que es almacenado
+            groupby_spec = 'product_variant_id'
+        return super()._read_group_groupby(groupby_spec, query)
 
     name = fields.Char(string='Referencia', required=True, default='Nueva Recolección', copy=False, index=True)
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
