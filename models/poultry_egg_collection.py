@@ -17,6 +17,10 @@ class PoultryEggCollection(models.Model):
                                       domain=[('type', '=', 'product'), ('active', '=', True), ('is_egg_production', '=', True)],
                                       help='Producto base para la recolección. Se mostrarán todas las variantes de este producto en las líneas.', tracking=True)
     
+    product_tmpl_name = fields.Char(string='Nombre Producto', related='product_tmpl_id.name', 
+                                    store=True, readonly=True, index=True,
+                                    help='Nombre del producto base (almacenado para uso en reportes)')
+    
     product_id = fields.Many2one('product.product', string='Producto', 
                                  related='product_tmpl_id.product_variant_id',
                                  readonly=True, store=False,
