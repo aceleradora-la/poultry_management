@@ -54,22 +54,25 @@ class PoultryEggCollection(models.Model):
     notes = fields.Text(string='Notas')
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
-                 'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
-                 'line_ids.produced_box', 'line_ids.produced_map', 'line_ids.produced_egg')
+                 'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg')
     def _compute_totals(self):
         """Calcula los totales de todas las líneas"""
         for collection in self:
+            # Totales iniciales
             collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box'))
             collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map'))
             collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg'))
             
+            # Totales finales
             collection.total_final_boxes = sum(collection.line_ids.mapped('final_box'))
             collection.total_final_maps = sum(collection.line_ids.mapped('final_map'))
             collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg'))
             
-            collection.total_produced_boxes = sum(collection.line_ids.mapped('produced_box'))
-            collection.total_produced_maps = sum(collection.line_ids.mapped('produced_map'))
-            collection.total_produced_eggs = sum(collection.line_ids.mapped('produced_egg'))
+            # Totales producidos: calcular directamente desde final - inicial
+            # Esto es más confiable que depender de campos computed que pueden no estar recalculados
+            collection.total_produced_boxes = collection.total_final_boxes - collection.total_initial_boxes
+            collection.total_produced_maps = collection.total_final_maps - collection.total_initial_maps
+            collection.total_produced_eggs = collection.total_final_eggs - collection.total_initial_eggs
     
     @api.depends('production_ids')
     def _compute_production_count(self):
@@ -131,16 +134,12 @@ class PoultryEggCollection(models.Model):
                 raise UserError('Debe registrar primero la cantidad inicial.')
             if not any(line.final_box or line.final_map or line.final_egg for line in record.line_ids):
                 raise UserError('Debe ingresar al menos una cantidad final.')
-            # Calcular producción
-            record._calculate_production()
+            # Los campos computed se recalcularán automáticamente al cambiar el estado
+            # Forzar recálculo explícito para asegurar que se actualicen
+            record.line_ids._compute_production()
+            # Forzar recálculo de los totales después de calcular producción
+            record._compute_totals()
             record.state = 'completed'
-    
-    def _calculate_production(self):
-        """Calcula la producción real (final - inicial) para cada línea"""
-        for line in self.line_ids:
-            line.produced_box = line.final_box - line.initial_box
-            line.produced_map = line.final_map - line.initial_map
-            line.produced_egg = line.final_egg - line.initial_egg
     
     def action_generate_productions(self):
         """Genera automáticamente las Órdenes de Fabricación para los Cajones producidos"""
