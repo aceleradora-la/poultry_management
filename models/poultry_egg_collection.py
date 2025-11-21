@@ -66,12 +66,21 @@ class PoultryEggCollection(models.Model):
         """Calcula el nombre del producto template para uso en reportes (valor traducido)"""
         for collection in self:
             if collection.product_tmpl_id:
-                # Obtener el nombre traducido usando with_context para el idioma del usuario
-                # Esto asegura que obtenemos el valor traducido, no el JSON
+                # Obtener el nombre traducido del producto
+                # Usar read con el contexto de idioma para obtener la traducción correcta
                 lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
                 product = collection.product_tmpl_id.with_context(lang=lang)
-                # Acceder al campo name que ya está traducido por el contexto
-                collection.product_tmpl_name = product.name or ''
+                # Leer el campo name que debería estar traducido por el contexto
+                name_value = product.name
+                # Si el valor es un dict (JSON de traducción), extraer el valor del idioma
+                if isinstance(name_value, dict):
+                    name_value = name_value.get(lang) or name_value.get('en_US') or ''
+                # Si es None o vacío, intentar obtener el valor base
+                if not name_value:
+                    name_value = collection.product_tmpl_id.name
+                    if isinstance(name_value, dict):
+                        name_value = name_value.get('en_US') or ''
+                collection.product_tmpl_name = name_value or ''
             else:
                 collection.product_tmpl_name = False
     
