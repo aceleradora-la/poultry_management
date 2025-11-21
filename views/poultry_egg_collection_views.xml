@@ -59,8 +59,8 @@
                                    readonly="state != 'draft'"/>
                             <field name="product_tmpl_id" 
                                    options="{'no_create': False, 'no_create_edit': False, 'no_open': True}" 
-                                   domain="[('type', '=', 'product'), ('active', '=', True)]"
-                                   context="{'default_type': 'product', 'search_default_active': 1}"
+                                   domain="[('type', '=', 'product'), ('active', '=', True), ('is_egg_production', '=', True)]"
+                                   context="{'default_type': 'product', 'default_is_egg_production': True, 'search_default_active': 1}"
                                    readonly="state != 'draft'"
                                    placeholder="Seleccione un producto base. Se cargarán todas sus variantes en las líneas"/>
                             <field name="date" readonly="state != 'draft'"/>

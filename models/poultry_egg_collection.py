@@ -14,7 +14,7 @@ class PoultryEggCollection(models.Model):
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]", tracking=True)
     product_tmpl_id = fields.Many2one('product.template', string='Producto Base', required=True,
-                                      domain=[('type', '=', 'product'), ('active', '=', True)],
+                                      domain=[('type', '=', 'product'), ('active', '=', True), ('is_egg_production', '=', True)],
                                       help='Producto base para la recolección. Se mostrarán todas las variantes de este producto en las líneas.', tracking=True)
     
     product_id = fields.Many2one('product.product', string='Producto', 
@@ -67,6 +67,7 @@ class PoultryEggCollection(models.Model):
                 collection.line_ids._compute_production()
             
             # Totales iniciales
+<<<<<<< HEAD
             collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box') or [0.0])
             collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map') or [0.0])
             collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg') or [0.0])
@@ -85,6 +86,26 @@ class PoultryEggCollection(models.Model):
             collection.total_produced_boxes = sum(produced_boxes)
             collection.total_produced_maps = sum(produced_maps)
             collection.total_produced_eggs = sum(produced_eggs)
+=======
+            # Calcular totales iniciales
+            collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box'))
+            collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map'))
+            collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg'))
+            
+            # Totales finales
+            # Calcular totales finales
+            collection.total_final_boxes = sum(collection.line_ids.mapped('final_box'))
+            collection.total_final_maps = sum(collection.line_ids.mapped('final_map'))
+            collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg'))
+            
+            # Totales producidos: calcular directamente desde final - inicial
+            # Esto es más confiable que depender de campos computed que pueden no estar recalculados
+            # Calcular totales producidos directamente desde final - inicial
+            # Esto asegura que siempre esté correcto, independientemente del estado de los campos computed
+            collection.total_produced_boxes = collection.total_final_boxes - collection.total_initial_boxes
+            collection.total_produced_maps = collection.total_final_maps - collection.total_initial_maps
+            collection.total_produced_eggs = collection.total_final_eggs - collection.total_initial_eggs
+>>>>>>> 8c803b4c81aa104761a13cfb03fabe96a5bf52c1
     
     @api.depends('production_ids')
     def _compute_production_count(self):
@@ -103,20 +124,14 @@ class PoultryEggCollection(models.Model):
     def _onchange_product_tmpl_id(self):
         """Al cambiar la plantilla del producto, actualiza las líneas con las variantes"""
         if self.product_tmpl_id:
-            # Buscar todas las variantes activas de la plantilla
-            variants = self.env['product.product'].search([
-                ('product_tmpl_id', '=', self.product_tmpl_id.id),
-                ('type', '=', 'product'),
-            ], order='id')
+            # Usar el método estándar de Odoo para obtener todas las variantes de la plantilla
+            # Esto incluye todas las variantes, activas e inactivas
+            variants = self.product_tmpl_id.product_variant_ids
             
-            # Si no encuentra variantes, crear una línea con el producto base
+            # Si no hay variantes, usar el producto base (product_variant_id) como recordset
             if not variants:
-                # Si la plantilla no tiene variantes, usar el producto base
-                base_product = self.env['product.product'].search([
-                    ('product_tmpl_id', '=', self.product_tmpl_id.id),
-                ], limit=1)
-                if base_product:
-                    variants = base_product
+                if self.product_tmpl_id.product_variant_id:
+                    variants = self.product_tmpl_id.product_variant_id
             
             # Limpiar líneas existentes y crear nuevas
             lines = []
@@ -151,6 +166,8 @@ class PoultryEggCollection(models.Model):
             record.line_ids._compute_production()
             # Forzar recálculo de los totales después de calcular producción
             record._compute_totals()
+            # Los campos computed de las líneas se calcularán automáticamente
+            # Forzar recálculo de totales después de guardar
             record.state = 'completed'
     
     def action_set_to_draft(self):
