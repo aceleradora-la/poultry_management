@@ -17,7 +17,7 @@ class PoultryEggCollection(models.Model):
                                       domain=[('type', '=', 'product'), ('active', '=', True), ('is_egg_production', '=', True)],
                                       help='Producto base para la recolección. Se mostrarán todas las variantes de este producto en las líneas.', tracking=True)
     
-    product_tmpl_name = fields.Char(string='Nombre Producto', 
+    product_tmpl_name = fields.Char(string='Nombre Producto Template', 
                                     compute='_compute_product_tmpl_name', 
                                     store=True, readonly=True, index=True,
                                     help='Nombre del producto base (almacenado para uso en reportes)')
@@ -26,6 +26,11 @@ class PoultryEggCollection(models.Model):
                                  related='product_tmpl_id.product_variant_id',
                                  readonly=True, store=False,
                                  help='Primera variante del producto base (solo lectura)')
+    
+    product_variant_name = fields.Char(string='Nombre Variante Producto', 
+                                      compute='_compute_product_variant_name', 
+                                      store=True, readonly=True, index=True,
+                                      help='Nombre de la variante del producto (almacenado para uso en reportes)')
     date = fields.Date(string='Fecha de Recolección', required=True, default=fields.Date.today, tracking=True)
     operator_id = fields.Many2one('hr.employee', string='Operador', 
                                   domain="[('active', '=', True)]",
@@ -66,23 +71,31 @@ class PoultryEggCollection(models.Model):
         """Calcula el nombre del producto template para uso en reportes (valor traducido)"""
         for collection in self:
             if collection.product_tmpl_id:
-                # Obtener el nombre traducido del producto
-                # Usar read con el contexto de idioma para obtener la traducción correcta
+                # Obtener el nombre traducido usando with_context para el idioma del usuario
+                # Esto asegura que obtenemos el valor traducido, no el JSON
                 lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
                 product = collection.product_tmpl_id.with_context(lang=lang)
-                # Leer el campo name que debería estar traducido por el contexto
-                name_value = product.name
-                # Si el valor es un dict (JSON de traducción), extraer el valor del idioma
-                if isinstance(name_value, dict):
-                    name_value = name_value.get(lang) or name_value.get('en_US') or ''
-                # Si es None o vacío, intentar obtener el valor base
-                if not name_value:
-                    name_value = collection.product_tmpl_id.name
-                    if isinstance(name_value, dict):
-                        name_value = name_value.get('en_US') or ''
-                collection.product_tmpl_name = name_value or ''
+                # Acceder al campo name que ya está traducido por el contexto
+                collection.product_tmpl_name = product.name or ''
             else:
                 collection.product_tmpl_name = False
+    
+    @api.depends('product_id', 'product_tmpl_id')
+    def _compute_product_variant_name(self):
+        """Calcula el nombre de la variante del producto para uso en reportes (valor traducido)"""
+        for collection in self:
+            if collection.product_id:
+                # Obtener el nombre traducido de la variante usando with_context
+                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
+                product = collection.product_id.with_context(lang=lang)
+                collection.product_variant_name = product.name or ''
+            elif collection.product_tmpl_id and collection.product_tmpl_id.product_variant_id:
+                # Si no hay product_id pero hay product_tmpl_id, usar la primera variante
+                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
+                variant = collection.product_tmpl_id.product_variant_id.with_context(lang=lang)
+                collection.product_variant_name = variant.name or ''
+            else:
+                collection.product_variant_name = False
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
                  'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
@@ -118,43 +131,10 @@ class PoultryEggCollection(models.Model):
     
     @api.model
     def create(self, vals):
-        """Genera referencia automática si no se proporciona y actualiza product_tmpl_name"""
+        """Genera referencia automática si no se proporciona"""
         if not vals.get('name') or vals.get('name') == 'Nueva Recolección':
             vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
-        record = super().create(vals)
-        # Actualizar product_tmpl_name después de crear
-        if 'product_tmpl_id' in vals:
-            record._update_product_tmpl_name()
-        return record
-    
-    def write(self, vals):
-        """Actualiza product_tmpl_name cuando cambia product_tmpl_id"""
-        result = super().write(vals)
-        if 'product_tmpl_id' in vals:
-            self._update_product_tmpl_name()
-        return result
-    
-    def _update_product_tmpl_name(self):
-        """Actualiza el nombre del producto template con el valor traducido"""
-        for collection in self:
-            if collection.product_tmpl_id:
-                # Obtener el nombre traducido usando el contexto del usuario
-                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
-                product = collection.product_tmpl_id.with_context(lang=lang)
-                # Leer el campo name que debería estar traducido
-                name_value = product.name
-                # Si es un dict (JSON), extraer el valor del idioma
-                if isinstance(name_value, dict):
-                    name_value = name_value.get(lang) or name_value.get('en_US') or ''
-                # Si sigue siendo None o vacío, usar el valor base sin traducción
-                if not name_value:
-                    # Leer directamente desde la base de datos sin contexto
-                    product_base = collection.product_tmpl_id
-                    name_value = product_base.name
-                    if isinstance(name_value, dict):
-                        name_value = name_value.get('en_US') or (list(name_value.values())[0] if name_value else '')
-                # Actualizar el campo usando write para mantener la consistencia
-                collection.with_context(no_recompute=True).write({'product_tmpl_name': name_value or ''})
+        return super().create(vals)
     
     @api.onchange('product_tmpl_id')
     def _onchange_product_tmpl_id(self):

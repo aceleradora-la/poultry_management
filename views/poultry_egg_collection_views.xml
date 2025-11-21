@@ -161,13 +161,11 @@
         <field name="arch" type="xml">
             <pivot string="Reporte de Producción">
                 <field name="date" type="row" interval="day"/>
+                <field name="product_variant_name" type="row"/>
                 <field name="coop_id" type="col"/>
-                <field name="product_tmpl_name" type="col"/>
                 <field name="total_produced_boxes" type="measure"/>
                 <field name="total_produced_maps" type="measure"/>
                 <field name="total_produced_eggs" type="measure"/>
-                <!-- Ocultar product_tmpl_id para evitar errores con campos related no almacenados -->
-                <field name="product_tmpl_id" invisible="1"/>
             </pivot>
         </field>
     </record>
