@@ -76,14 +76,11 @@ class PoultryEggCollection(models.Model):
             collection.total_final_maps = sum(collection.line_ids.mapped('final_map') or [0.0])
             collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg') or [0.0])
             
-            # Totales producidos: usar los valores computed de las líneas (más preciso)
-            produced_boxes = collection.line_ids.mapped('produced_box') or [0.0]
-            produced_maps = collection.line_ids.mapped('produced_map') or [0.0]
-            produced_eggs = collection.line_ids.mapped('produced_egg') or [0.0]
-            
-            collection.total_produced_boxes = sum(produced_boxes)
-            collection.total_produced_maps = sum(produced_maps)
-            collection.total_produced_eggs = sum(produced_eggs)
+            # Totales producidos: calcular directamente desde totales finales - iniciales
+            # Esto es más confiable porque no depende del estado de los campos computed de las líneas
+            collection.total_produced_boxes = collection.total_final_boxes - collection.total_initial_boxes
+            collection.total_produced_maps = collection.total_final_maps - collection.total_initial_maps
+            collection.total_produced_eggs = collection.total_final_eggs - collection.total_initial_eggs
     
     @api.depends('production_ids')
     def _compute_production_count(self):
