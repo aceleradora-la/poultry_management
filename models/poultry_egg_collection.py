@@ -118,10 +118,43 @@ class PoultryEggCollection(models.Model):
     
     @api.model
     def create(self, vals):
-        """Genera referencia automática si no se proporciona"""
+        """Genera referencia automática si no se proporciona y actualiza product_tmpl_name"""
         if not vals.get('name') or vals.get('name') == 'Nueva Recolección':
             vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
-        return super().create(vals)
+        record = super().create(vals)
+        # Actualizar product_tmpl_name después de crear
+        if 'product_tmpl_id' in vals:
+            record._update_product_tmpl_name()
+        return record
+    
+    def write(self, vals):
+        """Actualiza product_tmpl_name cuando cambia product_tmpl_id"""
+        result = super().write(vals)
+        if 'product_tmpl_id' in vals:
+            self._update_product_tmpl_name()
+        return result
+    
+    def _update_product_tmpl_name(self):
+        """Actualiza el nombre del producto template con el valor traducido"""
+        for collection in self:
+            if collection.product_tmpl_id:
+                # Obtener el nombre traducido usando el contexto del usuario
+                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
+                product = collection.product_tmpl_id.with_context(lang=lang)
+                # Leer el campo name que debería estar traducido
+                name_value = product.name
+                # Si es un dict (JSON), extraer el valor del idioma
+                if isinstance(name_value, dict):
+                    name_value = name_value.get(lang) or name_value.get('en_US') or ''
+                # Si sigue siendo None o vacío, usar el valor base sin traducción
+                if not name_value:
+                    # Leer directamente desde la base de datos sin contexto
+                    product_base = collection.product_tmpl_id
+                    name_value = product_base.name
+                    if isinstance(name_value, dict):
+                        name_value = name_value.get('en_US') or (list(name_value.values())[0] if name_value else '')
+                # Actualizar el campo usando write para mantener la consistencia
+                collection.with_context(no_recompute=True).write({'product_tmpl_name': name_value or ''})
     
     @api.onchange('product_tmpl_id')
     def _onchange_product_tmpl_id(self):
