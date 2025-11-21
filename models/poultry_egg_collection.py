@@ -14,9 +14,15 @@ class PoultryEggCollection(models.Model):
     def _read_group_groupby(self, groupby_spec, query):
         """Override para evitar errores cuando se usa product_tmpl_id o product_id en pivot"""
         # Si el groupby es product_tmpl_id o product_id, redirigir a product_variant_id
-        if groupby_spec == 'product_tmpl_id' or groupby_spec == 'product_id':
-            # Cambiar el groupby a product_variant_id que es almacenado
-            groupby_spec = 'product_variant_id'
+        # Manejar tanto string simple como formato con intervalo (ej: 'product_tmpl_id:day')
+        if isinstance(groupby_spec, str):
+            if groupby_spec.startswith('product_tmpl_id') or groupby_spec.startswith('product_id'):
+                # Si tiene formato con intervalo, mantenerlo pero cambiar el campo
+                if ':' in groupby_spec:
+                    interval = groupby_spec.split(':', 1)[1]
+                    groupby_spec = f'product_variant_id:{interval}'
+                else:
+                    groupby_spec = 'product_variant_id'
         return super()._read_group_groupby(groupby_spec, query)
 
     name = fields.Char(string='Referencia', required=True, default='Nueva Recolección', copy=False, index=True)
