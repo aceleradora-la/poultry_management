@@ -80,20 +80,25 @@ class PoultryEggCollection(models.Model):
             else:
                 collection.product_tmpl_name = False
     
-    @api.depends('product_id', 'product_tmpl_id')
+    @api.depends('product_tmpl_id')
     def _compute_product_variant_name(self):
         """Calcula el nombre de la variante del producto para uso en reportes (valor traducido)"""
         for collection in self:
-            if collection.product_id:
-                # Obtener el nombre traducido de la variante usando with_context
+            if collection.product_tmpl_id:
+                # Obtener la primera variante del template
+                # Usar product_variant_ids[0] si existe, o product_variant_id si es un solo producto
                 lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
-                product = collection.product_id.with_context(lang=lang)
-                collection.product_variant_name = product.name or ''
-            elif collection.product_tmpl_id and collection.product_tmpl_id.product_variant_id:
-                # Si no hay product_id pero hay product_tmpl_id, usar la primera variante
-                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
-                variant = collection.product_tmpl_id.product_variant_id.with_context(lang=lang)
-                collection.product_variant_name = variant.name or ''
+                variant = False
+                if collection.product_tmpl_id.product_variant_ids:
+                    variant = collection.product_tmpl_id.product_variant_ids[0]
+                elif collection.product_tmpl_id.product_variant_id:
+                    variant = collection.product_tmpl_id.product_variant_id
+                
+                if variant:
+                    variant_with_lang = variant.with_context(lang=lang)
+                    collection.product_variant_name = variant_with_lang.name or ''
+                else:
+                    collection.product_variant_name = False
             else:
                 collection.product_variant_name = False
     
@@ -134,7 +139,18 @@ class PoultryEggCollection(models.Model):
         """Genera referencia automática si no se proporciona"""
         if not vals.get('name') or vals.get('name') == 'Nueva Recolección':
             vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
-        return super().create(vals)
+        record = super().create(vals)
+        # Forzar recálculo de product_variant_name después de crear
+        if 'product_tmpl_id' in vals:
+            record._compute_product_variant_name()
+        return record
+    
+    def write(self, vals):
+        """Actualiza product_variant_name cuando cambia product_tmpl_id"""
+        result = super().write(vals)
+        if 'product_tmpl_id' in vals:
+            self._compute_product_variant_name()
+        return result
     
     @api.onchange('product_tmpl_id')
     def _onchange_product_tmpl_id(self):
