@@ -35,3 +35,13 @@ Thumbs.db
 *.bak
 *.orig
 
+# Archivos de generación y documentación de ícono
+create_icon.py
+*ICONO*.md
+*ICONO*.txt
+GUIA_ICONO*.md
+DESCARGAR_ICONO.md
+CONVERTIR_ICONO.md
+SOLUCION_ICONO*.md
+INSTRUCCIONES_ICONO*.md
+

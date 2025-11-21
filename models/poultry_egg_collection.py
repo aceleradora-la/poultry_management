@@ -22,6 +22,9 @@ class PoultryEggCollection(models.Model):
                                  readonly=True, store=False,
                                  help='Primera variante del producto base (solo lectura)')
     date = fields.Date(string='Fecha de Recolección', required=True, default=fields.Date.today, tracking=True)
+    operator_id = fields.Many2one('hr.employee', string='Operador', 
+                                  domain="[('active', '=', True)]",
+                                  help='Empleado responsable de la recolección', tracking=True)
     state = fields.Selection([
         ('draft', 'Borrador'),
         ('counted', 'Cantidad Inicial Registrada'),
@@ -54,25 +57,34 @@ class PoultryEggCollection(models.Model):
     notes = fields.Text(string='Notas')
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
-                 'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg')
+                 'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
+                 'line_ids.produced_box', 'line_ids.produced_map', 'line_ids.produced_egg')
     def _compute_totals(self):
         """Calcula los totales de todas las líneas"""
         for collection in self:
+            # Asegurar que los campos computed de las líneas estén calculados
+            if collection.line_ids:
+                collection.line_ids._compute_production()
+            
             # Totales iniciales
-            collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box'))
-            collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map'))
-            collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg'))
+            collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box') or [0.0])
+            collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map') or [0.0])
+            collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg') or [0.0])
             
             # Totales finales
-            collection.total_final_boxes = sum(collection.line_ids.mapped('final_box'))
-            collection.total_final_maps = sum(collection.line_ids.mapped('final_map'))
-            collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg'))
+            collection.total_final_boxes = sum(collection.line_ids.mapped('final_box') or [0.0])
+            collection.total_final_maps = sum(collection.line_ids.mapped('final_map') or [0.0])
+            collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg') or [0.0])
             
-            # Totales producidos: calcular directamente desde final - inicial
-            # Esto es más confiable que depender de campos computed que pueden no estar recalculados
-            collection.total_produced_boxes = collection.total_final_boxes - collection.total_initial_boxes
-            collection.total_produced_maps = collection.total_final_maps - collection.total_initial_maps
-            collection.total_produced_eggs = collection.total_final_eggs - collection.total_initial_eggs
+            # Totales producidos: usar los valores computed de las líneas (más preciso)
+            # Si no están disponibles, calcular desde final - inicial
+            produced_boxes = collection.line_ids.mapped('produced_box') or [0.0]
+            produced_maps = collection.line_ids.mapped('produced_map') or [0.0]
+            produced_eggs = collection.line_ids.mapped('produced_egg') or [0.0]
+            
+            collection.total_produced_boxes = sum(produced_boxes)
+            collection.total_produced_maps = sum(produced_maps)
+            collection.total_produced_eggs = sum(produced_eggs)
     
     @api.depends('production_ids')
     def _compute_production_count(self):
@@ -140,6 +152,15 @@ class PoultryEggCollection(models.Model):
             # Forzar recálculo de los totales después de calcular producción
             record._compute_totals()
             record.state = 'completed'
+    
+    def action_set_to_draft(self):
+        """Permite volver a borrador si aún no se han generado las órdenes de fabricación"""
+        for record in self:
+            if record.state == 'done':
+                raise UserError('No se puede volver a borrador una recolección que ya ha sido procesada (tiene órdenes de fabricación generadas).')
+            if record.production_ids:
+                raise UserError('No se puede volver a borrador porque ya se han generado órdenes de fabricación.')
+            record.state = 'draft'
     
     def action_generate_productions(self):
         """Genera automáticamente las Órdenes de Fabricación para los Cajones producidos"""

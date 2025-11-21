@@ -13,7 +13,7 @@
     """,
     'author': 'Tu Empresa',
     'website': 'https://www.tuempresa.com',
-    'depends': ['base', 'mrp', 'product', 'mail'],
+    'depends': ['base', 'mrp', 'product', 'mail', 'hr'],
     'data': [
         'security/poultry_security.xml',
         'security/ir.model.access.csv',
@@ -34,5 +34,6 @@
     'application': True,
     'auto_install': False,
     'license': 'LGPL-3',
+    'images': ['static/description/icon.png', 'static/description/icon.svg'],
 }
 

@@ -32,6 +32,8 @@
                     <button name="action_complete" type="object" string="Completar Recolección" 
                             class="oe_highlight" 
                             invisible="state != 'counted'"/>
+                    <button name="action_set_to_draft" type="object" string="Pasar a Borrador" 
+                            invisible="state == 'draft' or state == 'done'"/>
                     <button name="action_generate_productions" type="object" 
                             string="Generar Órdenes de Fabricación" 
                             class="oe_highlight" 
@@ -62,6 +64,8 @@
                                    readonly="state != 'draft'"
                                    placeholder="Seleccione un producto base. Se cargarán todas sus variantes en las líneas"/>
                             <field name="date" readonly="state != 'draft'"/>
+                            <field name="operator_id" options="{'no_create': True}" 
+                                   readonly="state == 'done'"/>
                         </group>
                         <group>
                             <group string="Totales Iniciales" invisible="state == 'draft'">
