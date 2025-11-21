@@ -79,7 +79,7 @@
                                 <field name="total_final_eggs" readonly="1"/>
                             </group>
                             <group string="Totales Producidos" invisible="state == 'draft' or state == 'counted'">
-                                <field name="total_produced_boxes" readonly="1" class="oe_read_only"/>
+                                <field name="total_produced_boxes" readonly="1"/>
                                 <field name="total_produced_maps" readonly="1"/>
                                 <field name="total_produced_eggs" readonly="1"/>
                             </group>
