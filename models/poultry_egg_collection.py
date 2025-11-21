@@ -27,6 +27,12 @@ class PoultryEggCollection(models.Model):
                                  readonly=True, store=False,
                                  help='Primera variante del producto base (solo lectura)')
     
+    # Campo Many2one almacenado para uso en pivot (similar a mrp.production)
+    product_variant_id = fields.Many2one('product.product', string='Variante Producto',
+                                        compute='_compute_product_variant_id',
+                                        store=True, readonly=True, index=True,
+                                        help='Primera variante del producto (almacenado para uso en pivot)')
+    
     product_variant_name = fields.Char(string='Nombre Variante Producto', 
                                       compute='_compute_product_variant_name', 
                                       store=True, readonly=True, index=True,
@@ -81,12 +87,10 @@ class PoultryEggCollection(models.Model):
                 collection.product_tmpl_name = False
     
     @api.depends('product_tmpl_id', 'line_ids', 'line_ids.product_variant_id')
-    def _compute_product_variant_name(self):
-        """Calcula el nombre de la variante del producto para uso en reportes (valor traducido)"""
+    def _compute_product_variant_id(self):
+        """Calcula y almacena la primera variante del producto para uso en pivot"""
         for collection in self:
-            lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
             variant = False
-            
             # Prioridad 1: Usar la primera línea si existe (tiene la variante real)
             if collection.line_ids and collection.line_ids[0].product_variant_id:
                 variant = collection.line_ids[0].product_variant_id
@@ -98,11 +102,15 @@ class PoultryEggCollection(models.Model):
                 ], limit=1, order='id')
                 if variants:
                     variant = variants[0]
-            
-            if variant:
-                # Obtener el nombre completo de la variante usando name_get()
-                # Esto asegura que obtenemos el nombre de la variante, no del template
-                variant_with_lang = variant.with_context(lang=lang)
+            collection.product_variant_id = variant.id if variant else False
+    
+    @api.depends('product_variant_id')
+    def _compute_product_variant_name(self):
+        """Calcula el nombre de la variante del producto para uso en reportes (valor traducido)"""
+        for collection in self:
+            if collection.product_variant_id:
+                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
+                variant_with_lang = collection.product_variant_id.with_context(lang=lang)
                 # Usar name_get() que devuelve el nombre completo de la variante con atributos
                 name_get_result = variant_with_lang.name_get()
                 if name_get_result:
