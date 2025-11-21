@@ -100,13 +100,21 @@ class PoultryEggCollection(models.Model):
                     variant = variants[0]
             
             if variant:
-                # Obtener el nombre traducido de la variante
+                # Obtener el nombre completo de la variante usando name_get()
+                # Esto asegura que obtenemos el nombre de la variante, no del template
                 variant_with_lang = variant.with_context(lang=lang)
-                # Leer el campo name que debería estar traducido
-                variant_name = variant_with_lang.name
+                # Usar name_get() que devuelve el nombre completo de la variante con atributos
+                name_get_result = variant_with_lang.name_get()
+                if name_get_result:
+                    variant_name = name_get_result[0][1]  # name_get devuelve [(id, name), ...]
+                else:
+                    # Fallback: usar display_name o name
+                    variant_name = getattr(variant_with_lang, 'display_name', None) or variant_with_lang.name
+                
                 # Si es un dict (JSON de traducción), extraer el valor del idioma
                 if isinstance(variant_name, dict):
                     variant_name = variant_name.get(lang) or variant_name.get('en_US') or ''
+                
                 collection.product_variant_name = variant_name or ''
             else:
                 collection.product_variant_name = False
