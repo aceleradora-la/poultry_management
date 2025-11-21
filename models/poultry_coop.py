@@ -19,6 +19,14 @@ class PoultryCoop(models.Model):
     batch_ids = fields.One2many('poultry.batch', 'coop_id', string='Lotes de Aves Asignados')
     batch_count = fields.Integer(string='Cantidad de Lotes', compute='_compute_batch_count')
     
+    # Relaciones con recolecciones de producción
+    egg_collection_ids = fields.One2many('poultry.egg.collection', 'coop_id', string='Recolecciones de Producción')
+    egg_collection_count = fields.Integer(string='Recolecciones', compute='_compute_egg_collection_count')
+    
+    # Relaciones con mortalidad
+    mortality_ids = fields.One2many('poultry.mortality', 'coop_id', string='Registros de Mortalidad')
+    mortality_count = fields.Integer(string='Registros de Mortalidad', compute='_compute_mortality_count')
+    
     # Relación con listas de materiales (BOM)
     coop_bom_ids = fields.One2many('poultry.coop.bom', 'coop_id', string='Historial de Listas de Materiales')
     active_bom_id = fields.Many2one('poultry.coop.bom', string='Lista de Materiales Activa', 
@@ -49,7 +57,7 @@ class PoultryCoop(models.Model):
         """Calcula el porcentaje de ocupación del galpón"""
         for coop in self:
             if coop.capacity > 0:
-                coop.occupancy_percentage = (coop.current_birds_count / coop.capacity) * 100
+                coop.occupancy_percentage = coop.current_birds_count / coop.capacity
             else:
                 coop.occupancy_percentage = 0.0
     
@@ -58,6 +66,18 @@ class PoultryCoop(models.Model):
         """Cuenta la cantidad de lotes asignados al galpón"""
         for coop in self:
             coop.batch_count = len(coop.batch_ids)
+    
+    @api.depends('egg_collection_ids')
+    def _compute_egg_collection_count(self):
+        """Cuenta la cantidad de recolecciones del galpón"""
+        for coop in self:
+            coop.egg_collection_count = len(coop.egg_collection_ids)
+    
+    @api.depends('mortality_ids')
+    def _compute_mortality_count(self):
+        """Cuenta la cantidad de registros de mortalidad del galpón"""
+        for coop in self:
+            coop.mortality_count = len(coop.mortality_ids)
     
     @api.depends('coop_bom_ids', 'coop_bom_ids.active')
     def _compute_active_bom(self):
