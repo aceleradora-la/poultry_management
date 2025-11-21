@@ -80,25 +80,34 @@ class PoultryEggCollection(models.Model):
             else:
                 collection.product_tmpl_name = False
     
-    @api.depends('product_tmpl_id')
+    @api.depends('product_tmpl_id', 'line_ids', 'line_ids.product_variant_id')
     def _compute_product_variant_name(self):
         """Calcula el nombre de la variante del producto para uso en reportes (valor traducido)"""
         for collection in self:
-            if collection.product_tmpl_id:
-                # Obtener la primera variante del template
-                # Usar product_variant_ids[0] si existe, o product_variant_id si es un solo producto
-                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
-                variant = False
-                if collection.product_tmpl_id.product_variant_ids:
-                    variant = collection.product_tmpl_id.product_variant_ids[0]
-                elif collection.product_tmpl_id.product_variant_id:
-                    variant = collection.product_tmpl_id.product_variant_id
-                
-                if variant:
-                    variant_with_lang = variant.with_context(lang=lang)
-                    collection.product_variant_name = variant_with_lang.name or ''
-                else:
-                    collection.product_variant_name = False
+            lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
+            variant = False
+            
+            # Prioridad 1: Usar la primera línea si existe (tiene la variante real)
+            if collection.line_ids and collection.line_ids[0].product_variant_id:
+                variant = collection.line_ids[0].product_variant_id
+            # Prioridad 2: Si no hay líneas, obtener la primera variante del template
+            elif collection.product_tmpl_id:
+                # Buscar directamente en la base de datos para evitar campos related no almacenados
+                variants = self.env['product.product'].search([
+                    ('product_tmpl_id', '=', collection.product_tmpl_id.id)
+                ], limit=1, order='id')
+                if variants:
+                    variant = variants[0]
+            
+            if variant:
+                # Obtener el nombre traducido de la variante
+                variant_with_lang = variant.with_context(lang=lang)
+                # Leer el campo name que debería estar traducido
+                variant_name = variant_with_lang.name
+                # Si es un dict (JSON de traducción), extraer el valor del idioma
+                if isinstance(variant_name, dict):
+                    variant_name = variant_name.get(lang) or variant_name.get('en_US') or ''
+                collection.product_variant_name = variant_name or ''
             else:
                 collection.product_variant_name = False
     
