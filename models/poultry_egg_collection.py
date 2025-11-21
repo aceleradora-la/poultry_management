@@ -61,11 +61,19 @@ class PoultryEggCollection(models.Model):
     
     notes = fields.Text(string='Notas')
     
-    @api.depends('product_tmpl_id', 'product_tmpl_id.name')
+    @api.depends('product_tmpl_id')
     def _compute_product_tmpl_name(self):
-        """Calcula el nombre del producto template para uso en reportes"""
+        """Calcula el nombre del producto template para uso en reportes (valor traducido)"""
         for collection in self:
-            collection.product_tmpl_name = collection.product_tmpl_id.name if collection.product_tmpl_id else False
+            if collection.product_tmpl_id:
+                # Obtener el nombre traducido usando with_context para el idioma del usuario
+                # Esto asegura que obtenemos el valor traducido, no el JSON
+                lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
+                product = collection.product_tmpl_id.with_context(lang=lang)
+                # Acceder al campo name que ya está traducido por el contexto
+                collection.product_tmpl_name = product.name or ''
+            else:
+                collection.product_tmpl_name = False
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
                  'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
