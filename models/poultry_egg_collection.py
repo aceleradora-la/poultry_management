@@ -17,7 +17,8 @@ class PoultryEggCollection(models.Model):
                                       domain=[('type', '=', 'product'), ('active', '=', True), ('is_egg_production', '=', True)],
                                       help='Producto base para la recolección. Se mostrarán todas las variantes de este producto en las líneas.', tracking=True)
     
-    product_tmpl_name = fields.Char(string='Nombre Producto', related='product_tmpl_id.name', 
+    product_tmpl_name = fields.Char(string='Nombre Producto', 
+                                    compute='_compute_product_tmpl_name', 
                                     store=True, readonly=True, index=True,
                                     help='Nombre del producto base (almacenado para uso en reportes)')
     
@@ -59,6 +60,12 @@ class PoultryEggCollection(models.Model):
     total_produced_eggs = fields.Float(string='Total Huevos Producidos', compute='_compute_totals', store=True)
     
     notes = fields.Text(string='Notas')
+    
+    @api.depends('product_tmpl_id', 'product_tmpl_id.name')
+    def _compute_product_tmpl_name(self):
+        """Calcula el nombre del producto template para uso en reportes"""
+        for collection in self:
+            collection.product_tmpl_name = collection.product_tmpl_id.name if collection.product_tmpl_id else False
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
                  'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
