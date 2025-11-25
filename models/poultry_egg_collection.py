@@ -125,15 +125,14 @@ class PoultryEggCollection(models.Model):
         for collection in self:
             if collection.product_variant_id:
                 lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
-                variant_with_lang = collection.product_variant_id.with_context(lang=lang)
-                # Usar name_get() en el recordset (asegurarse de que sea un recordset)
-                variant_recordset = self.env['product.product'].browse(variant_with_lang.id).with_context(lang=lang)
-                name_get_result = variant_recordset.name_get()
-                if name_get_result:
-                    variant_name = name_get_result[0][1]  # name_get devuelve [(id, name), ...]
-                else:
-                    # Fallback: usar display_name o name directamente
-                    variant_name = getattr(variant_with_lang, 'display_name', None) or variant_with_lang.name
+                variant = collection.product_variant_id.with_context(lang=lang)
+                # Usar display_name que incluye los atributos de variante si existen
+                # display_name es un campo computed que ya maneja las traducciones
+                variant_name = variant.display_name
+                
+                # Si display_name no está disponible, usar name directamente
+                if not variant_name:
+                    variant_name = variant.name
                 
                 # Si es un dict (JSON de traducción), extraer el valor del idioma
                 if isinstance(variant_name, dict):
