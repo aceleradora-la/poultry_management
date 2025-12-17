@@ -34,6 +34,15 @@ class PoultryCoop(models.Model):
     active_bom_start_date = fields.Date(string='Fecha Inicio Lista Activa', 
                                          related='active_bom_id.start_date', readonly=True)
     
+    # Tipo de Operación para listas de materiales
+    routing_workcenter_id = fields.Many2one('mrp.routing.workcenter', string='Tipo de Operación',
+                                             help='Tipo de operación a utilizar al crear las listas de materiales para este galpón')
+    
+    # Lista de Materiales para Huevo sin Clasificar
+    unclassified_egg_bom_id = fields.Many2one('mrp.bom', string='Lista de Materiales - Huevo sin Clasificar',
+                                               domain="[('type', '=', 'normal')]",
+                                               help='Lista de materiales para el producto de huevo sin clasificar de este galpón')
+    
     # Total de aves actualmente en el galpón
     current_birds_count = fields.Integer(string='Total de Aves Actuales', 
                                          compute='_compute_current_birds_count',

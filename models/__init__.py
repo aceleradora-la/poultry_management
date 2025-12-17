@@ -10,4 +10,5 @@ from . import poultry_mortality
 from . import poultry_egg_collection
 from . import poultry_egg_collection_line
 from . import mrp_production
+from . import poultry_config_settings
 
