@@ -6,8 +6,8 @@
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
-            <!-- Agregar el campo después de "Can be Sold" o en la sección de información general -->
-            <xpath expr="//field[@name='sale_ok']" position="after">
+            <!-- Agregar el campo después de "Can be Purchased" (Compras) para evitar superposición -->
+            <xpath expr="//field[@name='purchase_ok']" position="after">
                 <newline/>
                 <field name="is_egg_production" 
                        string="Usar en Producción de Huevos"
