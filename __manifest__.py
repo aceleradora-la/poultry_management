@@ -29,6 +29,7 @@
         'views/poultry_genetics_standard_views.xml',
         'views/mrp_production_views.xml',
         'views/poultry_menus.xml',
+        'reports/poultry_report_wizard_views.xml',
         'reports/poultry_reports.xml',
     ],
     'installable': True,
