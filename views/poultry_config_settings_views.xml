@@ -1,30 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Vista de Configuración del Módulo -->
-    <record id="res_config_settings_view_form_poultry" model="ir.ui.view">
-        <field name="name">res.config.settings.view.form.poultry</field>
-        <field name="model">res.config.settings</field>
-        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//div[hasclass('app_settings_block')]" position="inside">
-                <div class="app_settings_block" data-string="Gestión Avícola" string="Gestión Avícola" data-key="poultry_management">
-                    <h2>Parámetros de Gestión Avícola</h2>
-                    <div class="row mt16 o_settings_container">
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_left_pane">
-                                <field name="poultry_unclassified_egg_product_id"/>
-                            </div>
-                            <div class="o_setting_right_pane">
-                                <label for="poultry_unclassified_egg_product_id"/>
-                                <div class="text-muted">
-                                    Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </xpath>
-        </field>
-    </record>
+    <!-- Nota: La vista de configuración se puede agregar manualmente desde Configuración > Parámetros del Sistema -->
+    <!-- El parámetro se puede configurar usando la clave: poultry_management.unclassified_egg_product_id -->
 </odoo>
 
