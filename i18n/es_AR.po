@@ -1,0 +1,28 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* poultry_management
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-17 12:00:00\n"
+"PO-Revision-Date: 2025-12-17 12:00:00\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es_AR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: poultry_management
+#: model:ir.model.fields,field_description:poultry_management.field_product_template__is_egg_production
+msgid "Usar en Producción de Huevos"
+msgstr "Usar en Producción de Huevos"
+
+#. module: poultry_management
+#: model:ir.model.fields,help:poultry_management.field_product_template__is_egg_production
+msgid "Marque este campo si este producto se utiliza en el proceso de producción de huevos."
+msgstr "Marque este campo si este producto se utiliza en el proceso de producción de huevos."
+
