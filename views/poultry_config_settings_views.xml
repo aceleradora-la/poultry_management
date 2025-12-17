@@ -1,31 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Vista de Configuración del Módulo -->
-    <record id="res_config_settings_view_form_poultry" model="ir.ui.view">
-        <field name="name">res.config.settings.view.form.poultry</field>
+    <record id="view_poultry_config_settings_form" model="ir.ui.view">
+        <field name="name">poultry.config.settings.form</field>
         <field name="model">res.config.settings</field>
-        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-            <!-- Buscar cualquier div con clase app_settings_block y agregar nuestra sección después -->
-            <xpath expr="//div[contains(@class, 'app_settings_block')][last()]" position="after">
-                <div class="app_settings_block" data-string="Gestión Avícola" string="Gestión Avícola" data-key="poultry_management">
-                    <h2>Parámetros de Gestión Avícola</h2>
-                    <div class="row mt16 o_settings_container">
-                        <div class="col-12 col-lg-6 o_setting_box">
-                            <div class="o_setting_left_pane">
-                                <field name="poultry_unclassified_egg_product_id"/>
-                            </div>
-                            <div class="o_setting_right_pane">
-                                <label for="poultry_unclassified_egg_product_id"/>
-                                <div class="text-muted">
-                                    Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </xpath>
+            <form string="Configuración de Gestión Avícola" class="oe_form_configuration">
+                <header>
+                    <button string="Aplicar" type="object" name="execute" class="oe_highlight"/>
+                    <button string="Cancelar" type="object" name="cancel" class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Parámetros Generales">
+                            <field name="poultry_unclassified_egg_product_id" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción."/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
         </field>
+    </record>
+
+    <!-- Acción para la configuración -->
+    <record id="action_poultry_config_settings" model="ir.actions.act_window">
+        <field name="name">Configuración</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="view_id" ref="view_poultry_config_settings_form"/>
     </record>
 </odoo>
 
