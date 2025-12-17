@@ -9,9 +9,12 @@
             <!-- Agregar el campo después de "Can be Purchased" (Compras) -->
             <!-- Buscar el contenedor padre que tiene purchase_ok y agregar nuestro campo después de ese contenedor -->
             <xpath expr="//field[@name='purchase_ok']/parent::*" position="after">
-                <field name="is_egg_production" 
-                       string="Usar en Producción de Huevos"
-                       help="Marque este campo si este producto se utiliza en el proceso de producción de huevos."/>
+                <div class="o_row">
+                    <field name="is_egg_production" 
+                           string="Usar en Producción de Huevos"
+                           help="Marque este campo si este producto se utiliza en el proceso de producción de huevos."/>
+                    <label for="is_egg_production"/>
+                </div>
             </xpath>
         </field>
     </record>
