@@ -6,9 +6,9 @@
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
-            <!-- Agregar el campo después de "Can be Purchased" (Compras) para evitar superposición -->
-            <!-- Buscar purchase_ok dentro del sheet y agregar nuestro campo justo después -->
-            <xpath expr="//sheet//field[@name='purchase_ok']" position="after">
+            <!-- Agregar el campo después de "Can be Purchased" (Compras) -->
+            <!-- Buscar el contenedor padre que tiene purchase_ok y agregar nuestro campo después de ese contenedor -->
+            <xpath expr="//field[@name='purchase_ok']/parent::*" position="after">
                 <field name="is_egg_production" 
                        string="Usar en Producción de Huevos"
                        help="Marque este campo si este producto se utiliza en el proceso de producción de huevos."
