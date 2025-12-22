@@ -87,11 +87,5 @@
               parent="menu_poultry_configuration" 
               action="action_poultry_genetics_standard" 
               sequence="40"/>
-
-    <menuitem id="menu_poultry_settings" 
-              name="Parámetros Generales" 
-              parent="menu_poultry_configuration" 
-              action="action_poultry_config_settings" 
-              sequence="50"/>
 </odoo>
 
