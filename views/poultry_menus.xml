@@ -88,11 +88,10 @@
               action="action_poultry_genetics_standard" 
               sequence="40"/>
 
-    <!-- Menú en Ajustes de Odoo -->
     <menuitem id="menu_poultry_settings" 
-              name="Gestión de Granja" 
-              parent="base.menu_ir_config_parameters" 
+              name="Parámetros Generales" 
+              parent="menu_poultry_configuration" 
               action="action_poultry_config_settings" 
-              sequence="100"/>
+              sequence="50"/>
 </odoo>
 
