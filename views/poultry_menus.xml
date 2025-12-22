@@ -91,7 +91,7 @@
     <!-- Menú en Ajustes de Odoo -->
     <menuitem id="menu_poultry_settings" 
               name="Gestión de Granja" 
-              parent="base.menu_ir_config_parameters_root" 
+              parent="base.menu_ir_config_parameters" 
               action="action_poultry_config_settings" 
               sequence="100"/>
 </odoo>
