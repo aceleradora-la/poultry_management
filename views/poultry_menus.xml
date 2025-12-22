@@ -25,7 +25,7 @@
 
     <!-- Acción para la configuración -->
     <record id="action_poultry_config_settings" model="ir.actions.act_window">
-        <field name="name">Configuración</field>
+        <field name="name">Gestión de Granja</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
         <field name="target">inline</field>
@@ -88,10 +88,11 @@
               action="action_poultry_genetics_standard" 
               sequence="40"/>
 
+    <!-- Menú en Ajustes de Odoo -->
     <menuitem id="menu_poultry_settings" 
-              name="Parámetros Generales" 
-              parent="menu_poultry_configuration" 
+              name="Gestión de Granja" 
+              parent="base.menu_ir_config_parameters_root" 
               action="action_poultry_config_settings" 
-              sequence="50"/>
+              sequence="100"/>
 </odoo>
 
