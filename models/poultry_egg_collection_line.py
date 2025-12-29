@@ -110,11 +110,15 @@ class PoultryEggCollectionLine(models.Model):
         uom_category = product_variant.uom_id.category_id
         
         # Buscar todas las unidades de medida de esa categoría que estén marcadas para usar en poultry
+        # No podemos usar order='ratio desc' porque ratio es computed no almacenado
         uoms = self.env['uom.uom'].search([
             ('category_id', '=', uom_category.id),
             ('use_in_poultry', '=', True),
             ('active', '=', True),
-        ], order='ratio desc')  # Ordenar de mayor a menor ratio
+        ])
+        
+        # Ordenar en Python por ratio descendente (mayor a menor)
+        uoms = uoms.sorted(key=lambda u: u.ratio or 0.0, reverse=True)
         
         return uoms
     
@@ -125,13 +129,17 @@ class PoultryEggCollectionLine(models.Model):
             return False
         
         uom_category = product_variant.uom_id.category_id
-        reference_uom = self.env['uom.uom'].search([
+        # No podemos filtrar por ratio directamente porque es computed no almacenado
+        # Buscar todas las unidades de la categoría y filtrar en Python
+        uoms = self.env['uom.uom'].search([
             ('category_id', '=', uom_category.id),
-            ('ratio', '=', 1.0),
             ('active', '=', True),
-        ], limit=1)
+        ])
         
-        return reference_uom
+        # Buscar la unidad con ratio = 1.0
+        reference_uom = uoms.filtered(lambda u: u.ratio == 1.0)
+        
+        return reference_uom[0] if reference_uom else False
     
     @api.depends('uom_value_ids')
     def _compute_uom_display_names(self):
