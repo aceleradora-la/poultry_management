@@ -25,12 +25,19 @@
 
     <!-- Acción para la configuración -->
     <record id="action_poultry_config_settings" model="ir.actions.act_window">
-        <field name="name">Gestión de Granja</field>
+        <field name="name">Parámetros Generales</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
-        <field name="target">inline</field>
+        <field name="target">current</field>
         <field name="view_id" ref="view_poultry_config_settings_form"/>
     </record>
+    
+    <!-- Menú en Configuración del módulo -->
+    <menuitem id="menu_poultry_settings" 
+              name="Parámetros Generales" 
+              parent="menu_poultry_configuration" 
+              action="action_poultry_config_settings" 
+              sequence="50"/>
 
     <menuitem id="menu_poultry_management_root" 
               name="Gestión Avícola" 
@@ -87,5 +94,11 @@
               parent="menu_poultry_configuration" 
               action="action_poultry_genetics_standard" 
               sequence="40"/>
+    
+    <menuitem id="menu_poultry_uom" 
+              name="Unidades de Medida" 
+              parent="menu_poultry_configuration" 
+              action="action_uom_poultry" 
+              sequence="50"/>
 </odoo>
 

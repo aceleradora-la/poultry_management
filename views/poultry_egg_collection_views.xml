@@ -88,10 +88,36 @@
                     <notebook>
                         <page string="Líneas de Recolección" name="lines">
                             <field name="line_ids" nolabel="1" readonly="state == 'done'" 
-                                   context="{'default_collection_id': id, 'form_view_ref': 'poultry_management.view_poultry_egg_collection_line_form'}">
-                                <list string="Líneas de Recolección" create="0">
+                                   context="{'default_collection_id': id}">
+                                <list string="Líneas de Recolección" editable="bottom">
                                     <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
-                                    <field name="product_variant_name" invisible="1"/>
+                                    <field name="uom_1_name" invisible="1"/>
+                                    <field name="uom_2_name" invisible="1"/>
+                                    <field name="uom_3_name" invisible="1"/>
+                                    <field name="initial_box" 
+                                           string="Inicial"
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           optional="show"/>
+                                    <field name="initial_map" 
+                                           string="Inicial"
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           optional="show"/>
+                                    <field name="initial_egg" 
+                                           string="Inicial"
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           optional="show"/>
+                                    <field name="final_box" 
+                                           string="Final"
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           optional="show"/>
+                                    <field name="final_map" 
+                                           string="Final"
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           optional="show"/>
+                                    <field name="final_egg" 
+                                           string="Final"
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           optional="show"/>
                                 </list>
                             </field>
                         </page>

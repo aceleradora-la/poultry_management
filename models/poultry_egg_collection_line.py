@@ -29,13 +29,34 @@ class PoultryEggCollectionLine(models.Model):
     uom_egg_id = fields.Many2one('uom.uom', string='Unidad Huevo', 
                                   compute='_compute_uom_ids', store=False)
     
-    initial_box = fields.Float(string='Cajón Inicial', default=0.0, digits=(16, 2))
-    initial_map = fields.Float(string='Maple Inicial', default=0.0, digits=(16, 2))
-    initial_egg = fields.Float(string='Huevo Inicial', default=0.0, digits=(16, 2))
+    # Campos legacy sincronizados con uom_value_ids
+    # Estos campos se sincronizan bidireccionalmente con uom_value_ids para mostrar en el tree
+    # Los nombres se actualizan dinámicamente usando _update_field_strings
+    initial_box = fields.Float(default=0.0, digits=(16, 2),
+                               compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
+    initial_map = fields.Float(default=0.0, digits=(16, 2),
+                               compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
+    initial_egg = fields.Float(default=0.0, digits=(16, 2),
+                               compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
     
-    final_box = fields.Float(string='Cajón Final', default=0.0, digits=(16, 2))
-    final_map = fields.Float(string='Maple Final', default=0.0, digits=(16, 2))
-    final_egg = fields.Float(string='Huevo Final', default=0.0, digits=(16, 2))
+    final_box = fields.Float(default=0.0, digits=(16, 2),
+                             compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
+    final_map = fields.Float(default=0.0, digits=(16, 2),
+                             compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
+    final_egg = fields.Float(default=0.0, digits=(16, 2),
+                             compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
+    
+    # Campos para almacenar nombres dinámicos de las columnas
+    uom_1_name = fields.Char(string='Unidad 1', compute='_compute_uom_display_names', store=False)
+    uom_2_name = fields.Char(string='Unidad 2', compute='_compute_uom_display_names', store=False)
+    uom_3_name = fields.Char(string='Unidad 3', compute='_compute_uom_display_names', store=False)
+    
+    @api.model
+    def _update_field_strings(self):
+        """Actualiza los nombres de los campos legacy dinámicamente basándose en uom_value_ids"""
+        # Este método se puede llamar desde la vista o desde un cron para actualizar los nombres
+        # Por ahora, los nombres se manejarán en la vista usando los campos uom_X_name
+        pass
     
     produced_box = fields.Float(string='Cajón Producido', compute='_compute_production', 
                                  store=True, digits=(16, 2))
@@ -111,6 +132,66 @@ class PoultryEggCollectionLine(models.Model):
         ], limit=1)
         
         return reference_uom
+    
+    @api.depends('uom_value_ids')
+    def _compute_uom_display_names(self):
+        """Calcula los nombres dinámicos de las unidades de medida para mostrar en el tree"""
+        for line in self:
+            sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
+            line.uom_1_name = sorted_uoms[0].uom_display_name if len(sorted_uoms) > 0 else ''
+            line.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 else ''
+            line.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 else ''
+    
+    @api.depends('uom_value_ids.initial_qty', 'uom_value_ids.final_qty')
+    def _sync_uom_values_to_legacy(self):
+        """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""
+        for line in self:
+            # Ordenar unidades por ratio descendente
+            sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
+            
+            # Mapear a campos legacy (máximo 3 unidades)
+            if len(sorted_uoms) > 0:
+                line.initial_box = sorted_uoms[0].initial_qty
+                line.final_box = sorted_uoms[0].final_qty
+            else:
+                line.initial_box = 0.0
+                line.final_box = 0.0
+                
+            if len(sorted_uoms) > 1:
+                line.initial_map = sorted_uoms[1].initial_qty
+                line.final_map = sorted_uoms[1].final_qty
+            else:
+                line.initial_map = 0.0
+                line.final_map = 0.0
+                
+            if len(sorted_uoms) > 2:
+                line.initial_egg = sorted_uoms[2].initial_qty
+                line.final_egg = sorted_uoms[2].final_qty
+            else:
+                line.initial_egg = 0.0
+                line.final_egg = 0.0
+    
+    def _sync_legacy_to_uom_values(self):
+        """Sincroniza valores de campos legacy a uom_value_ids cuando se editan en el tree"""
+        for line in self:
+            sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
+            
+            # Actualizar valores desde campos legacy
+            if len(sorted_uoms) > 0:
+                sorted_uoms[0].write({
+                    'initial_qty': line.initial_box,
+                    'final_qty': line.final_box,
+                })
+            if len(sorted_uoms) > 1:
+                sorted_uoms[1].write({
+                    'initial_qty': line.initial_map,
+                    'final_qty': line.final_map,
+                })
+            if len(sorted_uoms) > 2:
+                sorted_uoms[2].write({
+                    'initial_qty': line.initial_egg,
+                    'final_qty': line.final_egg,
+                })
     
     @api.onchange('product_variant_id')
     def _onchange_product_variant_id(self):

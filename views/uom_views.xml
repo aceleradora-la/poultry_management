@@ -1,9 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Nota: Las vistas de unidades de medida se heredan dinámicamente.
-         Los campos use_in_poultry y display_name_poultry aparecerán automáticamente
-         en las vistas estándar de Odoo sin necesidad de herencia explícita.
-         Si necesitas personalizar las vistas, puedes hacerlo manualmente desde
-         Ajustes > Técnico > Vistas de Usuario -->
+    <!-- Vista de formulario completa para unidades de medida con campos de Poultry Management -->
+    <record id="view_uom_form_poultry" model="ir.ui.view">
+        <field name="name">uom.uom.form.poultry</field>
+        <field name="model">uom.uom</field>
+        <field name="arch" type="xml">
+            <form string="Unidad de Medida">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="category_id"/>
+                            <field name="uom_type"/>
+                            <field name="ratio"/>
+                            <field name="rounding"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Configuración para Gestión Avícola">
+                            <field name="use_in_poultry"/>
+                            <field name="display_name_poultry" 
+                                   invisible="not use_in_poultry"
+                                   placeholder="Si está vacío, se usará el nombre de la unidad de medida"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Vista de lista para unidades de medida -->
+    <record id="view_uom_list_poultry" model="ir.ui.view">
+        <field name="name">uom.uom.list.poultry</field>
+        <field name="model">uom.uom</field>
+        <field name="arch" type="xml">
+            <list string="Unidades de Medida">
+                <field name="name"/>
+                <field name="category_id"/>
+                <field name="ratio"/>
+                <field name="use_in_poultry" optional="hide"/>
+                <field name="display_name_poultry" optional="hide"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- Acción para configurar unidades de medida -->
+    <record id="action_uom_poultry" model="ir.actions.act_window">
+        <field name="name">Unidades de Medida</field>
+        <field name="res_model">uom.uom</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+                                       (0, 0, {'view_mode': 'list', 'view_id': ref('view_uom_list_poultry')}),
+                                       (0, 0, {'view_mode': 'form', 'view_id': ref('view_uom_form_poultry')})]"/>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configurar unidades de medida
+            </p>
+            <p>
+                Configure las unidades de medida que se utilizarán en el parte de producción.
+                Marque "Usar en Gestión Avícola" y defina un nombre personalizado si es necesario.
+            </p>
+        </field>
+    </record>
 </odoo>
 
