@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class UomUom(models.Model):
@@ -23,8 +26,10 @@ class UomUom(models.Model):
         for uom in self:
             if uom.display_name_poultry:
                 uom.poultry_display_name = uom.display_name_poultry
+                _logger.debug("UoM %s (%s): Usando display_name_poultry=%s", uom.id, uom.name, uom.poultry_display_name)
             else:
                 uom.poultry_display_name = uom.name
+                _logger.debug("UoM %s (%s): Usando name=%s", uom.id, uom.name, uom.poultry_display_name)
     
     poultry_display_name = fields.Char(
         string='Nombre Mostrar',

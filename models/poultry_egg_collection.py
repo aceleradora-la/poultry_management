@@ -2,6 +2,9 @@
 
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError, UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class PoultryEggCollection(models.Model):
@@ -156,19 +159,31 @@ class PoultryEggCollection(models.Model):
     def _compute_uom_display_names(self):
         """Calcula los nombres dinámicos de las unidades de medida para mostrar en títulos y columnas"""
         for collection in self:
+            _logger.info("=== DEBUG _compute_uom_display_names para collection %s ===", collection.id)
             # Obtener los nombres de la primera línea que tenga uom_value_ids
             first_line_with_uoms = collection.line_ids.filtered(lambda l: l.uom_value_ids)[:1]
+            _logger.info("Collection %s: Tiene %d líneas, primera con UoMs: %s", 
+                        collection.id, len(collection.line_ids), first_line_with_uoms.id if first_line_with_uoms else 'Ninguna')
+            
             if first_line_with_uoms and first_line_with_uoms.uom_value_ids:
                 sorted_uoms = sorted(first_line_with_uoms.uom_value_ids, 
                                    key=lambda x: x.uom_ratio or 0.0, 
                                    reverse=True)
+                _logger.info("Collection %s: Primera línea tiene %d UoMs", collection.id, len(sorted_uoms))
+                for idx, uom_val in enumerate(sorted_uoms[:3]):
+                    _logger.info("  UoM %d: uom_display_name=%s", idx+1, uom_val.uom_display_name)
+                
                 collection.uom_1_name = sorted_uoms[0].uom_display_name if len(sorted_uoms) > 0 and sorted_uoms[0].uom_display_name else ''
                 collection.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 and sorted_uoms[1].uom_display_name else ''
                 collection.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 and sorted_uoms[2].uom_display_name else ''
             else:
+                _logger.warning("Collection %s: No tiene líneas con uom_value_ids", collection.id)
                 collection.uom_1_name = ''
                 collection.uom_2_name = ''
                 collection.uom_3_name = ''
+            
+            _logger.info("Collection %s: Resultados - uom_1_name=%s, uom_2_name=%s, uom_3_name=%s",
+                        collection.id, collection.uom_1_name, collection.uom_2_name, collection.uom_3_name)
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
                  'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',

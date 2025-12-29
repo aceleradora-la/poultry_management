@@ -38,10 +38,14 @@
                             string="Generar Órdenes de Fabricación" 
                             class="oe_highlight" 
                             invisible="state != 'completed'"/>
-                    <button name="action_view_productions" type="object" 
-                            string="Ver Órdenes Generadas" 
-                            invisible="production_count == 0"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done"/>
+                        <button name="action_view_productions" type="object" 
+                                string="Ver Órdenes Generadas" 
+                                invisible="production_count == 0"/>
+                        <button name="action_debug_uom_names" type="object" 
+                                string="Debug UoM Names" 
+                                class="btn-secondary"
+                                help="Muestra información de debug sobre los nombres de las unidades de medida en los logs"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
