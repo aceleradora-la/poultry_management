@@ -94,7 +94,6 @@
                                       decoration-success="uom_value_ids">
                                     <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                     <field name="product_variant_name" invisible="1"/>
-                                    <field name="collection_id" invisible="1"/>
                                     
                                     <!-- Mostrar resumen de unidades dinámicas si existen -->
                                     <field name="uom_value_ids" invisible="1"/>
