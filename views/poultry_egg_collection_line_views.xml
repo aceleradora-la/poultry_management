@@ -27,18 +27,18 @@
         </field>
     </record>
     
-    <!-- Vista de tree para unidades de medida en líneas -->
+    <!-- Vista de list para unidades de medida en líneas -->
     <record id="view_poultry_egg_collection_line_uom_tree" model="ir.ui.view">
         <field name="name">poultry.egg.collection.line.uom.tree</field>
         <field name="model">poultry.egg.collection.line.uom</field>
         <field name="arch" type="xml">
-            <tree string="Valores por Unidad de Medida" editable="bottom">
+            <list string="Valores por Unidad de Medida" editable="bottom">
                 <field name="uom_display_name" readonly="1" string="Unidad de Medida"/>
                 <field name="uom_ratio" readonly="1" invisible="1"/>
                 <field name="initial_qty" string="Cantidad Inicial"/>
                 <field name="final_qty" string="Cantidad Final"/>
                 <field name="produced_qty" string="Cantidad Producida" readonly="1"/>
-            </tree>
+            </list>
         </field>
     </record>
 </odoo>
