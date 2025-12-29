@@ -100,27 +100,27 @@
                                     <field name="uom_value_ids" invisible="1"/>
                                     <field name="total_produced_reference" string="Total Producido (Ref)" 
                                            readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                                           invisible="parent.state == 'draft' or parent.state == 'counted'"/>
                                     
                                     <!-- Campos legacy (mantener por compatibilidad cuando no hay uom_value_ids) -->
                                     <field name="initial_box" string="Cajón Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done' or uom_value_ids"/>
+                                           invisible="parent.state == 'completed' or parent.state == 'done' or uom_value_ids"/>
                                     <field name="initial_map" string="Maple Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done' or uom_value_ids"/>
+                                           invisible="parent.state == 'completed' or parent.state == 'done' or uom_value_ids"/>
                                     <field name="initial_egg" string="Huevo Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done' or uom_value_ids"/>
+                                           invisible="parent.state == 'completed' or parent.state == 'done' or uom_value_ids"/>
                                     <field name="final_box" string="Cajón Final" 
-                                           invisible="collection_id.state == 'draft' or uom_value_ids"/>
+                                           invisible="parent.state == 'draft' or uom_value_ids"/>
                                     <field name="final_map" string="Maple Final" 
-                                           invisible="collection_id.state == 'draft' or uom_value_ids"/>
+                                           invisible="parent.state == 'draft' or uom_value_ids"/>
                                     <field name="final_egg" string="Huevo Final" 
-                                           invisible="collection_id.state == 'draft' or uom_value_ids"/>
+                                           invisible="parent.state == 'draft' or uom_value_ids"/>
                                     <field name="produced_box" string="Cajón Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted' or uom_value_ids"/>
+                                           invisible="parent.state == 'draft' or parent.state == 'counted' or uom_value_ids"/>
                                     <field name="produced_map" string="Maple Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted' or uom_value_ids"/>
+                                           invisible="parent.state == 'draft' or parent.state == 'counted' or uom_value_ids"/>
                                     <field name="produced_egg" string="Huevo Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted' or uom_value_ids"/>
+                                           invisible="parent.state == 'draft' or parent.state == 'counted' or uom_value_ids"/>
                                 </tree>
                             </field>
                         </page>
