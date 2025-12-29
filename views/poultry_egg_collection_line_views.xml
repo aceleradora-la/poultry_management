@@ -18,15 +18,8 @@
                         <page string="Cantidades por Unidad de Medida" name="uom_values">
                             <field name="uom_value_ids" nolabel="1" 
                                    readonly="collection_id.state == 'done'"
-                                   context="{'default_line_id': id}">
-                                <tree string="Valores por Unidad de Medida" editable="bottom">
-                                    <field name="uom_id" readonly="1" string="Unidad de Medida"/>
-                                    <field name="uom_ratio" readonly="1" invisible="1"/>
-                                    <field name="initial_qty" string="Cantidad Inicial"/>
-                                    <field name="final_qty" string="Cantidad Final"/>
-                                    <field name="produced_qty" string="Cantidad Producida" readonly="1"/>
-                                </tree>
-                            </field>
+                                   context="{'default_line_id': id}"
+                                   view_id="view_poultry_egg_collection_line_uom_tree"/>
                         </page>
                     </notebook>
                 </sheet>
