@@ -478,4 +478,52 @@ class PoultryEggCollection(models.Model):
             'domain': [('egg_collection_id', '=', self.id)],
             'context': {'create': False},
         }
+    
+    def action_debug_uom_names(self):
+        """Método de debug para verificar los nombres de las unidades de medida"""
+        self.ensure_one()
+        _logger.info("=== DEBUG action_debug_uom_names para collection %s ===", self.id)
+        
+        # Información de la collection
+        _logger.info("Collection: %s, Producto: %s", self.name, self.product_tmpl_id.name if self.product_tmpl_id else 'N/A')
+        _logger.info("Líneas: %d", len(self.line_ids))
+        
+        # Información de las líneas
+        for line in self.line_ids:
+            _logger.info("  Línea %s: Variante=%s, uom_value_ids=%d", 
+                        line.id, 
+                        line.product_variant_id.name if line.product_variant_id else 'N/A',
+                        len(line.uom_value_ids))
+            
+            # Forzar cálculo de nombres
+            line._compute_uom_display_names()
+            _logger.info("    uom_1_name=%s, uom_2_name=%s, uom_3_name=%s",
+                        line.uom_1_name, line.uom_2_name, line.uom_3_name)
+            
+            # Información de cada uom_value
+            for uom_val in line.uom_value_ids:
+                _logger.info("    UoM Value %s: uom_id=%s (%s), ratio=%s, uom_display_name=%s, poultry_display_name=%s",
+                            uom_val.id,
+                            uom_val.uom_id.id if uom_val.uom_id else 'N/A',
+                            uom_val.uom_id.name if uom_val.uom_id else 'N/A',
+                            uom_val.uom_ratio,
+                            uom_val.uom_display_name,
+                            uom_val.uom_id.poultry_display_name if uom_val.uom_id else 'N/A')
+        
+        # Forzar cálculo de nombres de la collection
+        self._compute_uom_display_names()
+        _logger.info("Collection uom_1_name=%s, uom_2_name=%s, uom_3_name=%s",
+                    self.uom_1_name, self.uom_2_name, self.uom_3_name)
+        
+        # Retornar mensaje al usuario
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Debug UoM Names',
+                'message': f'Revisa los logs del servidor. Collection: {self.name}, uom_1={self.uom_1_name}, uom_2={self.uom_2_name}, uom_3={self.uom_3_name}',
+                'type': 'info',
+                'sticky': False,
+            }
+        }
 
