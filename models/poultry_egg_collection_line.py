@@ -264,16 +264,23 @@ class PoultryEggCollectionLine(models.Model):
                 line.total_produced_reference = total_produced_ref
                 
                 # Distribuir la producción de vuelta a las unidades mayores (de mayor a menor ratio)
+                # EXCLUYENDO la unidad de referencia, que recibirá el resto al final
                 remaining_produced = total_produced_ref
                 
+                # Filtrar unidades excluyendo la de referencia (ratio = 1.0)
+                non_ref_uom_values = line.uom_value_ids.filtered(
+                    lambda x: x.uom_id.id != reference_uom.id
+                )
+                
                 # Ordenar unidades de medida por ratio descendente (mayor a menor)
-                sorted_uom_values = sorted(line.uom_value_ids, 
+                sorted_uom_values = sorted(non_ref_uom_values, 
                                            key=lambda x: x.uom_ratio or 0.0, 
                                            reverse=True)
                 
                 # Preparar valores para escribir
                 uom_values_to_write = {}
                 
+                # Distribuir primero a las unidades mayores (excluyendo referencia)
                 for uom_val in sorted_uom_values:
                     ratio = uom_val.uom_ratio or 1.0
                     if ratio > 0:
@@ -285,16 +292,13 @@ class PoultryEggCollectionLine(models.Model):
                     else:
                         uom_values_to_write[uom_val.id] = 0.0
                 
-                # Si queda algo, asignarlo a la unidad de referencia
-                if remaining_produced > 0:
-                    ref_uom_val = line.uom_value_ids.filtered(
-                        lambda x: x.uom_id.id == reference_uom.id
-                    )
-                    if ref_uom_val:
-                        if ref_uom_val.id in uom_values_to_write:
-                            uom_values_to_write[ref_uom_val.id] += remaining_produced
-                        else:
-                            uom_values_to_write[ref_uom_val.id] = remaining_produced
+                # Asignar el resto a la unidad de referencia (siempre debe quedar algo o 0)
+                ref_uom_val = line.uom_value_ids.filtered(
+                    lambda x: x.uom_id.id == reference_uom.id
+                )
+                if ref_uom_val:
+                    # El resto siempre va a la unidad de referencia
+                    uom_values_to_write[ref_uom_val.id] = remaining_produced
                 
                 # Escribir los valores calculados usando sudo para evitar problemas de permisos
                 # y hacerlo fuera del contexto del computed

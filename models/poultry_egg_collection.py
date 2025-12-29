@@ -247,7 +247,14 @@ class PoultryEggCollection(models.Model):
                 raise UserError('Debe ingresar al menos una cantidad final.')
             
             # Calcular producción para todas las líneas
-            record.line_ids._compute_production()
+            # Forzar el cálculo accediendo a los campos computed para que se almacenen
+            for line in record.line_ids:
+                line._compute_production()
+                # Acceder a los campos computed para forzar su almacenamiento
+                _ = line.produced_box
+                _ = line.produced_map
+                _ = line.produced_egg
+                _ = line.total_produced_reference
             # Forzar recálculo de los totales después de calcular producción
             record._compute_totals()
             record.state = 'completed'
