@@ -160,27 +160,46 @@ class PoultryEggCollectionLine(models.Model):
     def _sync_uom_values_to_legacy(self):
         """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""
         for line in self:
+            # Solo sincronizar si hay uom_value_ids, sino mantener valores actuales
+            if not line.uom_value_ids:
+                # Si no hay uom_value_ids, mantener valores por defecto o actuales
+                if not hasattr(line, '_initial_box_set'):
+                    line.initial_box = 0.0
+                    line.final_box = 0.0
+                    line.initial_map = 0.0
+                    line.final_map = 0.0
+                    line.initial_egg = 0.0
+                    line.final_egg = 0.0
+                return
+            
             # Ordenar unidades por ratio descendente
             sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
             
             # Mapear a campos legacy (máximo 3 unidades)
+            # Solo actualizar si los valores en uom_value_ids son diferentes para evitar loops
             if len(sorted_uoms) > 0:
-                line.initial_box = sorted_uoms[0].initial_qty
-                line.final_box = sorted_uoms[0].final_qty
+                if line.initial_box != sorted_uoms[0].initial_qty:
+                    line.initial_box = sorted_uoms[0].initial_qty
+                if line.final_box != sorted_uoms[0].final_qty:
+                    line.final_box = sorted_uoms[0].final_qty
             else:
                 line.initial_box = 0.0
                 line.final_box = 0.0
                 
             if len(sorted_uoms) > 1:
-                line.initial_map = sorted_uoms[1].initial_qty
-                line.final_map = sorted_uoms[1].final_qty
+                if line.initial_map != sorted_uoms[1].initial_qty:
+                    line.initial_map = sorted_uoms[1].initial_qty
+                if line.final_map != sorted_uoms[1].final_qty:
+                    line.final_map = sorted_uoms[1].final_qty
             else:
                 line.initial_map = 0.0
                 line.final_map = 0.0
                 
             if len(sorted_uoms) > 2:
-                line.initial_egg = sorted_uoms[2].initial_qty
-                line.final_egg = sorted_uoms[2].final_qty
+                if line.initial_egg != sorted_uoms[2].initial_qty:
+                    line.initial_egg = sorted_uoms[2].initial_qty
+                if line.final_egg != sorted_uoms[2].final_qty:
+                    line.final_egg = sorted_uoms[2].final_qty
             else:
                 line.initial_egg = 0.0
                 line.final_egg = 0.0
@@ -200,21 +219,27 @@ class PoultryEggCollectionLine(models.Model):
             
             # Actualizar valores desde campos legacy
             # Usar sudo para evitar problemas de permisos al escribir en registros hijos
+            # Guardar en un solo write para evitar múltiples escrituras
+            vals_to_write = {}
             if len(sorted_uoms) > 0:
-                sorted_uoms[0].sudo().write({
+                vals_to_write[sorted_uoms[0].id] = {
                     'initial_qty': line.initial_box,
                     'final_qty': line.final_box,
-                })
+                }
             if len(sorted_uoms) > 1:
-                sorted_uoms[1].sudo().write({
+                vals_to_write[sorted_uoms[1].id] = {
                     'initial_qty': line.initial_map,
                     'final_qty': line.final_map,
-                })
+                }
             if len(sorted_uoms) > 2:
-                sorted_uoms[2].sudo().write({
+                vals_to_write[sorted_uoms[2].id] = {
                     'initial_qty': line.initial_egg,
                     'final_qty': line.final_egg,
-                })
+                }
+            
+            # Escribir todos los valores de una vez
+            for uom_id, vals in vals_to_write.items():
+                self.env['poultry.egg.collection.line.uom'].browse(uom_id).sudo().write(vals)
     
     def _ensure_uom_value_ids(self):
         """Asegura que uom_value_ids exista para el producto actual"""

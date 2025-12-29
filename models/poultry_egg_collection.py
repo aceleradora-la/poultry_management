@@ -289,6 +289,13 @@ class PoultryEggCollection(models.Model):
             if not has_final_values:
                 raise UserError('Debe ingresar al menos una cantidad final.')
             
+            # Asegurar que todos los valores estén sincronizados antes de calcular
+            # Forzar la sincronización de campos legacy a uom_value_ids
+            for line in record.line_ids:
+                if line.uom_value_ids:
+                    # Forzar la sincronización inverse para asegurar que los valores estén guardados
+                    line._sync_legacy_to_uom_values()
+            
             # Calcular producción para todas las líneas
             # Forzar el cálculo accediendo a los campos computed para que se almacenen
             for line in record.line_ids:
