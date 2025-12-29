@@ -224,10 +224,22 @@ class PoultryEggCollectionLine(models.Model):
     def create(self, vals_list):
         """Crear líneas y asegurar que uom_value_ids se cree automáticamente"""
         lines = super().create(vals_list)
+        # Crear uom_value_ids después de crear las líneas
         for line in lines:
             if line.product_variant_id:
-                line._ensure_uom_value_ids()
+                # Usar sudo para evitar problemas de permisos al crear los registros hijos
+                line.sudo()._ensure_uom_value_ids()
         return lines
+    
+    def write(self, vals):
+        """Al escribir, asegurar que uom_value_ids exista si se cambia el producto"""
+        result = super().write(vals)
+        # Si se cambió el producto, asegurar que existan los uom_value_ids
+        if 'product_variant_id' in vals:
+            for line in self:
+                if line.product_variant_id:
+                    line._ensure_uom_value_ids()
+        return result
     
     @api.onchange('product_variant_id')
     def _onchange_product_variant_id(self):
