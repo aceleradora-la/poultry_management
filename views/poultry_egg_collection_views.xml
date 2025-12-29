@@ -89,10 +89,10 @@
                         <page string="Líneas de Recolección" name="lines">
                             <field name="line_ids" nolabel="1" readonly="state == 'done'" 
                                    context="{'default_collection_id': id, 'form_view_ref': 'poultry_management.view_poultry_egg_collection_line_form'}">
-                                <tree string="Líneas de Recolección" create="0">
+                                <list string="Líneas de Recolección" create="0">
                                     <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                     <field name="product_variant_name" invisible="1"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Órdenes de Fabricación" name="productions" invisible="production_count == 0">
