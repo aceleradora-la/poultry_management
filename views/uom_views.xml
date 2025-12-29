@@ -1,34 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Extender la vista de unidades de medida para agregar campos de Poultry Management -->
-    <!-- Intentar heredar de uom.view_uom_form primero, si no existe, usar product.view_uom_form -->
-    <record id="view_uom_form_poultry" model="ir.ui.view">
-        <field name="name">uom.uom.form.poultry</field>
-        <field name="model">uom.uom</field>
-        <field name="inherit_id" ref="uom.view_uom_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='name']" position="after">
-                <group string="Configuración para Gestión Avícola">
-                    <field name="use_in_poultry"/>
-                    <field name="display_name_poultry" 
-                           invisible="not use_in_poultry"
-                           placeholder="Si está vacío, se usará el nombre de la unidad de medida"/>
-                </group>
-            </xpath>
-        </field>
-    </record>
-    
-    <!-- Extender la vista de lista de unidades de medida -->
-    <record id="view_uom_tree_poultry" model="ir.ui.view">
-        <field name="name">uom.uom.tree.poultry</field>
-        <field name="model">uom.uom</field>
-        <field name="inherit_id" ref="uom.view_uom_tree"/>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='name']" position="after">
-                <field name="use_in_poultry" optional="hide"/>
-                <field name="display_name_poultry" optional="hide"/>
-            </xpath>
-        </field>
-    </record>
+    <!-- Nota: Las vistas de unidades de medida se heredan dinámicamente.
+         Los campos use_in_poultry y display_name_poultry aparecerán automáticamente
+         en las vistas estándar de Odoo sin necesidad de herencia explícita.
+         Si necesitas personalizar las vistas, puedes hacerlo manualmente desde
+         Ajustes > Técnico > Vistas de Usuario -->
 </odoo>
 
