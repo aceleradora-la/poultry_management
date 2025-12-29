@@ -206,16 +206,15 @@ class PoultryEggCollection(models.Model):
                     variants = self.product_tmpl_id.product_variant_id
             
             # Limpiar líneas existentes y crear nuevas
-            lines = []
-            for variant in variants:
-                lines.append((0, 0, {
-                    'product_variant_id': variant.id,
-                }))
+            # Crear las líneas directamente para que se dispare el create y se creen los uom_value_ids
+            self.line_ids = [(5, 0, 0)]  # Eliminar todas las líneas existentes
             
-            # Reemplazar todas las líneas existentes con las nuevas
-            self.line_ids = [(5, 0, 0)]  # Eliminar todas las líneas
-            if lines:
-                self.line_ids = lines
+            # Crear las líneas una por una para asegurar que se creen los uom_value_ids
+            for variant in variants:
+                self.env['poultry.egg.collection.line'].create({
+                    'collection_id': self.id,
+                    'product_variant_id': variant.id,
+                })
     
     def action_count_initial(self):
         """Cambia el estado a 'counted' cuando se registra la cantidad inicial"""

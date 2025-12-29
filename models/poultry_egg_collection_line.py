@@ -174,6 +174,10 @@ class PoultryEggCollectionLine(models.Model):
     def _sync_legacy_to_uom_values(self):
         """Sincroniza valores de campos legacy a uom_value_ids cuando se editan en el tree"""
         for line in self:
+            # Si no hay uom_value_ids, crearlos primero
+            if not line.uom_value_ids and line.product_variant_id:
+                line._ensure_uom_value_ids()
+            
             sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
             
             # Actualizar valores desde campos legacy
@@ -193,37 +197,43 @@ class PoultryEggCollectionLine(models.Model):
                     'final_qty': line.final_egg,
                 })
     
+    def _ensure_uom_value_ids(self):
+        """Asegura que uom_value_ids exista para el producto actual"""
+        if not self.product_variant_id:
+            return
+        
+        # Obtener las unidades de medida configuradas para este producto
+        poultry_uoms = self._get_poultry_uoms(self.product_variant_id)
+        
+        # Crear los registros si no existen
+        existing_uom_ids = self.uom_value_ids.mapped('uom_id.id')
+        new_values = []
+        
+        for uom in poultry_uoms:
+            if uom.id not in existing_uom_ids:
+                new_values.append((0, 0, {
+                    'uom_id': uom.id,
+                    'initial_qty': 0.0,
+                    'final_qty': 0.0,
+                }))
+        
+        if new_values:
+            self.uom_value_ids = new_values
+    
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Crear líneas y asegurar que uom_value_ids se cree automáticamente"""
+        lines = super().create(vals_list)
+        for line in lines:
+            if line.product_variant_id:
+                line._ensure_uom_value_ids()
+        return lines
+    
     @api.onchange('product_variant_id')
     def _onchange_product_variant_id(self):
         """Al cambiar el producto, actualizar las unidades de medida disponibles"""
         if self.product_variant_id:
-            # Obtener las unidades de medida configuradas para este producto
-            poultry_uoms = self._get_poultry_uoms(self.product_variant_id)
-            
-            # Crear o actualizar los registros de unidades de medida
-            existing_uoms = {uom_val.uom_id.id: uom_val for uom_val in self.uom_value_ids}
-            new_values = []
-            
-            for uom in poultry_uoms:
-                if uom.id in existing_uoms:
-                    # Ya existe, mantenerlo
-                    continue
-                else:
-                    # Crear nuevo registro
-                    new_values.append((0, 0, {
-                        'uom_id': uom.id,
-                        'initial_qty': 0.0,
-                        'final_qty': 0.0,
-                    }))
-            
-            # Eliminar los que ya no están en la lista
-            to_remove = []
-            for uom_val in self.uom_value_ids:
-                if uom_val.uom_id.id not in poultry_uoms.ids:
-                    to_remove.append((2, uom_val.id))
-            
-            if new_values or to_remove:
-                self.uom_value_ids = to_remove + new_values
+            self._ensure_uom_value_ids()
     
     @api.depends('uom_value_ids.initial_qty', 'uom_value_ids.final_qty', 
                  'uom_value_ids.uom_ratio', 'final_box', 'initial_box', 

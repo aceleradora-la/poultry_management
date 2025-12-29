@@ -95,29 +95,29 @@
                                     <field name="uom_2_name" invisible="1"/>
                                     <field name="uom_3_name" invisible="1"/>
                                     <field name="initial_box" 
-                                           string="Inicial"
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           optional="show"/>
+                                           optional="hide"
+                                           invisible="not uom_1_name"/>
                                     <field name="initial_map" 
-                                           string="Inicial"
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           optional="show"/>
+                                           optional="hide"
+                                           invisible="not uom_2_name"/>
                                     <field name="initial_egg" 
-                                           string="Inicial"
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           optional="show"/>
+                                           optional="hide"
+                                           invisible="not uom_3_name"/>
                                     <field name="final_box" 
-                                           string="Final"
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           optional="show"/>
+                                           optional="hide"
+                                           invisible="not uom_1_name"/>
                                     <field name="final_map" 
-                                           string="Final"
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           optional="show"/>
+                                           optional="hide"
+                                           invisible="not uom_2_name"/>
                                     <field name="final_egg" 
-                                           string="Final"
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           optional="show"/>
+                                           optional="hide"
+                                           invisible="not uom_3_name"/>
                                 </list>
                             </field>
                         </page>
