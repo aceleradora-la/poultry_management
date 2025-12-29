@@ -231,15 +231,25 @@ class PoultryEggCollection(models.Model):
         for record in self:
             if record.state != 'counted':
                 raise UserError('Debe registrar primero la cantidad inicial.')
-            if not any(line.final_box or line.final_map or line.final_egg for line in record.line_ids):
+            # Verificar si hay valores finales (nuevo sistema o legacy)
+            has_final_values = False
+            for line in record.line_ids:
+                if line.uom_value_ids:
+                    if any(uom_val.final_qty > 0 for uom_val in line.uom_value_ids):
+                        has_final_values = True
+                        break
+                else:
+                    if line.final_box or line.final_map or line.final_egg:
+                        has_final_values = True
+                        break
+            
+            if not has_final_values:
                 raise UserError('Debe ingresar al menos una cantidad final.')
-            # Los campos computed se recalcularán automáticamente al cambiar el estado
-            # Forzar recálculo explícito para asegurar que se actualicen
+            
+            # Calcular producción para todas las líneas
             record.line_ids._compute_production()
             # Forzar recálculo de los totales después de calcular producción
             record._compute_totals()
-            # Los campos computed de las líneas se calcularán automáticamente
-            # Forzar recálculo de totales después de guardar
             record.state = 'completed'
     
     def action_set_to_draft(self):

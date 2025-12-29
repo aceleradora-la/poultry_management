@@ -87,30 +87,41 @@
                     </group>
                     <notebook>
                         <page string="Líneas de Recolección" name="lines">
-                            <field name="line_ids" nolabel="1" readonly="state == 'done'" context="{'default_collection_id': id}">
-                                <list string="Líneas de Recolección" editable="bottom" create="0">
+                            <field name="line_ids" nolabel="1" readonly="state == 'done'" 
+                                   context="{'default_collection_id': id, 'form_view_ref': 'poultry_management.view_poultry_egg_collection_line_form'}">
+                                <tree string="Líneas de Recolección" create="0" 
+                                      decoration-info="not uom_value_ids"
+                                      decoration-success="uom_value_ids">
                                     <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                     <field name="product_variant_name" invisible="1"/>
                                     <field name="collection_id" invisible="1"/>
+                                    
+                                    <!-- Mostrar resumen de unidades dinámicas si existen -->
+                                    <field name="uom_value_ids" invisible="1"/>
+                                    <field name="total_produced_reference" string="Total Producido (Ref)" 
+                                           readonly="1" 
+                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                                    
+                                    <!-- Campos legacy (mantener por compatibilidad cuando no hay uom_value_ids) -->
                                     <field name="initial_box" string="Cajón Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
+                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done' or uom_value_ids"/>
                                     <field name="initial_map" string="Maple Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
+                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done' or uom_value_ids"/>
                                     <field name="initial_egg" string="Huevo Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
+                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done' or uom_value_ids"/>
                                     <field name="final_box" string="Cajón Final" 
-                                           invisible="collection_id.state == 'draft'"/>
+                                           invisible="collection_id.state == 'draft' or uom_value_ids"/>
                                     <field name="final_map" string="Maple Final" 
-                                           invisible="collection_id.state == 'draft'"/>
+                                           invisible="collection_id.state == 'draft' or uom_value_ids"/>
                                     <field name="final_egg" string="Huevo Final" 
-                                           invisible="collection_id.state == 'draft'"/>
+                                           invisible="collection_id.state == 'draft' or uom_value_ids"/>
                                     <field name="produced_box" string="Cajón Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted' or uom_value_ids"/>
                                     <field name="produced_map" string="Maple Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted' or uom_value_ids"/>
                                     <field name="produced_egg" string="Huevo Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
-                                </list>
+                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted' or uom_value_ids"/>
+                                </tree>
                             </field>
                         </page>
                         <page string="Órdenes de Fabricación" name="productions" invisible="production_count == 0">

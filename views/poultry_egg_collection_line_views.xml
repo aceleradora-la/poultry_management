@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de formulario para líneas de recolección con unidades dinámicas -->
+    <record id="view_poultry_egg_collection_line_form" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.form</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <form string="Línea de Recolección">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="product_variant_name" invisible="1"/>
+                            <field name="collection_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Cantidades por Unidad de Medida" name="uom_values">
+                            <field name="uom_value_ids" nolabel="1" 
+                                   readonly="collection_id.state == 'done'"
+                                   context="{'default_line_id': id}">
+                                <tree string="Valores por Unidad de Medida" editable="bottom">
+                                    <field name="uom_display_name" readonly="1" string="Unidad de Medida"/>
+                                    <field name="uom_ratio" readonly="1" invisible="1"/>
+                                    <field name="initial_qty" string="Cantidad Inicial" 
+                                           invisible="parent.collection_id.state == 'completed' or parent.collection_id.state == 'done'"/>
+                                    <field name="final_qty" string="Cantidad Final" 
+                                           invisible="parent.collection_id.state == 'draft'"/>
+                                    <field name="produced_qty" string="Cantidad Producida" readonly="1" 
+                                           invisible="parent.collection_id.state == 'draft' or parent.collection_id.state == 'counted'"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Vista de tree para unidades de medida en líneas -->
+    <record id="view_poultry_egg_collection_line_uom_tree" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.uom.tree</field>
+        <field name="model">poultry.egg.collection.line.uom</field>
+        <field name="arch" type="xml">
+            <tree string="Valores por Unidad de Medida" editable="bottom">
+                <field name="uom_display_name" readonly="1" string="Unidad de Medida"/>
+                <field name="uom_ratio" readonly="1" invisible="1"/>
+                <field name="initial_qty" string="Cantidad Inicial"/>
+                <field name="final_qty" string="Cantidad Final"/>
+                <field name="produced_qty" string="Cantidad Producida" readonly="1"/>
+            </tree>
+        </field>
+    </record>
+</odoo>
+
