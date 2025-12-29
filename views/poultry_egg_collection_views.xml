@@ -72,37 +72,46 @@
                                 <field name="uom_1_name" invisible="1"/>
                                 <field name="uom_2_name" invisible="1"/>
                                 <field name="uom_3_name" invisible="1"/>
-                                <field name="total_initial_boxes" readonly="1" 
-                                       invisible="not uom_1_name"
-                                       string="Total Inicial"/>
-                                <field name="total_initial_maps" readonly="1" 
-                                       invisible="not uom_2_name"
-                                       string="Total Inicial"/>
-                                <field name="total_initial_eggs" readonly="1" 
-                                       invisible="not uom_3_name"
-                                       string="Total Inicial"/>
+                                <div invisible="not uom_1_name">
+                                    <label for="total_initial_boxes" string="Total Inicial"/>
+                                    <field name="total_initial_boxes" readonly="1" nolabel="1"/>
+                                </div>
+                                <div invisible="not uom_2_name">
+                                    <label for="total_initial_maps" string="Total Inicial"/>
+                                    <field name="total_initial_maps" readonly="1" nolabel="1"/>
+                                </div>
+                                <div invisible="not uom_3_name">
+                                    <label for="total_initial_eggs" string="Total Inicial"/>
+                                    <field name="total_initial_eggs" readonly="1" nolabel="1"/>
+                                </div>
                             </group>
                             <group string="Totales Finales" invisible="state == 'draft' or state == 'counted'">
-                                <field name="total_final_boxes" readonly="1" 
-                                       invisible="not uom_1_name"
-                                       string="Total Final"/>
-                                <field name="total_final_maps" readonly="1" 
-                                       invisible="not uom_2_name"
-                                       string="Total Final"/>
-                                <field name="total_final_eggs" readonly="1" 
-                                       invisible="not uom_3_name"
-                                       string="Total Final"/>
+                                <div invisible="not uom_1_name">
+                                    <label for="total_final_boxes" string="Total Final"/>
+                                    <field name="total_final_boxes" readonly="1" nolabel="1"/>
+                                </div>
+                                <div invisible="not uom_2_name">
+                                    <label for="total_final_maps" string="Total Final"/>
+                                    <field name="total_final_maps" readonly="1" nolabel="1"/>
+                                </div>
+                                <div invisible="not uom_3_name">
+                                    <label for="total_final_eggs" string="Total Final"/>
+                                    <field name="total_final_eggs" readonly="1" nolabel="1"/>
+                                </div>
                             </group>
                             <group string="Totales Producidos" invisible="state == 'draft' or state == 'counted'">
-                                <field name="total_produced_boxes" readonly="1" 
-                                       invisible="not uom_1_name"
-                                       string="Total Producido"/>
-                                <field name="total_produced_maps" readonly="1" 
-                                       invisible="not uom_2_name"
-                                       string="Total Producido"/>
-                                <field name="total_produced_eggs" readonly="1" 
-                                       invisible="not uom_3_name"
-                                       string="Total Producido"/>
+                                <div invisible="not uom_1_name">
+                                    <label for="total_produced_boxes" string="Total Producido"/>
+                                    <field name="total_produced_boxes" readonly="1" nolabel="1"/>
+                                </div>
+                                <div invisible="not uom_2_name">
+                                    <label for="total_produced_maps" string="Total Producido"/>
+                                    <field name="total_produced_maps" readonly="1" nolabel="1"/>
+                                </div>
+                                <div invisible="not uom_3_name">
+                                    <label for="total_produced_eggs" string="Total Producido"/>
+                                    <field name="total_produced_eggs" readonly="1" nolabel="1"/>
+                                </div>
                             </group>
                         </group>
                     </group>
