@@ -45,6 +45,10 @@
                                 string="Debug UoM Names" 
                                 class="btn-secondary"
                                 help="Muestra información de debug sobre los nombres de las unidades de medida en los logs"/>
+                        <button name="action_recompute_uom_names" type="object" 
+                                string="Recalcular Nombres UoM" 
+                                class="btn-secondary"
+                                help="Fuerza el recálculo de los nombres de unidades de medida almacenados"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done"/>
                 </header>
                 <sheet>

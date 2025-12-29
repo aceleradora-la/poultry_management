@@ -526,4 +526,54 @@ class PoultryEggCollection(models.Model):
                 'sticky': False,
             }
         }
+    
+    def action_recompute_uom_names(self):
+        """Método para recalcular los nombres de unidades de medida almacenados para esta collection"""
+        self.ensure_one()
+        _logger.info("=== Recalculando nombres UoM para collection %s ===", self.id)
+        
+        # Recalcular para todas las líneas de esta collection
+        self.line_ids._compute_uom_display_names()
+        
+        # Recalcular para esta collection
+        self._compute_uom_display_names()
+        
+        _logger.info("=== Recálculo completado ===")
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Recálculo Completado',
+                'message': f'Se recalcularon los nombres para {len(self.line_ids)} líneas',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+    
+    @api.model
+    def _recompute_uom_names_all(self):
+        """Método para recalcular todos los nombres de unidades de medida almacenados"""
+        _logger.info("=== Iniciando recálculo de nombres UoM para todas las collections ===")
+        
+        # Recalcular para todas las líneas
+        all_lines = self.env['poultry.egg.collection.line'].search([])
+        _logger.info("Recalculando %d líneas", len(all_lines))
+        all_lines._compute_uom_display_names()
+        
+        # Recalcular para todas las collections
+        all_collections = self.env['poultry.egg.collection'].search([])
+        _logger.info("Recalculando %d collections", len(all_collections))
+        all_collections._compute_uom_display_names()
+        
+        _logger.info("=== Recálculo completado ===")
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Recálculo Completado',
+                'message': f'Se recalcularon {len(all_lines)} líneas y {len(all_collections)} collections',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
