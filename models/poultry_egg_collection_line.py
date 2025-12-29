@@ -31,20 +31,14 @@ class PoultryEggCollectionLine(models.Model):
     
     # Campos legacy sincronizados con uom_value_ids
     # Estos campos se sincronizan bidireccionalmente con uom_value_ids para mostrar en el tree
-    # Los nombres se actualizan dinámicamente usando _update_field_strings
-    initial_box = fields.Float(default=0.0, digits=(16, 2),
-                               compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
-    initial_map = fields.Float(default=0.0, digits=(16, 2),
-                               compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
-    initial_egg = fields.Float(default=0.0, digits=(16, 2),
-                               compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
+    # Usamos campos normales (no computed) y sincronizamos manualmente en write() y onchange
+    initial_box = fields.Float(default=0.0, digits=(16, 2))
+    initial_map = fields.Float(default=0.0, digits=(16, 2))
+    initial_egg = fields.Float(default=0.0, digits=(16, 2))
     
-    final_box = fields.Float(default=0.0, digits=(16, 2),
-                             compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
-    final_map = fields.Float(default=0.0, digits=(16, 2),
-                             compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
-    final_egg = fields.Float(default=0.0, digits=(16, 2),
-                             compute='_sync_uom_values_to_legacy', inverse='_sync_legacy_to_uom_values', store=False)
+    final_box = fields.Float(default=0.0, digits=(16, 2))
+    final_map = fields.Float(default=0.0, digits=(16, 2))
+    final_egg = fields.Float(default=0.0, digits=(16, 2))
     
     # Campos para almacenar nombres dinámicos de las columnas
     uom_1_name = fields.Char(string='Unidad 1', compute='_compute_uom_display_names', store=False)
@@ -156,50 +150,33 @@ class PoultryEggCollectionLine(models.Model):
             line.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 and sorted_uoms[1].uom_display_name else ''
             line.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 and sorted_uoms[2].uom_display_name else ''
     
-    @api.depends('uom_value_ids.initial_qty', 'uom_value_ids.final_qty')
     def _sync_uom_values_to_legacy(self):
         """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""
         for line in self:
-            # Solo sincronizar si hay uom_value_ids, sino mantener valores actuales
             if not line.uom_value_ids:
-                # Si no hay uom_value_ids, mantener valores por defecto o actuales
-                if not hasattr(line, '_initial_box_set'):
-                    line.initial_box = 0.0
-                    line.final_box = 0.0
-                    line.initial_map = 0.0
-                    line.final_map = 0.0
-                    line.initial_egg = 0.0
-                    line.final_egg = 0.0
                 return
             
             # Ordenar unidades por ratio descendente
             sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
             
             # Mapear a campos legacy (máximo 3 unidades)
-            # Solo actualizar si los valores en uom_value_ids son diferentes para evitar loops
             if len(sorted_uoms) > 0:
-                if line.initial_box != sorted_uoms[0].initial_qty:
-                    line.initial_box = sorted_uoms[0].initial_qty
-                if line.final_box != sorted_uoms[0].final_qty:
-                    line.final_box = sorted_uoms[0].final_qty
+                line.initial_box = sorted_uoms[0].initial_qty
+                line.final_box = sorted_uoms[0].final_qty
             else:
                 line.initial_box = 0.0
                 line.final_box = 0.0
                 
             if len(sorted_uoms) > 1:
-                if line.initial_map != sorted_uoms[1].initial_qty:
-                    line.initial_map = sorted_uoms[1].initial_qty
-                if line.final_map != sorted_uoms[1].final_qty:
-                    line.final_map = sorted_uoms[1].final_qty
+                line.initial_map = sorted_uoms[1].initial_qty
+                line.final_map = sorted_uoms[1].final_qty
             else:
                 line.initial_map = 0.0
                 line.final_map = 0.0
                 
             if len(sorted_uoms) > 2:
-                if line.initial_egg != sorted_uoms[2].initial_qty:
-                    line.initial_egg = sorted_uoms[2].initial_qty
-                if line.final_egg != sorted_uoms[2].final_qty:
-                    line.final_egg = sorted_uoms[2].final_qty
+                line.initial_egg = sorted_uoms[2].initial_qty
+                line.final_egg = sorted_uoms[2].final_qty
             else:
                 line.initial_egg = 0.0
                 line.final_egg = 0.0
@@ -219,27 +196,21 @@ class PoultryEggCollectionLine(models.Model):
             
             # Actualizar valores desde campos legacy
             # Usar sudo para evitar problemas de permisos al escribir en registros hijos
-            # Guardar en un solo write para evitar múltiples escrituras
-            vals_to_write = {}
             if len(sorted_uoms) > 0:
-                vals_to_write[sorted_uoms[0].id] = {
+                sorted_uoms[0].sudo().write({
                     'initial_qty': line.initial_box,
                     'final_qty': line.final_box,
-                }
+                })
             if len(sorted_uoms) > 1:
-                vals_to_write[sorted_uoms[1].id] = {
+                sorted_uoms[1].sudo().write({
                     'initial_qty': line.initial_map,
                     'final_qty': line.final_map,
-                }
+                })
             if len(sorted_uoms) > 2:
-                vals_to_write[sorted_uoms[2].id] = {
+                sorted_uoms[2].sudo().write({
                     'initial_qty': line.initial_egg,
                     'final_qty': line.final_egg,
-                }
-            
-            # Escribir todos los valores de una vez
-            for uom_id, vals in vals_to_write.items():
-                self.env['poultry.egg.collection.line.uom'].browse(uom_id).sudo().write(vals)
+                })
     
     def _ensure_uom_value_ids(self):
         """Asegura que uom_value_ids exista para el producto actual"""
@@ -286,17 +257,39 @@ class PoultryEggCollectionLine(models.Model):
             if line.product_variant_id:
                 # Usar sudo para evitar problemas de permisos al crear los registros hijos
                 line.sudo()._ensure_uom_value_ids()
+                # Sincronizar valores legacy a uom_value_ids si hay valores iniciales
+                line._sync_legacy_to_uom_values()
         return lines
     
     def write(self, vals):
-        """Al escribir, asegurar que uom_value_ids exista si se cambia el producto"""
-        result = super().write(vals)
+        """Al escribir, sincronizar valores entre campos legacy y uom_value_ids"""
+        # Si se están editando campos legacy, sincronizar a uom_value_ids
+        legacy_fields = ['initial_box', 'initial_map', 'initial_egg', 
+                        'final_box', 'final_map', 'final_egg']
+        if any(field in vals for field in legacy_fields):
+            # Primero escribir los valores legacy
+            result = super().write(vals)
+            # Luego sincronizar a uom_value_ids
+            self._sync_legacy_to_uom_values()
+            return result
+        
         # Si se cambió el producto, asegurar que existan los uom_value_ids
         if 'product_variant_id' in vals:
+            result = super().write(vals)
             for line in self:
                 if line.product_variant_id:
                     line._ensure_uom_value_ids()
-        return result
+                    # Sincronizar valores existentes a uom_value_ids
+                    line._sync_legacy_to_uom_values()
+            return result
+        
+        # Si se están editando uom_value_ids, sincronizar a campos legacy
+        if 'uom_value_ids' in vals:
+            result = super().write(vals)
+            self._sync_uom_values_to_legacy()
+            return result
+        
+        return super().write(vals)
     
     @api.onchange('product_variant_id')
     def _onchange_product_variant_id(self):
