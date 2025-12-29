@@ -65,17 +65,36 @@ patch(ListRenderer.prototype, {
     },
 
     _updateDynamicColumnHeaders() {
-        const table = this.el?.querySelector('table.o_list_table');
+        if (!this.el) {
+            console.log('[Poultry] No hay elemento el');
+            return;
+        }
+
+        // Intentar múltiples selectores para encontrar la tabla
+        const table = this.el.querySelector('table.o_list_table') || 
+                     this.el.querySelector('table') ||
+                     document.querySelector('table.o_list_table');
+        
         if (!table) {
             console.log('[Poultry] No se encontró la tabla');
             return;
         }
 
-        const headers = table.querySelectorAll('thead th');
+        // Buscar headers de múltiples formas
+        let headers = table.querySelectorAll('thead th');
         if (!headers.length) {
-            console.log('[Poultry] No se encontraron headers');
+            headers = table.querySelectorAll('th');
+        }
+        if (!headers.length) {
+            headers = table.querySelectorAll('.o_list_table thead th');
+        }
+        
+        if (!headers.length) {
+            console.log('[Poultry] No se encontraron headers, total encontrados:', headers.length);
             return;
         }
+
+        console.log('[Poultry] Headers encontrados:', headers.length);
 
         // Usar los nombres guardados o intentar obtenerlos del modelo
         let uom1Name = this._uomNames?.uom1Name || '';
@@ -87,52 +106,87 @@ patch(ListRenderer.prototype, {
             uom1Name = firstRecord.data?.uom_1_name || '';
             uom2Name = firstRecord.data?.uom_2_name || '';
             uom3Name = firstRecord.data?.uom_3_name || '';
+            console.log('[Poultry] Nombres obtenidos del modelo en _updateDynamicColumnHeaders:', { uom1Name, uom2Name, uom3Name });
+        }
+
+        if (!uom1Name) {
+            console.log('[Poultry] No hay nombres UoM disponibles');
+            return;
         }
 
         // Actualizar headers en el DOM directamente
-        headers.forEach((header) => {
-            const fieldName = header.getAttribute('data-name') || 
-                            header.getAttribute('name') ||
-                            header.querySelector('[data-name]')?.getAttribute('data-name');
+        headers.forEach((header, index) => {
+            // Intentar múltiples formas de obtener el nombre del campo
+            let fieldName = header.getAttribute('data-name') || 
+                           header.getAttribute('name') ||
+                           header.querySelector('[data-name]')?.getAttribute('data-name') ||
+                           header.closest('th')?.getAttribute('data-name');
             
-            if (!fieldName) return;
+            // Si no encontramos el nombre, intentar desde el contenido o el índice
+            if (!fieldName) {
+                // Buscar en los spans dentro del header
+                const spans = header.querySelectorAll('span');
+                spans.forEach(span => {
+                    const name = span.getAttribute('data-name') || span.getAttribute('name');
+                    if (name) fieldName = name;
+                });
+            }
+
+            // Si aún no tenemos el nombre, intentar desde el texto actual
+            if (!fieldName) {
+                const currentText = header.textContent?.trim().toLowerCase();
+                if (currentText.includes('initial box') || currentText.includes('initial_box')) {
+                    fieldName = 'initial_box';
+                } else if (currentText.includes('initial map') || currentText.includes('initial_map')) {
+                    fieldName = 'initial_map';
+                } else if (currentText.includes('initial egg') || currentText.includes('initial_egg')) {
+                    fieldName = 'initial_egg';
+                } else if (currentText.includes('final box') || currentText.includes('final_box')) {
+                    fieldName = 'final_box';
+                } else if (currentText.includes('final map') || currentText.includes('final_map')) {
+                    fieldName = 'final_map';
+                } else if (currentText.includes('final egg') || currentText.includes('final_egg')) {
+                    fieldName = 'final_egg';
+                }
+            }
+
+            if (!fieldName) {
+                console.log(`[Poultry] Header ${index}: No se encontró fieldName, texto actual:`, header.textContent?.trim());
+                return;
+            }
 
             // Buscar el elemento de texto dentro del header
             let headerText = header.querySelector('.o_column_title') || 
                            header.querySelector('span.o_column_title') ||
+                           header.querySelector('span[title]') ||
                            header.querySelector('span') ||
+                           header.querySelector('div') ||
                            header;
 
+            const currentText = headerText.textContent?.trim();
+            let newText = '';
+
             if (fieldName === 'initial_box' && uom1Name) {
-                if (headerText.textContent !== `${uom1Name} Inicial`) {
-                    headerText.textContent = `${uom1Name} Inicial`;
-                    console.log('[Poultry] DOM actualizado: initial_box');
-                }
+                newText = `${uom1Name} Inicial`;
             } else if (fieldName === 'initial_map' && uom2Name) {
-                if (headerText.textContent !== `${uom2Name} Inicial`) {
-                    headerText.textContent = `${uom2Name} Inicial`;
-                    console.log('[Poultry] DOM actualizado: initial_map');
-                }
+                newText = `${uom2Name} Inicial`;
             } else if (fieldName === 'initial_egg' && uom3Name) {
-                if (headerText.textContent !== `${uom3Name} Inicial`) {
-                    headerText.textContent = `${uom3Name} Inicial`;
-                    console.log('[Poultry] DOM actualizado: initial_egg');
-                }
+                newText = `${uom3Name} Inicial`;
             } else if (fieldName === 'final_box' && uom1Name) {
-                if (headerText.textContent !== `${uom1Name} Final`) {
-                    headerText.textContent = `${uom1Name} Final`;
-                    console.log('[Poultry] DOM actualizado: final_box');
-                }
+                newText = `${uom1Name} Final`;
             } else if (fieldName === 'final_map' && uom2Name) {
-                if (headerText.textContent !== `${uom2Name} Final`) {
-                    headerText.textContent = `${uom2Name} Final`;
-                    console.log('[Poultry] DOM actualizado: final_map');
-                }
+                newText = `${uom2Name} Final`;
             } else if (fieldName === 'final_egg' && uom3Name) {
-                if (headerText.textContent !== `${uom3Name} Final`) {
-                    headerText.textContent = `${uom3Name} Final`;
-                    console.log('[Poultry] DOM actualizado: final_egg');
+                newText = `${uom3Name} Final`;
+            }
+
+            if (newText && currentText !== newText) {
+                headerText.textContent = newText;
+                // También actualizar el atributo title si existe
+                if (headerText.hasAttribute('title')) {
+                    headerText.setAttribute('title', newText);
                 }
+                console.log(`[Poultry] DOM actualizado: ${fieldName} = "${newText}" (antes: "${currentText}")`);
             }
         });
     },
@@ -146,6 +200,7 @@ patch(ListRenderer.prototype, {
                 setTimeout(() => this._updateDynamicColumnHeaders(), 100);
                 setTimeout(() => this._updateDynamicColumnHeaders(), 500);
                 setTimeout(() => this._updateDynamicColumnHeaders(), 1000);
+                setTimeout(() => this._updateDynamicColumnHeaders(), 2000);
             });
         }
     },
@@ -156,6 +211,7 @@ patch(ListRenderer.prototype, {
             console.log('[Poultry] onWillUpdateProps para lista');
             requestAnimationFrame(() => {
                 setTimeout(() => this._updateDynamicColumnHeaders(), 100);
+                setTimeout(() => this._updateDynamicColumnHeaders(), 500);
             });
         }
     },
