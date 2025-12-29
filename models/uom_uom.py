@@ -29,7 +29,7 @@ class UomUom(models.Model):
     poultry_display_name = fields.Char(
         string='Nombre Mostrar',
         compute='_compute_poultry_display_name',
-        store=False,
+        store=True,
         help='Nombre que se mostrará en el parte de producción'
     )
 

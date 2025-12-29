@@ -332,28 +332,35 @@ class PoultryEggCollection(models.Model):
         # Usar el nuevo sistema dinámico si hay uom_value_ids, sino usar legacy
         use_dynamic = any(line.uom_value_ids for line in self.line_ids)
         
+        # Buscar la BOM una vez para todas las líneas (usar el producto base)
+        base_product = self.product_tmpl_id
+        if not base_product:
+            raise UserError('No se ha seleccionado un producto base para esta recolección.')
+        
+        # Buscar la BOM del producto base (puede ser por plantilla o por variante)
+        bom = self.env['mrp.bom'].search([
+            ('product_tmpl_id', '=', base_product.id),
+            ('product_id', '=', False),
+            ('type', '=', 'normal'),
+        ], limit=1)
+        
+        if not bom:
+            # Intentar con la primera variante del producto base
+            first_variant = base_product.product_variant_ids[:1]
+            if first_variant:
+                bom = self.env['mrp.bom'].search([
+                    ('product_id', '=', first_variant.id),
+                    ('type', '=', 'normal'),
+                ], limit=1)
+        
+        if not bom:
+            raise UserError(f'No se encontró una Lista de Materiales (BOM) para el producto base {base_product.name}. '
+                          'Debe crear una BOM antes de generar las órdenes.')
+        
         for line in self.line_ids:
             product = line.product_variant_id
             if not product:
                 continue
-            
-            # Buscar la BOM del producto (puede ser por producto o por plantilla)
-            bom = self.env['mrp.bom'].search([
-                ('product_id', '=', product.id),
-                ('type', '=', 'normal'),
-            ], limit=1)
-            
-            if not bom:
-                # Intentar con la plantilla
-                bom = self.env['mrp.bom'].search([
-                    ('product_tmpl_id', '=', product.product_tmpl_id.id),
-                    ('product_id', '=', False),
-                    ('type', '=', 'normal'),
-                ], limit=1)
-            
-            if not bom:
-                raise UserError(f'No se encontró una Lista de Materiales (BOM) para el producto {product.name}. '
-                              'Debe crear una BOM antes de generar las órdenes.')
             
             if use_dynamic and line.uom_value_ids:
                 # Usar el nuevo sistema: generar órdenes para cada unidad con produced_qty > 0
