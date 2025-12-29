@@ -44,9 +44,9 @@ class PoultryEggCollectionLine(models.Model):
     final_egg = fields.Float(default=0.0, digits=(16, 2))
     
     # Campos para almacenar nombres dinámicos de las columnas
-    uom_1_name = fields.Char(string='Unidad 1', compute='_compute_uom_display_names', store=False)
-    uom_2_name = fields.Char(string='Unidad 2', compute='_compute_uom_display_names', store=False)
-    uom_3_name = fields.Char(string='Unidad 3', compute='_compute_uom_display_names', store=False)
+    uom_1_name = fields.Char(string='Unidad 1', compute='_compute_uom_display_names', store=True)
+    uom_2_name = fields.Char(string='Unidad 2', compute='_compute_uom_display_names', store=True)
+    uom_3_name = fields.Char(string='Unidad 3', compute='_compute_uom_display_names', store=True)
     
     @api.model
     def _update_field_strings(self):
