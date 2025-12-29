@@ -366,6 +366,7 @@ class PoultryEggCollection(models.Model):
                 # Usar el nuevo sistema: generar órdenes para cada unidad con produced_qty > 0
                 for uom_val in line.uom_value_ids:
                     if uom_val.produced_qty > 0:
+                        # Usar la BOM del producto base (ya encontrada arriba)
                         production = self.env['mrp.production'].create({
                             'product_id': product.id,
                             'product_qty': uom_val.produced_qty,
