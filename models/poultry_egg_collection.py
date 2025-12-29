@@ -72,18 +72,23 @@ class PoultryEggCollection(models.Model):
                                       string='Órdenes de Fabricación Generadas')
     production_count = fields.Integer(string='Cantidad de OF', compute='_compute_production_count')
     
-    # Totales
-    total_initial_boxes = fields.Float(string='Total Cajones Inicial', compute='_compute_totals', store=True)
-    total_initial_maps = fields.Float(string='Total Maples Inicial', compute='_compute_totals', store=True)
-    total_initial_eggs = fields.Float(string='Total Huevos Inicial', compute='_compute_totals', store=True)
+    # Campos para nombres dinámicos de unidades (para títulos y columnas)
+    uom_1_name = fields.Char(string='Unidad 1', compute='_compute_uom_display_names', store=True)
+    uom_2_name = fields.Char(string='Unidad 2', compute='_compute_uom_display_names', store=True)
+    uom_3_name = fields.Char(string='Unidad 3', compute='_compute_uom_display_names', store=True)
     
-    total_final_boxes = fields.Float(string='Total Cajones Final', compute='_compute_totals', store=True)
-    total_final_maps = fields.Float(string='Total Maples Final', compute='_compute_totals', store=True)
-    total_final_eggs = fields.Float(string='Total Huevos Final', compute='_compute_totals', store=True)
+    # Totales (los strings se actualizarán dinámicamente en la vista)
+    total_initial_boxes = fields.Float(string='Total Inicial', compute='_compute_totals', store=True)
+    total_initial_maps = fields.Float(string='Total Inicial', compute='_compute_totals', store=True)
+    total_initial_eggs = fields.Float(string='Total Inicial', compute='_compute_totals', store=True)
     
-    total_produced_boxes = fields.Float(string='Total Cajones Producidos', compute='_compute_totals', store=True)
-    total_produced_maps = fields.Float(string='Total Maples Producidos', compute='_compute_totals', store=True)
-    total_produced_eggs = fields.Float(string='Total Huevos Producidos', compute='_compute_totals', store=True)
+    total_final_boxes = fields.Float(string='Total Final', compute='_compute_totals', store=True)
+    total_final_maps = fields.Float(string='Total Final', compute='_compute_totals', store=True)
+    total_final_eggs = fields.Float(string='Total Final', compute='_compute_totals', store=True)
+    
+    total_produced_boxes = fields.Float(string='Total Producido', compute='_compute_totals', store=True)
+    total_produced_maps = fields.Float(string='Total Producido', compute='_compute_totals', store=True)
+    total_produced_eggs = fields.Float(string='Total Producido', compute='_compute_totals', store=True)
     
     notes = fields.Text(string='Notas')
     
@@ -141,6 +146,29 @@ class PoultryEggCollection(models.Model):
                 collection.product_variant_name = variant_name or ''
             else:
                 collection.product_variant_name = False
+    
+    @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
+                 'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
+                 'line_ids.produced_box', 'line_ids.produced_map', 'line_ids.produced_egg',
+                 'line_ids.uom_value_ids', 'line_ids.uom_value_ids.produced_qty',
+                 'line_ids.uom_value_ids.initial_qty', 'line_ids.uom_value_ids.final_qty',
+                 'line_ids.uom_value_ids.uom_id', 'line_ids.uom_value_ids.uom_id.poultry_display_name')
+    def _compute_uom_display_names(self):
+        """Calcula los nombres dinámicos de las unidades de medida para mostrar en títulos y columnas"""
+        for collection in self:
+            # Obtener los nombres de la primera línea que tenga uom_value_ids
+            first_line_with_uoms = collection.line_ids.filtered(lambda l: l.uom_value_ids)[:1]
+            if first_line_with_uoms and first_line_with_uoms.uom_value_ids:
+                sorted_uoms = sorted(first_line_with_uoms.uom_value_ids, 
+                                   key=lambda x: x.uom_ratio or 0.0, 
+                                   reverse=True)
+                collection.uom_1_name = sorted_uoms[0].uom_display_name if len(sorted_uoms) > 0 and sorted_uoms[0].uom_display_name else ''
+                collection.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 and sorted_uoms[1].uom_display_name else ''
+                collection.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 and sorted_uoms[2].uom_display_name else ''
+            else:
+                collection.uom_1_name = ''
+                collection.uom_2_name = ''
+                collection.uom_3_name = ''
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
                  'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',

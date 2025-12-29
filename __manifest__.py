@@ -13,7 +13,12 @@
     """,
     'author': 'Tu Empresa',
     'website': 'https://www.tuempresa.com',
-    'depends': ['base', 'mrp', 'product', 'mail', 'hr'],
+    'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web'],
+    'assets': {
+        'web.assets_backend': [
+            'poultry_management/static/src/js/poultry_dynamic_columns.js',
+        ],
+    },
     'data': [
         'security/poultry_security.xml',
         'security/ir.model.access.csv',

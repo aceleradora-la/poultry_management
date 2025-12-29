@@ -69,19 +69,40 @@
                         </group>
                         <group>
                             <group string="Totales Iniciales" invisible="state == 'draft'">
-                                <field name="total_initial_boxes" readonly="1"/>
-                                <field name="total_initial_maps" readonly="1"/>
-                                <field name="total_initial_eggs" readonly="1"/>
+                                <field name="uom_1_name" invisible="1"/>
+                                <field name="uom_2_name" invisible="1"/>
+                                <field name="uom_3_name" invisible="1"/>
+                                <field name="total_initial_boxes" readonly="1" 
+                                       invisible="not uom_1_name"
+                                       string="Total Inicial"/>
+                                <field name="total_initial_maps" readonly="1" 
+                                       invisible="not uom_2_name"
+                                       string="Total Inicial"/>
+                                <field name="total_initial_eggs" readonly="1" 
+                                       invisible="not uom_3_name"
+                                       string="Total Inicial"/>
                             </group>
                             <group string="Totales Finales" invisible="state == 'draft' or state == 'counted'">
-                                <field name="total_final_boxes" readonly="1"/>
-                                <field name="total_final_maps" readonly="1"/>
-                                <field name="total_final_eggs" readonly="1"/>
+                                <field name="total_final_boxes" readonly="1" 
+                                       invisible="not uom_1_name"
+                                       string="Total Final"/>
+                                <field name="total_final_maps" readonly="1" 
+                                       invisible="not uom_2_name"
+                                       string="Total Final"/>
+                                <field name="total_final_eggs" readonly="1" 
+                                       invisible="not uom_3_name"
+                                       string="Total Final"/>
                             </group>
                             <group string="Totales Producidos" invisible="state == 'draft' or state == 'counted'">
-                                <field name="total_produced_boxes" readonly="1"/>
-                                <field name="total_produced_maps" readonly="1"/>
-                                <field name="total_produced_eggs" readonly="1"/>
+                                <field name="total_produced_boxes" readonly="1" 
+                                       invisible="not uom_1_name"
+                                       string="Total Producido"/>
+                                <field name="total_produced_maps" readonly="1" 
+                                       invisible="not uom_2_name"
+                                       string="Total Producido"/>
+                                <field name="total_produced_eggs" readonly="1" 
+                                       invisible="not uom_3_name"
+                                       string="Total Producido"/>
                             </group>
                         </group>
                     </group>
@@ -91,9 +112,9 @@
                                    context="{'default_collection_id': id}">
                                 <list string="Líneas de Recolección" editable="bottom">
                                     <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
-                                    <field name="uom_1_name" invisible="1"/>
-                                    <field name="uom_2_name" invisible="1"/>
-                                    <field name="uom_3_name" invisible="1"/>
+                                    <field name="uom_1_name" invisible="1" data-name="uom_1_name"/>
+                                    <field name="uom_2_name" invisible="1" data-name="uom_2_name"/>
+                                    <field name="uom_3_name" invisible="1" data-name="uom_3_name"/>
                                     <field name="initial_box" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
                                            optional="hide"
