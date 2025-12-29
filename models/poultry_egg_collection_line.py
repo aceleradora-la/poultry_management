@@ -141,14 +141,20 @@ class PoultryEggCollectionLine(models.Model):
         
         return reference_uom[0] if reference_uom else False
     
-    @api.depends('uom_value_ids')
+    @api.depends('uom_value_ids', 'uom_value_ids.uom_id', 'uom_value_ids.uom_id.poultry_display_name')
     def _compute_uom_display_names(self):
         """Calcula los nombres dinámicos de las unidades de medida para mostrar en el tree"""
         for line in self:
+            if not line.uom_value_ids:
+                line.uom_1_name = ''
+                line.uom_2_name = ''
+                line.uom_3_name = ''
+                continue
+            
             sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
-            line.uom_1_name = sorted_uoms[0].uom_display_name if len(sorted_uoms) > 0 else ''
-            line.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 else ''
-            line.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 else ''
+            line.uom_1_name = sorted_uoms[0].uom_display_name if len(sorted_uoms) > 0 and sorted_uoms[0].uom_display_name else ''
+            line.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 and sorted_uoms[1].uom_display_name else ''
+            line.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 and sorted_uoms[2].uom_display_name else ''
     
     @api.depends('uom_value_ids.initial_qty', 'uom_value_ids.final_qty')
     def _sync_uom_values_to_legacy(self):
@@ -186,21 +192,26 @@ class PoultryEggCollectionLine(models.Model):
             if not line.uom_value_ids and line.product_variant_id:
                 line._ensure_uom_value_ids()
             
+            # Si aún no hay uom_value_ids después de intentar crearlos, no hacer nada
+            if not line.uom_value_ids:
+                return
+            
             sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
             
             # Actualizar valores desde campos legacy
+            # Usar sudo para evitar problemas de permisos al escribir en registros hijos
             if len(sorted_uoms) > 0:
-                sorted_uoms[0].write({
+                sorted_uoms[0].sudo().write({
                     'initial_qty': line.initial_box,
                     'final_qty': line.final_box,
                 })
             if len(sorted_uoms) > 1:
-                sorted_uoms[1].write({
+                sorted_uoms[1].sudo().write({
                     'initial_qty': line.initial_map,
                     'final_qty': line.final_map,
                 })
             if len(sorted_uoms) > 2:
-                sorted_uoms[2].write({
+                sorted_uoms[2].sudo().write({
                     'initial_qty': line.initial_egg,
                     'final_qty': line.final_egg,
                 })
@@ -210,8 +221,21 @@ class PoultryEggCollectionLine(models.Model):
         if not self.product_variant_id:
             return
         
+        # Verificar que el producto tenga unidad de medida
+        if not self.product_variant_id.uom_id:
+            return
+        
+        # Obtener la categoría de unidad de medida del producto
+        uom_category = self.product_variant_id.uom_id.category_id
+        if not uom_category:
+            return
+        
         # Obtener las unidades de medida configuradas para este producto
         poultry_uoms = self._get_poultry_uoms(self.product_variant_id)
+        
+        # Si no hay unidades configuradas, no hacer nada (puede ser que no estén marcadas como use_in_poultry)
+        if not poultry_uoms:
+            return
         
         # Crear los registros si no existen
         existing_uom_ids = self.uom_value_ids.mapped('uom_id.id')

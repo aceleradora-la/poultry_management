@@ -144,7 +144,9 @@ class PoultryEggCollection(models.Model):
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
                  'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
-                 'line_ids.produced_box', 'line_ids.produced_map', 'line_ids.produced_egg')
+                 'line_ids.produced_box', 'line_ids.produced_map', 'line_ids.produced_egg',
+                 'line_ids.uom_value_ids', 'line_ids.uom_value_ids.produced_qty',
+                 'line_ids.uom_value_ids.initial_qty', 'line_ids.uom_value_ids.final_qty')
     def _compute_totals(self):
         """Calcula los totales de todas las líneas"""
         for collection in self:
@@ -152,21 +154,62 @@ class PoultryEggCollection(models.Model):
             if collection.line_ids:
                 collection.line_ids._compute_production()
             
-            # Totales iniciales
-            collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box') or [0.0])
-            collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map') or [0.0])
-            collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg') or [0.0])
+            # Usar el nuevo sistema dinámico si hay uom_value_ids, sino usar legacy
+            use_dynamic = any(line.uom_value_ids for line in collection.line_ids)
             
-            # Totales finales
-            collection.total_final_boxes = sum(collection.line_ids.mapped('final_box') or [0.0])
-            collection.total_final_maps = sum(collection.line_ids.mapped('final_map') or [0.0])
-            collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg') or [0.0])
-            
-            # Totales producidos: calcular directamente desde totales finales - iniciales
-            # Esto es más confiable porque no depende del estado de los campos computed de las líneas
-            collection.total_produced_boxes = collection.total_final_boxes - collection.total_initial_boxes
-            collection.total_produced_maps = collection.total_final_maps - collection.total_initial_maps
-            collection.total_produced_eggs = collection.total_final_eggs - collection.total_initial_eggs
+            if use_dynamic:
+                # Calcular totales desde uom_value_ids
+                # Agrupar por posición (primera, segunda, tercera unidad ordenada por ratio)
+                total_initial_uom1 = 0.0
+                total_initial_uom2 = 0.0
+                total_initial_uom3 = 0.0
+                total_final_uom1 = 0.0
+                total_final_uom2 = 0.0
+                total_final_uom3 = 0.0
+                total_produced_uom1 = 0.0
+                total_produced_uom2 = 0.0
+                total_produced_uom3 = 0.0
+                
+                for line in collection.line_ids:
+                    if line.uom_value_ids:
+                        # Ordenar por ratio descendente
+                        sorted_uoms = sorted(line.uom_value_ids, 
+                                           key=lambda x: x.uom_ratio or 0.0, 
+                                           reverse=True)
+                        
+                        if len(sorted_uoms) > 0:
+                            total_initial_uom1 += sorted_uoms[0].initial_qty
+                            total_final_uom1 += sorted_uoms[0].final_qty
+                            total_produced_uom1 += sorted_uoms[0].produced_qty
+                        if len(sorted_uoms) > 1:
+                            total_initial_uom2 += sorted_uoms[1].initial_qty
+                            total_final_uom2 += sorted_uoms[1].final_qty
+                            total_produced_uom2 += sorted_uoms[1].produced_qty
+                        if len(sorted_uoms) > 2:
+                            total_initial_uom3 += sorted_uoms[2].initial_qty
+                            total_final_uom3 += sorted_uoms[2].final_qty
+                            total_produced_uom3 += sorted_uoms[2].produced_qty
+                
+                collection.total_initial_boxes = total_initial_uom1
+                collection.total_initial_maps = total_initial_uom2
+                collection.total_initial_eggs = total_initial_uom3
+                collection.total_final_boxes = total_final_uom1
+                collection.total_final_maps = total_final_uom2
+                collection.total_final_eggs = total_final_uom3
+                collection.total_produced_boxes = total_produced_uom1
+                collection.total_produced_maps = total_produced_uom2
+                collection.total_produced_eggs = total_produced_uom3
+            else:
+                # Método legacy: usar campos legacy
+                collection.total_initial_boxes = sum(collection.line_ids.mapped('initial_box') or [0.0])
+                collection.total_initial_maps = sum(collection.line_ids.mapped('initial_map') or [0.0])
+                collection.total_initial_eggs = sum(collection.line_ids.mapped('initial_egg') or [0.0])
+                collection.total_final_boxes = sum(collection.line_ids.mapped('final_box') or [0.0])
+                collection.total_final_maps = sum(collection.line_ids.mapped('final_map') or [0.0])
+                collection.total_final_eggs = sum(collection.line_ids.mapped('final_egg') or [0.0])
+                collection.total_produced_boxes = sum(collection.line_ids.mapped('produced_box') or [0.0])
+                collection.total_produced_maps = sum(collection.line_ids.mapped('produced_map') or [0.0])
+                collection.total_produced_eggs = sum(collection.line_ids.mapped('produced_egg') or [0.0])
     
     @api.depends('production_ids')
     def _compute_production_count(self):
@@ -269,7 +312,7 @@ class PoultryEggCollection(models.Model):
             record.state = 'draft'
     
     def action_generate_productions(self):
-        """Genera automáticamente las Órdenes de Fabricación para los Cajones producidos"""
+        """Genera automáticamente las Órdenes de Fabricación para todas las unidades producidas"""
         self.ensure_one()
         if self.state != 'completed':
             raise UserError('Debe completar la recolección antes de generar las Órdenes de Fabricación.')
@@ -277,52 +320,68 @@ class PoultryEggCollection(models.Model):
         if self.production_ids:
             raise UserError('Ya se han generado las Órdenes de Fabricación para esta recolección.')
         
-        # Obtener la unidad de medida "Cajón"
-        box_uom = self._get_uom_box()
-        if not box_uom:
-            raise UserError('No se encontró la unidad de medida "Cajón". '
-                          'Debe crear esta unidad de medida antes de generar las órdenes.')
-        
         productions_created = []
         
+        # Usar el nuevo sistema dinámico si hay uom_value_ids, sino usar legacy
+        use_dynamic = any(line.uom_value_ids for line in self.line_ids)
+        
         for line in self.line_ids:
-            if line.produced_box > 0:
-                # Usar el mismo producto pero con la unidad de medida "Cajón"
-                product = line.product_variant_id
-                
-                # Buscar la BOM del producto (puede ser por producto o por plantilla)
+            product = line.product_variant_id
+            if not product:
+                continue
+            
+            # Buscar la BOM del producto (puede ser por producto o por plantilla)
+            bom = self.env['mrp.bom'].search([
+                ('product_id', '=', product.id),
+                ('type', '=', 'normal'),
+            ], limit=1)
+            
+            if not bom:
+                # Intentar con la plantilla
                 bom = self.env['mrp.bom'].search([
-                    ('product_id', '=', product.id),
+                    ('product_tmpl_id', '=', product.product_tmpl_id.id),
+                    ('product_id', '=', False),
                     ('type', '=', 'normal'),
                 ], limit=1)
+            
+            if not bom:
+                raise UserError(f'No se encontró una Lista de Materiales (BOM) para el producto {product.name}. '
+                              'Debe crear una BOM antes de generar las órdenes.')
+            
+            if use_dynamic and line.uom_value_ids:
+                # Usar el nuevo sistema: generar órdenes para cada unidad con produced_qty > 0
+                for uom_val in line.uom_value_ids:
+                    if uom_val.produced_qty > 0:
+                        production = self.env['mrp.production'].create({
+                            'product_id': product.id,
+                            'product_qty': uom_val.produced_qty,
+                            'product_uom_id': uom_val.uom_id.id,
+                            'bom_id': bom.id,
+                            'coop_id': self.coop_id.id,
+                            'egg_collection_id': self.id,
+                            'origin': self.name,
+                        })
+                        production.action_confirm()
+                        productions_created.append(production.id)
+            else:
+                # Método legacy: solo generar para cajones
+                box_uom = self._get_uom_box()
+                if not box_uom:
+                    raise UserError('No se encontró la unidad de medida "Cajón". '
+                                  'Debe crear esta unidad de medida antes de generar las órdenes.')
                 
-                if not bom:
-                    # Intentar con la plantilla
-                    bom = self.env['mrp.bom'].search([
-                        ('product_tmpl_id', '=', product.product_tmpl_id.id),
-                        ('product_id', '=', False),
-                        ('type', '=', 'normal'),
-                    ], limit=1)
-                
-                if not bom:
-                    raise UserError(f'No se encontró una Lista de Materiales (BOM) para el producto {product.name}. '
-                                  'Debe crear una BOM antes de generar las órdenes.')
-                
-                # Crear la Orden de Fabricación con la cantidad en unidades "Cajón"
-                production = self.env['mrp.production'].create({
-                    'product_id': product.id,
-                    'product_qty': line.produced_box,  # Cantidad en unidades "Cajón"
-                    'product_uom_id': box_uom.id,  # Unidad de medida "Cajón"
-                    'bom_id': bom.id,
-                    'coop_id': self.coop_id.id,
-                    'egg_collection_id': self.id,
-                    'origin': self.name,
-                })
-                
-                # Confirmar la orden
-                production.action_confirm()
-                
-                productions_created.append(production.id)
+                if line.produced_box > 0:
+                    production = self.env['mrp.production'].create({
+                        'product_id': product.id,
+                        'product_qty': line.produced_box,
+                        'product_uom_id': box_uom.id,
+                        'bom_id': bom.id,
+                        'coop_id': self.coop_id.id,
+                        'egg_collection_id': self.id,
+                        'origin': self.name,
+                    })
+                    production.action_confirm()
+                    productions_created.append(production.id)
         
         if productions_created:
             self.state = 'done'
@@ -335,7 +394,7 @@ class PoultryEggCollection(models.Model):
                 'context': {'create': False},
             }
         else:
-            raise UserError('No hay producción de cajones para generar órdenes de fabricación.')
+            raise UserError('No hay producción para generar órdenes de fabricación.')
     
     def _get_uom_box(self):
         """Obtiene la unidad de medida 'Cajón' en cualquier categoría"""
