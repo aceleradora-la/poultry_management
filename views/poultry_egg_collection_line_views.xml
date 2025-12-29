@@ -20,14 +20,11 @@
                                    readonly="collection_id.state == 'done'"
                                    context="{'default_line_id': id}">
                                 <tree string="Valores por Unidad de Medida" editable="bottom">
-                                    <field name="uom_display_name" readonly="1" string="Unidad de Medida"/>
+                                    <field name="uom_id" readonly="1" string="Unidad de Medida"/>
                                     <field name="uom_ratio" readonly="1" invisible="1"/>
-                                    <field name="initial_qty" string="Cantidad Inicial" 
-                                           invisible="parent.line_id.collection_id.state == 'completed' or parent.line_id.collection_id.state == 'done'"/>
-                                    <field name="final_qty" string="Cantidad Final" 
-                                           invisible="parent.line_id.collection_id.state == 'draft'"/>
-                                    <field name="produced_qty" string="Cantidad Producida" readonly="1" 
-                                           invisible="parent.line_id.collection_id.state == 'draft' or parent.line_id.collection_id.state == 'counted'"/>
+                                    <field name="initial_qty" string="Cantidad Inicial"/>
+                                    <field name="final_qty" string="Cantidad Final"/>
+                                    <field name="produced_qty" string="Cantidad Producida" readonly="1"/>
                                 </tree>
                             </field>
                         </page>
