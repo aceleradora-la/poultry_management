@@ -10,7 +10,7 @@ patch(ListRenderer.prototype, {
         super.setup();
         if (this.props.list && this.props.list.resModel === 'poultry.egg.collection.line') {
             this._updateDynamicColumnHeaders = this._updateDynamicColumnHeaders.bind(this);
-            console.log('[Poultry] ListRenderer setup para poultry.egg.collection.line');
+            this._observer = null;
         }
     },
 
@@ -18,8 +18,6 @@ patch(ListRenderer.prototype, {
         const columns = super.getColumns();
         
         if (this.props.list && this.props.list.resModel === 'poultry.egg.collection.line') {
-            console.log('[Poultry] getColumns llamado, registros:', this.props.list.records?.length);
-            
             // Obtener valores desde el modelo
             let uom1Name = '';
             let uom2Name = '';
@@ -31,8 +29,6 @@ patch(ListRenderer.prototype, {
                 uom2Name = firstRecord.data?.uom_2_name || '';
                 uom3Name = firstRecord.data?.uom_3_name || '';
                 
-                console.log('[Poultry] Nombres obtenidos del modelo:', { uom1Name, uom2Name, uom3Name });
-                
                 // Guardar los nombres para usar después en el DOM
                 this._uomNames = { uom1Name, uom2Name, uom3Name };
                 
@@ -40,22 +36,16 @@ patch(ListRenderer.prototype, {
                 columns.forEach((column) => {
                     if (column.name === 'initial_box' && uom1Name) {
                         column.title = `${uom1Name} Inicial`;
-                        console.log('[Poultry] Actualizado initial_box:', column.title);
                     } else if (column.name === 'initial_map' && uom2Name) {
                         column.title = `${uom2Name} Inicial`;
-                        console.log('[Poultry] Actualizado initial_map:', column.title);
                     } else if (column.name === 'initial_egg' && uom3Name) {
                         column.title = `${uom3Name} Inicial`;
-                        console.log('[Poultry] Actualizado initial_egg:', column.title);
                     } else if (column.name === 'final_box' && uom1Name) {
                         column.title = `${uom1Name} Final`;
-                        console.log('[Poultry] Actualizado final_box:', column.title);
                     } else if (column.name === 'final_map' && uom2Name) {
                         column.title = `${uom2Name} Final`;
-                        console.log('[Poultry] Actualizado final_map:', column.title);
                     } else if (column.name === 'final_egg' && uom3Name) {
                         column.title = `${uom3Name} Final`;
-                        console.log('[Poultry] Actualizado final_egg:', column.title);
                     }
                 });
             }
@@ -66,7 +56,6 @@ patch(ListRenderer.prototype, {
 
     _updateDynamicColumnHeaders() {
         if (!this.el) {
-            console.log('[Poultry] No hay elemento el');
             return;
         }
 
@@ -76,7 +65,6 @@ patch(ListRenderer.prototype, {
                      document.querySelector('table.o_list_table');
         
         if (!table) {
-            console.log('[Poultry] No se encontró la tabla');
             return;
         }
 
@@ -90,11 +78,8 @@ patch(ListRenderer.prototype, {
         }
         
         if (!headers.length) {
-            console.log('[Poultry] No se encontraron headers, total encontrados:', headers.length);
             return;
         }
-
-        console.log('[Poultry] Headers encontrados:', headers.length);
 
         // Usar los nombres guardados o intentar obtenerlos del modelo
         let uom1Name = this._uomNames?.uom1Name || '';
@@ -106,25 +91,22 @@ patch(ListRenderer.prototype, {
             uom1Name = firstRecord.data?.uom_1_name || '';
             uom2Name = firstRecord.data?.uom_2_name || '';
             uom3Name = firstRecord.data?.uom_3_name || '';
-            console.log('[Poultry] Nombres obtenidos del modelo en _updateDynamicColumnHeaders:', { uom1Name, uom2Name, uom3Name });
         }
 
         if (!uom1Name) {
-            console.log('[Poultry] No hay nombres UoM disponibles');
             return;
         }
 
         // Actualizar headers en el DOM directamente
-        headers.forEach((header, index) => {
+        headers.forEach((header) => {
             // Intentar múltiples formas de obtener el nombre del campo
             let fieldName = header.getAttribute('data-name') || 
                            header.getAttribute('name') ||
                            header.querySelector('[data-name]')?.getAttribute('data-name') ||
                            header.closest('th')?.getAttribute('data-name');
             
-            // Si no encontramos el nombre, intentar desde el contenido o el índice
+            // Si no encontramos el nombre, intentar desde el contenido
             if (!fieldName) {
-                // Buscar en los spans dentro del header
                 const spans = header.querySelectorAll('span');
                 spans.forEach(span => {
                     const name = span.getAttribute('data-name') || span.getAttribute('name');
@@ -151,7 +133,6 @@ patch(ListRenderer.prototype, {
             }
 
             if (!fieldName) {
-                console.log(`[Poultry] Header ${index}: No se encontró fieldName, texto actual:`, header.textContent?.trim());
                 return;
             }
 
@@ -182,11 +163,12 @@ patch(ListRenderer.prototype, {
 
             if (newText && currentText !== newText) {
                 headerText.textContent = newText;
-                // También actualizar el atributo title si existe
                 if (headerText.hasAttribute('title')) {
                     headerText.setAttribute('title', newText);
                 }
-                console.log(`[Poultry] DOM actualizado: ${fieldName} = "${newText}" (antes: "${currentText}")`);
+                if (header !== headerText) {
+                    header.setAttribute('title', newText);
+                }
             }
         });
     },
@@ -194,8 +176,20 @@ patch(ListRenderer.prototype, {
     onMounted() {
         super.onMounted();
         if (this.props.list && this.props.list.resModel === 'poultry.egg.collection.line') {
-            console.log('[Poultry] onMounted para lista');
-            // Usar requestAnimationFrame para asegurar que el DOM esté listo
+            // Usar MutationObserver para detectar cuando se renderiza la tabla
+            if (this.el && !this._observer) {
+                this._observer = new MutationObserver(() => {
+                    this._updateDynamicColumnHeaders();
+                });
+                
+                this._observer.observe(this.el, {
+                    childList: true,
+                    subtree: true,
+                    attributes: false
+                });
+            }
+            
+            // Intentos de actualización con timeouts
             requestAnimationFrame(() => {
                 setTimeout(() => this._updateDynamicColumnHeaders(), 100);
                 setTimeout(() => this._updateDynamicColumnHeaders(), 500);
@@ -205,10 +199,17 @@ patch(ListRenderer.prototype, {
         }
     },
 
+    onWillUnmount() {
+        if (this._observer) {
+            this._observer.disconnect();
+            this._observer = null;
+        }
+        super.onWillUnmount();
+    },
+
     onWillUpdateProps(nextProps) {
         super.onWillUpdateProps(nextProps);
         if (nextProps.list && nextProps.list.resModel === 'poultry.egg.collection.line') {
-            console.log('[Poultry] onWillUpdateProps para lista');
             requestAnimationFrame(() => {
                 setTimeout(() => this._updateDynamicColumnHeaders(), 100);
                 setTimeout(() => this._updateDynamicColumnHeaders(), 500);
@@ -223,20 +224,17 @@ patch(FormRenderer.prototype, {
         super.setup();
         if (this.props.resModel === 'poultry.egg.collection') {
             this._updateTotalLabels = this._updateTotalLabels.bind(this);
-            console.log('[Poultry] FormRenderer setup para poultry.egg.collection');
         }
     },
 
     _updateTotalLabels() {
         const form = this.el?.querySelector('.o_form_view');
         if (!form) {
-            console.log('[Poultry] No se encontró el formulario');
             return;
         }
 
         const record = this.props.record;
         if (!record || !record.data) {
-            console.log('[Poultry] No hay record o data');
             return;
         }
 
@@ -244,13 +242,10 @@ patch(FormRenderer.prototype, {
         const uom2Name = record.data.uom_2_name || '';
         const uom3Name = record.data.uom_3_name || '';
 
-        console.log('[Poultry] _updateTotalLabels - Nombres:', { uom1Name, uom2Name, uom3Name });
-
         // Actualizar labels de totales iniciales
         const totalInitialBoxesLabel = form.querySelector('label[for="total_initial_boxes"]');
         if (totalInitialBoxesLabel && uom1Name) {
             totalInitialBoxesLabel.textContent = `Total Inicial ${uom1Name}`;
-            console.log('[Poultry] Actualizado label total_initial_boxes');
         }
         const totalInitialMapsLabel = form.querySelector('label[for="total_initial_maps"]');
         if (totalInitialMapsLabel && uom2Name) {
@@ -293,7 +288,6 @@ patch(FormRenderer.prototype, {
     onMounted() {
         super.onMounted();
         if (this.props.resModel === 'poultry.egg.collection') {
-            console.log('[Poultry] onMounted para formulario');
             requestAnimationFrame(() => {
                 setTimeout(() => this._updateTotalLabels(), 100);
                 setTimeout(() => this._updateTotalLabels(), 500);
@@ -304,7 +298,6 @@ patch(FormRenderer.prototype, {
     onWillUpdateProps(nextProps) {
         super.onWillUpdateProps(nextProps);
         if (nextProps.resModel === 'poultry.egg.collection') {
-            console.log('[Poultry] onWillUpdateProps para formulario');
             requestAnimationFrame(() => {
                 setTimeout(() => this._updateTotalLabels(), 100);
             });
