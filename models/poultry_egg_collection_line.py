@@ -258,8 +258,24 @@ class PoultryEggCollectionLine(models.Model):
                 # Usar sudo para evitar problemas de permisos al crear los registros hijos
                 line.sudo()._ensure_uom_value_ids()
                 # Sincronizar valores legacy a uom_value_ids si hay valores iniciales
-                line._sync_legacy_to_uom_values()
+                if any(vals.get(field, 0) for field in ['initial_box', 'initial_map', 'initial_egg', 
+                                                       'final_box', 'final_map', 'final_egg'] 
+                       for vals in vals_list):
+                    line._sync_legacy_to_uom_values()
+                else:
+                    # Si no hay valores legacy, sincronizar desde uom_value_ids
+                    line._sync_uom_values_to_legacy()
         return lines
+    
+    def read(self, fields=None, load='_classic_read'):
+        """Al leer, sincronizar valores desde uom_value_ids a campos legacy"""
+        result = super().read(fields=fields, load=load)
+        # Sincronizar después de leer para asegurar que los valores estén actualizados
+        if fields is None or any(f in fields for f in ['initial_box', 'initial_map', 'initial_egg', 
+                                                       'final_box', 'final_map', 'final_egg']):
+            for line in self:
+                line._sync_uom_values_to_legacy()
+        return result
     
     def write(self, vals):
         """Al escribir, sincronizar valores entre campos legacy y uom_value_ids"""
