@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Extender la vista de unidades de medida para agregar campos de Poultry Management -->
+    <!-- Intentar heredar de uom.view_uom_form primero, si no existe, usar product.view_uom_form -->
     <record id="view_uom_form_poultry" model="ir.ui.view">
         <field name="name">uom.uom.form.poultry</field>
         <field name="model">uom.uom</field>
-        <field name="inherit_id" ref="product.view_uom_form"/>
+        <field name="inherit_id" ref="uom.view_uom_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <group string="Configuración para Gestión Avícola">
@@ -21,7 +22,7 @@
     <record id="view_uom_tree_poultry" model="ir.ui.view">
         <field name="name">uom.uom.tree.poultry</field>
         <field name="model">uom.uom</field>
-        <field name="inherit_id" ref="product.view_uom_tree"/>
+        <field name="inherit_id" ref="uom.view_uom_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
                 <field name="use_in_poultry" optional="hide"/>
