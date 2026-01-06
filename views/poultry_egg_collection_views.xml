@@ -54,7 +54,9 @@
                             invisible="state != 'done'"/>
                     <group>
                         <group>
-                            <field name="name" placeholder="Ej: REC-0001"/>
+                            <field name="name" placeholder="Se genera automáticamente" 
+                                   readonly="state != 'draft'"
+                                   help="Se genera automáticamente al seleccionar el galpón"/>
                             <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}" 
                                    readonly="state != 'draft'"/>
                             <field name="product_tmpl_id" 
