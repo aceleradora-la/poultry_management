@@ -28,7 +28,8 @@ class PoultryEggCollection(models.Model):
                     groupby_spec = 'product_variant_id'
         return super()._read_group_groupby(groupby_spec, query)
 
-    name = fields.Char(string='Referencia', required=True, copy=False, index=True)
+    name = fields.Char(string='Referencia', required=True, copy=False, index=True,
+                       default='NUEVA', readonly=False)
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]", tracking=True)
     product_tmpl_id = fields.Many2one('product.template', string='Producto Base', required=True,
@@ -299,7 +300,8 @@ class PoultryEggCollection(models.Model):
     @api.model
     def create(self, vals):
         """Genera referencia automática usando secuencia numérica basada en el prefijo del galpón"""
-        if not vals.get('name'):
+        # Siempre generar el nombre si no se proporciona o si es el valor por defecto
+        if not vals.get('name') or vals.get('name') == 'NUEVA':
             # Obtener la secuencia basada en el galpón
             coop_id = vals.get('coop_id')
             sequence = self._get_sequence_for_coop(coop_id)
@@ -311,9 +313,9 @@ class PoultryEggCollection(models.Model):
         
         record = super().create(vals)
         
-        # Si se cambió el galpón después de crear, regenerar el nombre si es necesario
-        if 'coop_id' in vals and not vals.get('name'):
-            coop_id = vals.get('coop_id')
+        # Si el nombre sigue siendo 'NUEVA' o vacío después de crear, regenerarlo
+        if record.name == 'NUEVA' or not record.name:
+            coop_id = record.coop_id.id if record.coop_id else vals.get('coop_id')
             sequence = self._get_sequence_for_coop(coop_id)
             if sequence:
                 record.name = sequence.next_by_id() or 'NUEVA'
@@ -322,6 +324,14 @@ class PoultryEggCollection(models.Model):
         if 'product_tmpl_id' in vals:
             record._compute_product_variant_name()
         return record
+    
+    @api.onchange('coop_id')
+    def _onchange_coop_id(self):
+        """Al cambiar el galpón, regenerar el nombre si es necesario"""
+        if self.coop_id and (not self.name or self.name == 'NUEVA'):
+            sequence = self._get_sequence_for_coop(self.coop_id.id)
+            if sequence:
+                self.name = sequence.next_by_id() or 'NUEVA'
     
     @api.model
     def renumber_existing_collections(self):
