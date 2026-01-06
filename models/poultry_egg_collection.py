@@ -429,6 +429,9 @@ class PoultryEggCollection(models.Model):
             raise UserError(f'No se encontró una Lista de Materiales (BOM) para el producto base {base_product.name}. '
                           'Debe crear una BOM antes de generar las órdenes.')
         
+        # Preparar picking_type_id del galpón para usar en todas las órdenes
+        picking_type_id = self.coop_id.picking_type_id.id if self.coop_id.picking_type_id else False
+        
         for line in self.line_ids:
             product = line.product_variant_id
             if not product:
@@ -439,7 +442,7 @@ class PoultryEggCollection(models.Model):
                 for uom_val in line.uom_value_ids:
                     if uom_val.produced_qty > 0:
                         # Usar la BOM del producto base (ya encontrada arriba)
-                        production = self.env['mrp.production'].create({
+                        production_vals = {
                             'product_id': product.id,
                             'product_qty': uom_val.produced_qty,
                             'product_uom_id': uom_val.uom_id.id,
@@ -447,7 +450,11 @@ class PoultryEggCollection(models.Model):
                             'coop_id': self.coop_id.id,
                             'egg_collection_id': self.id,
                             'origin': self.name,
-                        })
+                        }
+                        if picking_type_id:
+                            production_vals['picking_type_id'] = picking_type_id
+                        
+                        production = self.env['mrp.production'].create(production_vals)
                         production.action_confirm()
                         productions_created.append(production.id)
             else:
@@ -458,7 +465,7 @@ class PoultryEggCollection(models.Model):
                                   'Debe crear esta unidad de medida antes de generar las órdenes.')
                 
                 if line.produced_box > 0:
-                    production = self.env['mrp.production'].create({
+                    production_vals = {
                         'product_id': product.id,
                         'product_qty': line.produced_box,
                         'product_uom_id': box_uom.id,
@@ -466,9 +473,47 @@ class PoultryEggCollection(models.Model):
                         'coop_id': self.coop_id.id,
                         'egg_collection_id': self.id,
                         'origin': self.name,
-                    })
+                    }
+                    if picking_type_id:
+                        production_vals['picking_type_id'] = picking_type_id
+                    
+                    production = self.env['mrp.production'].create(production_vals)
                     production.action_confirm()
                     productions_created.append(production.id)
+        
+        # Crear orden de producción para Huevo sin Clasificar
+        if self.coop_id.unclassified_egg_product_id and self.coop_id.unclassified_egg_bom_id:
+            # Calcular total de huevos producidos (sumar todos los total_produced_reference)
+            total_eggs = 0.0
+            for line in self.line_ids:
+                # Asegurar que total_produced_reference esté calculado
+                if hasattr(line, 'total_produced_reference'):
+                    total_eggs += line.total_produced_reference or 0.0
+            
+            if total_eggs > 0:
+                # Obtener la unidad de medida del producto de huevo sin clasificar
+                unclassified_product = self.coop_id.unclassified_egg_product_id
+                unclassified_uom = unclassified_product.uom_id
+                
+                if not unclassified_uom:
+                    raise UserError('El producto de huevo sin clasificar no tiene unidad de medida configurada.')
+                
+                # Crear la orden de producción para huevo sin clasificar
+                unclassified_production_vals = {
+                    'product_id': unclassified_product.id,
+                    'product_qty': total_eggs,
+                    'product_uom_id': unclassified_uom.id,
+                    'bom_id': self.coop_id.unclassified_egg_bom_id.id,
+                    'coop_id': self.coop_id.id,
+                    'egg_collection_id': self.id,
+                    'origin': f'{self.name} - Huevo sin Clasificar',
+                }
+                if picking_type_id:
+                    unclassified_production_vals['picking_type_id'] = picking_type_id
+                
+                unclassified_production = self.env['mrp.production'].create(unclassified_production_vals)
+                unclassified_production.action_confirm()
+                productions_created.append(unclassified_production.id)
         
         if productions_created:
             self.state = 'done'

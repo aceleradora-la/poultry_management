@@ -56,9 +56,9 @@
                                    invisible="not active_bom_id"/>
                             <field name="active_bom_start_date" readonly="1"
                                    invisible="not active_bom_id"/>
-                            <field name="routing_workcenter_id" 
+                            <field name="picking_type_id" 
                                    options="{'no_create': True, 'no_create_edit': True}"
-                                   help="Tipo de operación a utilizar al crear las listas de materiales para este galpón"/>
+                                   help="Tipo de operación de inventario a utilizar al crear las órdenes de producción para este galpón"/>
                             <field name="unclassified_egg_product_id" 
                                    options="{'no_create': True, 'no_create_edit': True}"
                                    help="Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción de este galpón"/>
