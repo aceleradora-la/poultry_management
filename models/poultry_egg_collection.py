@@ -326,7 +326,7 @@ class PoultryEggCollection(models.Model):
     @api.model
     def renumber_existing_collections(self):
         """
-        Renumera todos los registros existentes usando la secuencia numérica.
+        Renumera todos los registros existentes usando la secuencia numérica basada en el prefijo del galpón.
         Se ejecuta automáticamente al actualizar el módulo o se puede llamar manualmente.
         """
         # Obtener todos los registros ordenados por fecha de creación
@@ -334,16 +334,27 @@ class PoultryEggCollection(models.Model):
         count = 0
         
         for collection in collections:
-            # Generar nuevo número de secuencia
-            new_name = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or f'REC-{collection.id:04d}'
+            if not collection.coop_id:
+                continue
             
-            # Actualizar solo si el nombre actual no sigue el formato de la secuencia
+            # Obtener la secuencia basada en el prefijo del galpón
+            sequence = collection._get_sequence_for_coop(collection.coop_id.id)
+            if not sequence:
+                continue
+            
+            # Generar nuevo número de secuencia
+            new_name = sequence.next_by_id() or f'{collection.coop_id.sequence_prefix or "REC"}-{collection.id:04d}'
+            
+            # Actualizar solo si el nombre actual no sigue el formato correcto
             # o si es un nombre genérico
             current_name = collection.name or ''
-            if (not current_name.startswith('REC-') or 
+            prefix = (collection.coop_id.sequence_prefix or 'REC').strip().upper()
+            expected_prefix = f'{prefix}-'
+            
+            if (not current_name.startswith(expected_prefix) or 
                 current_name == 'Nueva Recolección' or 
                 current_name == 'NUEVA' or
-                len(current_name) < 8):  # REC-0001 tiene 8 caracteres
+                len(current_name) < len(expected_prefix) + 4):  # Prefijo + 4 dígitos mínimo
                 collection.write({'name': new_name})
                 count += 1
                 _logger.info(f"Renumerado: {collection.id} -> {new_name}")
