@@ -28,7 +28,8 @@ class PoultryEggCollection(models.Model):
                     groupby_spec = 'product_variant_id'
         return super()._read_group_groupby(groupby_spec, query)
 
-    name = fields.Char(string='Referencia', required=True, copy=False, index=True)
+    name = fields.Char(string='Referencia', required=True, copy=False, index=True, 
+                       default=lambda self: self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA')
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]", tracking=True)
     product_tmpl_id = fields.Many2one('product.template', string='Producto Base', required=True,
@@ -262,8 +263,8 @@ class PoultryEggCollection(models.Model):
     
     @api.model
     def create(self, vals):
-        """Genera referencia automática usando secuencia numérica"""
-        if not vals.get('name'):
+        """Genera referencia automática usando secuencia numérica si no se proporciona"""
+        if not vals.get('name') or vals.get('name') == 'NUEVA':
             vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
         record = super().create(vals)
         # Forzar recálculo de product_variant_name después de crear
