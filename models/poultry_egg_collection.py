@@ -29,7 +29,8 @@ class PoultryEggCollection(models.Model):
         return super()._read_group_groupby(groupby_spec, query)
 
     name = fields.Char(string='Referencia', required=True, copy=False, index=True,
-                       default='NUEVA', readonly=False)
+                       default='NUEVA', readonly=False,
+                       help='Se genera automáticamente al seleccionar el galpón')
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]", tracking=True)
     product_tmpl_id = fields.Many2one('product.template', string='Producto Base', required=True,
@@ -327,11 +328,15 @@ class PoultryEggCollection(models.Model):
     
     @api.onchange('coop_id')
     def _onchange_coop_id(self):
-        """Al cambiar el galpón, regenerar el nombre si es necesario"""
-        if self.coop_id and (not self.name or self.name == 'NUEVA'):
+        """Al cambiar el galpón, regenerar el nombre automáticamente"""
+        if self.coop_id:
             sequence = self._get_sequence_for_coop(self.coop_id.id)
             if sequence:
+                # Generar nuevo nombre basado en el prefijo del galpón
                 self.name = sequence.next_by_id() or 'NUEVA'
+            else:
+                # Fallback a secuencia por defecto
+                self.name = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
     
     @api.model
     def renumber_existing_collections(self):
