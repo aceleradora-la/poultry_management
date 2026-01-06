@@ -271,6 +271,34 @@ class PoultryEggCollection(models.Model):
             record._compute_product_variant_name()
         return record
     
+    @api.model
+    def renumber_existing_collections(self):
+        """
+        Renumera todos los registros existentes usando la secuencia numérica.
+        Se ejecuta automáticamente al actualizar el módulo o se puede llamar manualmente.
+        """
+        # Obtener todos los registros ordenados por fecha de creación
+        collections = self.search([], order='create_date asc, id asc')
+        count = 0
+        
+        for collection in collections:
+            # Generar nuevo número de secuencia
+            new_name = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or f'REC-{collection.id:04d}'
+            
+            # Actualizar solo si el nombre actual no sigue el formato de la secuencia
+            # o si es un nombre genérico
+            current_name = collection.name or ''
+            if (not current_name.startswith('REC-') or 
+                current_name == 'Nueva Recolección' or 
+                current_name == 'NUEVA' or
+                len(current_name) < 8):  # REC-0001 tiene 8 caracteres
+                collection.write({'name': new_name})
+                count += 1
+                _logger.info(f"Renumerado: {collection.id} -> {new_name}")
+        
+        _logger.info(f"Renumeración completada: {count} registros actualizados")
+        return True
+    
     def write(self, vals):
         """Actualiza product_variant_name cuando cambia product_tmpl_id"""
         result = super().write(vals)

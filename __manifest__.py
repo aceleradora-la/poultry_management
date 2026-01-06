@@ -45,5 +45,6 @@
     'auto_install': False,
     'license': 'LGPL-3',
     'images': ['static/description/icon.png', 'static/description/icon.svg'],
+    'post_init_hook': 'post_init_renumber_collections',
 }
 
