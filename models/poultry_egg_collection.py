@@ -533,6 +533,8 @@ class PoultryEggCollection(models.Model):
                         
                         production = self.env['mrp.production'].create(production_vals)
                         production.action_confirm()
+                        # Establecer qty_producing igual a product_qty
+                        production.qty_producing = production.product_qty
                         productions_created.append(production.id)
             else:
                 # Método legacy: solo generar para cajones
@@ -556,6 +558,8 @@ class PoultryEggCollection(models.Model):
                     
                     production = self.env['mrp.production'].create(production_vals)
                     production.action_confirm()
+                    # Establecer qty_producing igual a product_qty
+                    production.qty_producing = production.product_qty
                     productions_created.append(production.id)
         
         # Crear orden de producción para Huevo sin Clasificar
@@ -593,6 +597,8 @@ class PoultryEggCollection(models.Model):
                 
                 unclassified_production = self.env['mrp.production'].create(unclassified_production_vals)
                 unclassified_production.action_confirm()
+                # Establecer qty_producing igual a product_qty
+                unclassified_production.qty_producing = unclassified_production.product_qty
                 productions_created.append(unclassified_production.id)
         
         if productions_created:
