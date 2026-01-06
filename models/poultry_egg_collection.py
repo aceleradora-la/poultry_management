@@ -429,8 +429,8 @@ class PoultryEggCollection(models.Model):
             raise UserError(f'No se encontró una Lista de Materiales (BOM) para el producto base {base_product.name}. '
                           'Debe crear una BOM antes de generar las órdenes.')
         
-        # Preparar picking_type_id del galpón para usar en todas las órdenes
-        picking_type_id = self.coop_id.picking_type_id.id if self.coop_id.picking_type_id else False
+        # Preparar picking_type_id para productos terminados
+        picking_type_id_finished = self.coop_id.picking_type_id_finished.id if self.coop_id.picking_type_id_finished else False
         
         for line in self.line_ids:
             product = line.product_variant_id
@@ -451,8 +451,8 @@ class PoultryEggCollection(models.Model):
                             'egg_collection_id': self.id,
                             'origin': self.name,
                         }
-                        if picking_type_id:
-                            production_vals['picking_type_id'] = picking_type_id
+                        if picking_type_id_finished:
+                            production_vals['picking_type_id'] = picking_type_id_finished
                         
                         production = self.env['mrp.production'].create(production_vals)
                         production.action_confirm()
@@ -474,8 +474,8 @@ class PoultryEggCollection(models.Model):
                         'egg_collection_id': self.id,
                         'origin': self.name,
                     }
-                    if picking_type_id:
-                        production_vals['picking_type_id'] = picking_type_id
+                    if picking_type_id_finished:
+                        production_vals['picking_type_id'] = picking_type_id_finished
                     
                     production = self.env['mrp.production'].create(production_vals)
                     production.action_confirm()
@@ -483,6 +483,9 @@ class PoultryEggCollection(models.Model):
         
         # Crear orden de producción para Huevo sin Clasificar
         if self.coop_id.unclassified_egg_product_id and self.coop_id.unclassified_egg_bom_id:
+            # Preparar picking_type_id para huevo sin clasificar
+            picking_type_id_unclassified = self.coop_id.picking_type_id_unclassified.id if self.coop_id.picking_type_id_unclassified else False
+            
             # Calcular total de huevos producidos (sumar todos los total_produced_reference)
             total_eggs = 0.0
             for line in self.line_ids:
@@ -508,8 +511,8 @@ class PoultryEggCollection(models.Model):
                     'egg_collection_id': self.id,
                     'origin': f'{self.name} - Huevo sin Clasificar',
                 }
-                if picking_type_id:
-                    unclassified_production_vals['picking_type_id'] = picking_type_id
+                if picking_type_id_unclassified:
+                    unclassified_production_vals['picking_type_id'] = picking_type_id_unclassified
                 
                 unclassified_production = self.env['mrp.production'].create(unclassified_production_vals)
                 unclassified_production.action_confirm()

@@ -34,9 +34,13 @@ class PoultryCoop(models.Model):
     active_bom_start_date = fields.Date(string='Fecha Inicio Lista Activa', 
                                          related='active_bom_id.start_date', readonly=True)
     
-    # Tipo de Operación de Inventario para órdenes de producción
-    picking_type_id = fields.Many2one('stock.picking.type', string='Tipo de Operación de Inventario',
-                                      help='Tipo de operación de inventario a utilizar al crear las órdenes de producción para este galpón')
+    # Tipo de Operación de Inventario para órdenes de producción de productos terminados
+    picking_type_id_finished = fields.Many2one('stock.picking.type', string='Tipo de Operación - Productos Terminados',
+                                                help='Tipo de operación de inventario a utilizar al crear las órdenes de producción de productos terminados para este galpón')
+    
+    # Tipo de Operación de Inventario para órdenes de producción de huevo sin clasificar
+    picking_type_id_unclassified = fields.Many2one('stock.picking.type', string='Tipo de Operación - Huevo sin Clasificar',
+                                                     help='Tipo de operación de inventario a utilizar al crear las órdenes de producción de huevo sin clasificar para este galpón')
     
     # Producto para Huevo sin Clasificar
     unclassified_egg_product_id = fields.Many2one(
