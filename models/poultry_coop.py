@@ -38,6 +38,14 @@ class PoultryCoop(models.Model):
     routing_workcenter_id = fields.Many2one('mrp.routing.workcenter', string='Tipo de Operación',
                                              help='Tipo de operación a utilizar al crear las listas de materiales para este galpón')
     
+    # Producto para Huevo sin Clasificar
+    unclassified_egg_product_id = fields.Many2one(
+        'product.product',
+        string='Producto para Huevo sin Clasificar',
+        domain="[('type', '=', 'consu'), ('active', '=', True)]",
+        help='Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción de este galpón'
+    )
+    
     # Lista de Materiales para Huevo sin Clasificar
     unclassified_egg_bom_id = fields.Many2one('mrp.bom', string='Lista de Materiales - Huevo sin Clasificar',
                                                domain="[('type', '=', 'normal')]",

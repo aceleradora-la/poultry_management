@@ -59,6 +59,9 @@
                             <field name="routing_workcenter_id" 
                                    options="{'no_create': True, 'no_create_edit': True}"
                                    help="Tipo de operación a utilizar al crear las listas de materiales para este galpón"/>
+                            <field name="unclassified_egg_product_id" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción de este galpón"/>
                             <field name="unclassified_egg_bom_id" 
                                    options="{'no_create': True, 'no_create_edit': True}"
                                    help="Lista de materiales para el producto de huevo sin clasificar de este galpón"/>

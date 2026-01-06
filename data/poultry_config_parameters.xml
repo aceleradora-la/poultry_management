@@ -2,11 +2,7 @@
 <odoo>
     <!-- Parámetros de Configuración del Módulo -->
     
-    <!-- Producto para Huevo sin Clasificar -->
-    <record id="config_parameter_unclassified_egg_product" model="ir.config_parameter">
-        <field name="key">poultry_management.unclassified_egg_product_id</field>
-        <field name="value"></field>
-    </record>
+    <!-- El parámetro de producto "Huevo sin Clasificar" fue movido a los parámetros de cada galpón -->
     
 </odoo>
 
