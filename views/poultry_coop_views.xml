@@ -48,6 +48,8 @@
                             <field name="name" placeholder="Ej: Galpón Principal"/>
                             <field name="size"/>
                             <field name="capacity"/>
+                            <field name="sequence_prefix" placeholder="Ej: REC, PART, etc." 
+                                   help="Prefijo para la numeración de los partes de producción de este galpón"/>
                         </group>
                         <group>
                             <field name="current_birds_count" readonly="1"/>

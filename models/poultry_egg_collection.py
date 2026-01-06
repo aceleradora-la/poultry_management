@@ -28,8 +28,7 @@ class PoultryEggCollection(models.Model):
                     groupby_spec = 'product_variant_id'
         return super()._read_group_groupby(groupby_spec, query)
 
-    name = fields.Char(string='Referencia', required=True, copy=False, index=True, 
-                       default=lambda self: self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA')
+    name = fields.Char(string='Referencia', required=True, copy=False, index=True)
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]", tracking=True)
     product_tmpl_id = fields.Many2one('product.template', string='Producto Base', required=True,
@@ -262,11 +261,63 @@ class PoultryEggCollection(models.Model):
             collection.production_count = len(collection.production_ids)
     
     @api.model
+    def _get_sequence_for_coop(self, coop_id):
+        """
+        Obtiene o crea una secuencia para el galpón basándose en su prefijo.
+        Si el galpón tiene un prefijo personalizado, busca o crea una secuencia con ese prefijo.
+        """
+        if not coop_id:
+            # Si no hay galpón, usar la secuencia por defecto
+            return self.env['ir.sequence'].search([('code', '=', 'poultry.egg.collection')], limit=1)
+        
+        coop = self.env['poultry.coop'].browse(coop_id)
+        if not coop.exists():
+            return self.env['ir.sequence'].search([('code', '=', 'poultry.egg.collection')], limit=1)
+        
+        # Obtener el prefijo del galpón (limpiar espacios y convertir a mayúsculas)
+        prefix = (coop.sequence_prefix or 'REC').strip().upper()
+        if not prefix:
+            prefix = 'REC'
+        
+        # Buscar o crear una secuencia con el código basado en el prefijo
+        sequence_code = f'poultry.egg.collection.{prefix}'
+        sequence = self.env['ir.sequence'].search([('code', '=', sequence_code)], limit=1)
+        
+        if not sequence:
+            # Crear una nueva secuencia para este prefijo
+            sequence = self.env['ir.sequence'].create({
+                'name': f'Secuencia de Recolección - {prefix}',
+                'code': sequence_code,
+                'prefix': f'{prefix}-',
+                'padding': 4,
+                'number_increment': 1,
+                'number_next': 1,
+            })
+        
+        return sequence
+    
+    @api.model
     def create(self, vals):
-        """Genera referencia automática usando secuencia numérica si no se proporciona"""
-        if not vals.get('name') or vals.get('name') == 'NUEVA':
-            vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
+        """Genera referencia automática usando secuencia numérica basada en el prefijo del galpón"""
+        if not vals.get('name'):
+            # Obtener la secuencia basada en el galpón
+            coop_id = vals.get('coop_id')
+            sequence = self._get_sequence_for_coop(coop_id)
+            if sequence:
+                vals['name'] = sequence.next_by_id() or 'NUEVA'
+            else:
+                # Fallback a secuencia por defecto
+                vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
+        
         record = super().create(vals)
+        
+        # Si se cambió el galpón después de crear, regenerar el nombre si es necesario
+        if 'coop_id' in vals and not vals.get('name'):
+            coop_id = vals.get('coop_id')
+            sequence = self._get_sequence_for_coop(coop_id)
+            if sequence:
+                record.name = sequence.next_by_id() or 'NUEVA'
+        
         # Forzar recálculo de product_variant_name después de crear
         if 'product_tmpl_id' in vals:
             record._compute_product_variant_name()
