@@ -89,9 +89,12 @@ class PoultryEggCollection(models.Model):
     total_eggs = fields.Float(string='Total Huevos', compute='_compute_final_totals', store=True,
                               help='Suma de huevos producidos de todas las variantes')
     total_weight = fields.Float(string='Total Peso (kg)', compute='_compute_final_totals', store=True,
-                                help='Suma de pesos de todas las variantes en kilogramos')
+                                help='Suma del Peso de todas las variantes que contengan Peso Medio')
     total_boxes = fields.Float(string='Total Cajones', compute='_compute_final_totals', store=True,
                                help='Total Huevos / 360')
+    average_weight_elaborated = fields.Float(string='Peso Medio Elaborado (g)', 
+                                              compute='_compute_final_totals', store=True,
+                                              help='Peso medio elaborado en gramos: Total de Gramos / Total de Huevos Finales (solo variantes con Peso Medio)')
     
     notes = fields.Text(string='Notas')
     
@@ -222,18 +225,28 @@ class PoultryEggCollection(models.Model):
     @api.depends('line_ids', 'line_ids.total_produced_reference',
                  'line_ids.average_weight')
     def _compute_final_totals(self):
-        """Calcula los totales finales: Total Huevos, Total Peso, Total Cajones"""
+        """Calcula los totales finales: Total Huevos, Total Peso, Total Cajones, Peso Medio Elaborado"""
         for collection in self:
             # Total Huevos: suma de total_produced_reference de todas las variantes
             collection.total_eggs = sum(collection.line_ids.mapped('total_produced_reference') or [0.0])
             
-            # Total Peso: suma de (peso medio * huevos) de todas las variantes, en KILOGRAMOS
+            # Total Peso: suma de (peso medio * huevos) de todas las variantes que tengan peso medio, en KILOGRAMOS
             total_weight_grams = 0.0
+            total_eggs_with_weight = 0.0  # Suma de huevos finales solo de variantes con peso medio
+            
             for line in collection.line_ids:
                 if line.average_weight and line.total_produced_reference:
                     total_weight_grams += line.average_weight * line.total_produced_reference
+                    total_eggs_with_weight += line.total_produced_reference
+            
             # Convertir gramos a kilogramos
             collection.total_weight = total_weight_grams / 1000.0
+            
+            # Peso Medio Elaborado: Total de Gramos / Total de Huevos Finales (solo variantes con Peso Medio)
+            if total_eggs_with_weight > 0:
+                collection.average_weight_elaborated = total_weight_grams / total_eggs_with_weight
+            else:
+                collection.average_weight_elaborated = 0.0
             
             # Total Cajones: Total Huevos / 360
             if collection.total_eggs > 0:

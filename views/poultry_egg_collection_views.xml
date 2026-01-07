@@ -117,17 +117,6 @@
                                            readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
                                     
-                                    <!-- Peso Medio: editable solo en Bruto (counted), oculto en Inicio -->
-                                    <field name="average_weight" 
-                                           readonly="parent.state != 'counted'"
-                                           column_invisible="parent.state == 'draft'"/>
-                                    
-                                    <!-- % Distribución: siempre readonly, visible solo en Completada y Procesada -->
-                                    <field name="weight_distribution_percent" 
-                                           readonly="1"
-                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"
-                                           widget="percentage"/>
-                                    
                                     <!-- Columnas Finales (producidos): siempre readonly, visibles solo en Completada y Procesada -->
                                     <field name="produced_box" 
                                            readonly="1"
@@ -138,6 +127,17 @@
                                     <field name="produced_egg" 
                                            readonly="1"
                                            column_invisible="parent.state == 'draft' or parent.state == 'counted'"/>
+                                    
+                                    <!-- Peso Medio: editable solo en Bruto (counted), oculto en Inicio -->
+                                    <field name="average_weight" 
+                                           readonly="parent.state != 'counted'"
+                                           column_invisible="parent.state == 'draft'"/>
+                                    
+                                    <!-- % Distribución: siempre readonly, visible solo en Completada y Procesada -->
+                                    <field name="weight_distribution_percent" 
+                                           readonly="1"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"
+                                           widget="percentage"/>
                                     
                                     <!-- Columna de huevos totales producidos: visible solo en Completada y Procesada -->
                                     <field name="total_produced_reference" 
