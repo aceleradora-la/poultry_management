@@ -176,12 +176,11 @@ class PoultryEggCollectionLine(models.Model):
 
             line.total_eggs_gross = total_reference
     
-    @api.depends('collection_id', 'collection_id.line_ids.average_weight',
-                 'collection_id.line_ids.total_produced_reference',
-                 'average_weight', 'total_produced_reference')
+    @api.depends('collection_id', 'collection_id.line_ids.total_produced_reference',
+                 'total_produced_reference')
     def _compute_weight_distribution(self):
         """
-        Calcula el % de distribución según el peso total de todas las variantes.
+        Calcula el % de distribución según el total de huevos producidos de todas las variantes.
 
         Nota: `widget="percentage"` en Odoo espera una fracción (0..1), no 0..100.
         """
@@ -191,18 +190,18 @@ class PoultryEggCollectionLine(models.Model):
             if not collection:
                 continue
             
-            # Calcular peso total de todas las líneas de la collection
-            total_weight = 0.0
+            # Calcular total de huevos producidos de todas las líneas de la collection
+            total_eggs = 0.0
             for line in collection.line_ids:
-                if line.average_weight and line.total_produced_reference:
-                    total_weight += line.average_weight * line.total_produced_reference
+                if line.total_produced_reference:
+                    total_eggs += line.total_produced_reference
             
             # Calcular % para cada línea de esta collection
             for line in collection.line_ids:
-                if total_weight > 0 and line.average_weight and line.total_produced_reference:
-                    line_weight = line.average_weight * line.total_produced_reference
+                if total_eggs > 0 and line.total_produced_reference:
                     # Fracción 0..1 (el widget percentage lo muestra como 0..100%)
-                    line.weight_distribution_percent = (line_weight / total_weight)
+                    # % = (Huevos producidos de esta variante / Total de huevos producidos) * 100
+                    line.weight_distribution_percent = (line.total_produced_reference / total_eggs)
                 else:
                     line.weight_distribution_percent = 0.0
     
