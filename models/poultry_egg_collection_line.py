@@ -19,6 +19,17 @@ class PoultryEggCollectionLine(models.Model):
     product_variant_name = fields.Char(string='Variante', related='product_variant_id.name', 
                                         readonly=True, store=False)
     
+    # Campos relacionados para usar en vistas pivot y reportes
+    collection_date = fields.Date(string='Fecha de Recolección', 
+                                  related='collection_id.date', 
+                                  store=True, 
+                                  readonly=True, 
+                                  index=True)
+    collection_coop_id = fields.Many2one('poultry.coop', string='Galpón',
+                                         related='collection_id.coop_id',
+                                         store=True,
+                                         readonly=True)
+    
     # Relación con valores de unidades de medida (nuevo sistema dinámico)
     uom_value_ids = fields.One2many('poultry.egg.collection.line.uom', 'line_id',
                                      string='Valores por Unidad de Medida')
