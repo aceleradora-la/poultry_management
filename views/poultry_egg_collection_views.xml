@@ -11,7 +11,7 @@
                 <field name="coop_id"/>
                 <field name="product_id"/>
                 <field name="date"/>
-                <field name="total_produced_boxes"/>
+                <field name="total_eggs"/>
                 <field name="production_count"/>
                 <field name="state" widget="badge" decoration-info="state == 'draft'"
                        decoration-warning="state == 'counted'"
@@ -182,9 +182,9 @@
                 <field name="date" type="row" interval="day"/>
                 <field name="product_variant_id" type="row"/>
                 <field name="coop_id" type="col"/>
-                <field name="total_produced_boxes" type="measure"/>
-                <field name="total_produced_maps" type="measure"/>
-                <field name="total_produced_eggs" type="measure"/>
+                <field name="total_eggs" type="measure"/>
+                <field name="total_weight" type="measure"/>
+                <field name="total_boxes" type="measure"/>
             </pivot>
         </field>
     </record>
