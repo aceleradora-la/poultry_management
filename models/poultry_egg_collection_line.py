@@ -492,9 +492,9 @@ class PoultryEggCollectionLine(models.Model):
                     line.produced_egg = ref_uom_val.produced_qty if ref_uom_val else 0.0
             else:
                 # Fallback a método legacy
-            line.produced_box = line.final_box - line.initial_box
-            line.produced_map = line.final_map - line.initial_map
-            line.produced_egg = line.final_egg - line.initial_egg
+                line.produced_box = line.final_box - line.initial_box
+                line.produced_map = line.final_map - line.initial_map
+                line.produced_egg = line.final_egg - line.initial_egg
                 line.total_produced_reference = 0.0
     
     _sql_constraints = [

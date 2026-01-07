@@ -22,9 +22,9 @@ class PoultryProductionReportWizard(models.TransientModel):
         """Genera el reporte de producción"""
         self.ensure_one()
         domain = [
-            ('date', '>=', self.date_from),
-            ('date', '<=', self.date_to),
-            ('state', '=', 'done'),
+            ('collection_id.date', '>=', self.date_from),
+            ('collection_id.date', '<=', self.date_to),
+            ('collection_id.state', '=', 'done'),
         ]
         
         if self.coop_id:
