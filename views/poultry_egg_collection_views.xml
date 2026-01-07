@@ -13,7 +13,8 @@
                 <field name="date"/>
                 <field name="total_eggs"/>
                 <field name="production_count"/>
-                <field name="state" widget="badge" decoration-info="state == 'draft'"
+                <field name="state" widget="badge" 
+                       decoration-info="state == 'draft'"
                        decoration-warning="state == 'counted'"
                        decoration-success="state == 'completed' or state == 'done'"/>
             </list>
@@ -73,7 +74,7 @@
                             <group string="Totales Finales" invisible="state == 'draft'">
                                 <label for="total_eggs" string="Total Huevos"/>
                                 <field name="total_eggs" readonly="1" nolabel="1"/>
-                                <label for="total_weight" string="Total Peso"/>
+                                <label for="total_weight" string="Total Peso (kg)"/>
                                 <field name="total_weight" readonly="1" nolabel="1"/>
                                 <label for="total_boxes" string="Total Cajones"/>
                                 <field name="total_boxes" readonly="1" nolabel="1"/>
@@ -91,15 +92,15 @@
                                            readonly="1"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
                                     
-                                    <!-- Columnas Iniciales: editables solo en borrador -->
-                                    <field name="initial_box" 
+                    <!-- Columnas Iniciales: editables solo en Inicio (draft) -->
+                    <field name="initial_box" 
                                            readonly="parent.state != 'draft'"/>
                                     <field name="initial_map" 
                                            readonly="parent.state != 'draft'"/>
                                     <field name="initial_egg" 
                                            readonly="parent.state != 'draft'"/>
                                     
-                                    <!-- Columnas Brutas: editables solo en estado counted -->
+                                    <!-- Columnas Brutas: editables solo en Bruto (counted), ocultas en Inicio -->
                                     <field name="final_box" 
                                            readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
@@ -110,7 +111,7 @@
                                            readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
                                     
-                                    <!-- Peso Medio: editable solo en estado counted -->
+                                    <!-- Peso Medio: editable solo en Bruto (counted), oculto en Inicio -->
                                     <field name="average_weight" 
                                            readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
@@ -170,8 +171,8 @@
                 <field name="product_id"/>
                 <field name="date"/>
                 <separator/>
-                <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="Cantidad Inicial Registrada" name="counted" domain="[('state', '=', 'counted')]"/>
+                <filter string="Inicio" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Bruto" name="counted" domain="[('state', '=', 'counted')]"/>
                 <filter string="Completada" name="completed" domain="[('state', '=', 'completed')]"/>
                 <filter string="Procesada" name="done" domain="[('state', '=', 'done')]"/>
                 <separator/>

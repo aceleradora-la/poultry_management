@@ -62,8 +62,8 @@ class PoultryEggCollection(models.Model):
                                   domain="[('active', '=', True)]",
                                   help='Empleado responsable de la recolección', tracking=True)
     state = fields.Selection([
-        ('draft', 'Borrador'),
-        ('counted', 'Cantidad Inicial Registrada'),
+        ('draft', 'Inicio'),
+        ('counted', 'Bruto'),
         ('completed', 'Completada'),
         ('done', 'Procesada'),
     ], string='Estado', default='draft', tracking=True)
@@ -81,8 +81,8 @@ class PoultryEggCollection(models.Model):
     # Totales Finales (nuevos)
     total_eggs = fields.Float(string='Total Huevos', compute='_compute_final_totals', store=True,
                               help='Suma de huevos producidos de todas las variantes')
-    total_weight = fields.Float(string='Total Peso', compute='_compute_final_totals', store=True,
-                                help='Suma de pesos de todas las variantes (peso medio * huevos)')
+    total_weight = fields.Float(string='Total Peso (kg)', compute='_compute_final_totals', store=True,
+                                help='Suma de pesos de todas las variantes en kilogramos')
     total_boxes = fields.Float(string='Total Cajones', compute='_compute_final_totals', store=True,
                                help='Total Huevos / 360')
     
@@ -220,12 +220,13 @@ class PoultryEggCollection(models.Model):
             # Total Huevos: suma de total_produced_reference de todas las variantes
             collection.total_eggs = sum(collection.line_ids.mapped('total_produced_reference') or [0.0])
             
-            # Total Peso: suma de (peso medio * huevos) de todas las variantes
-            total_weight = 0.0
+            # Total Peso: suma de (peso medio * huevos) de todas las variantes, en KILOGRAMOS
+            total_weight_grams = 0.0
             for line in collection.line_ids:
                 if line.average_weight and line.total_produced_reference:
-                    total_weight += line.average_weight * line.total_produced_reference
-            collection.total_weight = total_weight
+                    total_weight_grams += line.average_weight * line.total_produced_reference
+            # Convertir gramos a kilogramos
+            collection.total_weight = total_weight_grams / 1000.0
             
             # Total Cajones: Total Huevos / 360
             if collection.total_eggs > 0:
