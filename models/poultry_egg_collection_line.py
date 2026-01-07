@@ -149,6 +149,33 @@ class PoultryEggCollectionLine(models.Model):
         
         return reference_uom[0] if reference_uom else False
     
+    @api.depends('final_box', 'final_map', 'final_egg',
+                 'uom_value_ids.final_qty', 'uom_value_ids.uom_ratio',
+                 'product_variant_id')
+    def _compute_total_eggs_gross(self):
+        """Calcula el total de huevos brutos convertidos a la unidad de referencia (huevo)."""
+        for line in self:
+            total_reference = 0.0
+
+            # Usar el sistema dinámico si hay valores de UoM
+            if line.uom_value_ids:
+                for uom_val in line.uom_value_ids:
+                    qty = uom_val.final_qty or 0.0
+                    ratio = uom_val.uom_ratio or 0.0
+                    # ratio es cuántas unidades de referencia (huevos) hay en 1 unidad de esta UoM
+                    total_reference += qty * ratio
+            else:
+                # Método legacy: convertir PT/PI/Huevo a huevos usando sus ratios
+                box_ratio = line.uom_box_id.ratio if line.uom_box_id else 0.0
+                map_ratio = line.uom_map_id.ratio if line.uom_map_id else 0.0
+                egg_ratio = line.uom_egg_id.ratio if line.uom_egg_id else 0.0
+
+                total_reference += (line.final_box or 0.0) * box_ratio
+                total_reference += (line.final_map or 0.0) * map_ratio
+                total_reference += (line.final_egg or 0.0) * egg_ratio
+
+            line.total_eggs_gross = total_reference
+    
     @api.depends('collection_id', 'collection_id.line_ids.average_weight',
                  'collection_id.line_ids.total_eggs_gross',
                  'average_weight', 'total_eggs_gross')
