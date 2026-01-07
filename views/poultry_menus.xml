@@ -3,7 +3,7 @@
     <menuitem id="menu_poultry_management_root" 
               name="Gestión Avícola" 
               sequence="100"
-              web_icon="poultry_management,static/description/icon.png"/>
+              web_icon="poultry_management,static/description/icon.svg"/>
 
     <!-- Menú Principal: Producción -->
     <menuitem id="menu_poultry_egg_collection" 

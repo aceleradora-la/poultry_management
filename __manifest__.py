@@ -11,7 +11,7 @@
         - Lista de Materiales de Alimento Balanceado por galpón
         - Integración con Órdenes de Fabricación
     """,
-    'author': 'Tu Empresa',
+    'author': 'aceleradora.la',
     'website': 'https://www.tuempresa.com',
     'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web'],
     'assets': {
@@ -45,7 +45,7 @@
     'application': True,
     'auto_install': False,
     'license': 'LGPL-3',
-    'images': ['static/description/icon.png', 'static/description/icon.svg'],
+    'images': ['static/description/icon.svg'],
     'post_init_hook': 'post_init_renumber_collections',
 }
 

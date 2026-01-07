@@ -135,7 +135,7 @@ LGPL-3
 
 ## Autor
 
-Tu Empresa
+aceleradora.la
 
 ## Versión
 
