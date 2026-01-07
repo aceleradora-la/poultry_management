@@ -211,6 +211,15 @@ class PoultryEggCollectionLine(models.Model):
                 else:
                     line.weight_distribution_percent = 0.0
     
+    @api.depends('total_produced_reference')
+    def _compute_total_boxes(self):
+        """Calcula el total de cajones producidos (Total Huevos / 360)"""
+        for line in self:
+            if line.total_produced_reference > 0:
+                line.total_boxes = line.total_produced_reference / 360.0
+            else:
+                line.total_boxes = 0.0
+    
     def _sync_uom_values_to_legacy(self):
         """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""
         for line in self:
