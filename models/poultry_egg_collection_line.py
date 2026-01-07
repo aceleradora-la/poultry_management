@@ -32,21 +32,16 @@ class PoultryEggCollectionLine(models.Model):
     uom_egg_id = fields.Many2one('uom.uom', string='Unidad Huevo', 
                                   compute='_compute_uom_ids', store=False)
     
-    # Campos legacy sincronizados con uom_value_ids
+    # Campos sincronizados con uom_value_ids
     # Estos campos se sincronizan bidireccionalmente con uom_value_ids para mostrar en el tree
     # Usamos campos normales (no computed) y sincronizamos manualmente en write() y onchange
-    initial_box = fields.Float(default=0.0, digits=(16, 2))
-    initial_map = fields.Float(default=0.0, digits=(16, 2))
-    initial_egg = fields.Float(default=0.0, digits=(16, 2))
+    initial_box = fields.Float(string='Inicial PT', default=0.0, digits=(16, 2))
+    initial_map = fields.Float(string='Inicial PI', default=0.0, digits=(16, 2))
+    initial_egg = fields.Float(string='Inicial Huevo', default=0.0, digits=(16, 2))
     
-    final_box = fields.Float(default=0.0, digits=(16, 2))
-    final_map = fields.Float(default=0.0, digits=(16, 2))
-    final_egg = fields.Float(default=0.0, digits=(16, 2))
-    
-    # Campos para almacenar nombres dinámicos de las columnas
-    uom_1_name = fields.Char(string='Unidad 1', compute='_compute_uom_display_names', store=True)
-    uom_2_name = fields.Char(string='Unidad 2', compute='_compute_uom_display_names', store=True)
-    uom_3_name = fields.Char(string='Unidad 3', compute='_compute_uom_display_names', store=True)
+    final_box = fields.Float(string='Bruto PT', default=0.0, digits=(16, 2))
+    final_map = fields.Float(string='Bruto PI', default=0.0, digits=(16, 2))
+    final_egg = fields.Float(string='Bruto Huevo', default=0.0, digits=(16, 2))
     
     @api.model
     def _update_field_strings(self):
@@ -55,11 +50,11 @@ class PoultryEggCollectionLine(models.Model):
         # Por ahora, los nombres se manejarán en la vista usando los campos uom_X_name
         pass
     
-    produced_box = fields.Float(string='Cajón Producido', compute='_compute_production', 
+    produced_box = fields.Float(string='Final PT', compute='_compute_production', 
                                  store=True, digits=(16, 2))
-    produced_map = fields.Float(string='Maple Producido', compute='_compute_production', 
+    produced_map = fields.Float(string='Final PI', compute='_compute_production', 
                                  store=True, digits=(16, 2))
-    produced_egg = fields.Float(string='Huevo Producido', compute='_compute_production', 
+    produced_egg = fields.Float(string='Final Huevo', compute='_compute_production', 
                                  store=True, digits=(16, 2))
     
     # Campo para almacenar el total de producción en unidad de referencia
@@ -137,34 +132,6 @@ class PoultryEggCollectionLine(models.Model):
         reference_uom = uoms.filtered(lambda u: u.ratio == 1.0)
         
         return reference_uom[0] if reference_uom else False
-    
-    @api.depends('uom_value_ids', 'uom_value_ids.uom_id', 'uom_value_ids.uom_id.poultry_display_name')
-    def _compute_uom_display_names(self):
-        """Calcula los nombres dinámicos de las unidades de medida para mostrar en el tree"""
-        for line in self:
-            _logger.info("=== DEBUG _compute_uom_display_names para línea %s ===", line.id)
-            if not line.uom_value_ids:
-                _logger.warning("Línea %s: No tiene uom_value_ids", line.id)
-                line.uom_1_name = ''
-                line.uom_2_name = ''
-                line.uom_3_name = ''
-                continue
-            
-            _logger.info("Línea %s: Tiene %d uom_value_ids", line.id, len(line.uom_value_ids))
-            sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
-            
-            for idx, uom_val in enumerate(sorted_uoms[:3]):
-                _logger.info("  UoM %d: id=%s, ratio=%s, uom_display_name=%s, uom_id.name=%s, uom_id.poultry_display_name=%s",
-                            idx+1, uom_val.id, uom_val.uom_ratio, uom_val.uom_display_name,
-                            uom_val.uom_id.name if uom_val.uom_id else 'N/A',
-                            uom_val.uom_id.poultry_display_name if uom_val.uom_id else 'N/A')
-            
-            line.uom_1_name = sorted_uoms[0].uom_display_name if len(sorted_uoms) > 0 and sorted_uoms[0].uom_display_name else ''
-            line.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 and sorted_uoms[1].uom_display_name else ''
-            line.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 and sorted_uoms[2].uom_display_name else ''
-            
-            _logger.info("Línea %s: Resultados - uom_1_name=%s, uom_2_name=%s, uom_3_name=%s",
-                        line.id, line.uom_1_name, line.uom_2_name, line.uom_3_name)
     
     def _sync_uom_values_to_legacy(self):
         """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""

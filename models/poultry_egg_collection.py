@@ -77,23 +77,19 @@ class PoultryEggCollection(models.Model):
                                       string='Órdenes de Fabricación Generadas')
     production_count = fields.Integer(string='Cantidad de OF', compute='_compute_production_count')
     
-    # Campos para nombres dinámicos de unidades (para títulos y columnas)
-    uom_1_name = fields.Char(string='Unidad 1', compute='_compute_uom_display_names', store=True)
-    uom_2_name = fields.Char(string='Unidad 2', compute='_compute_uom_display_names', store=True)
-    uom_3_name = fields.Char(string='Unidad 3', compute='_compute_uom_display_names', store=True)
     
-    # Totales (los strings se actualizarán dinámicamente en la vista)
-    total_initial_boxes = fields.Float(string='Total Inicial', compute='_compute_totals', store=True)
-    total_initial_maps = fields.Float(string='Total Inicial', compute='_compute_totals', store=True)
-    total_initial_eggs = fields.Float(string='Total Inicial', compute='_compute_totals', store=True)
+    # Totales
+    total_initial_boxes = fields.Float(string='Total Inicial PT', compute='_compute_totals', store=True)
+    total_initial_maps = fields.Float(string='Total Inicial PI', compute='_compute_totals', store=True)
+    total_initial_eggs = fields.Float(string='Total Inicial Huevo', compute='_compute_totals', store=True)
     
-    total_final_boxes = fields.Float(string='Total Final', compute='_compute_totals', store=True)
-    total_final_maps = fields.Float(string='Total Final', compute='_compute_totals', store=True)
-    total_final_eggs = fields.Float(string='Total Final', compute='_compute_totals', store=True)
+    total_final_boxes = fields.Float(string='Total Bruto PT', compute='_compute_totals', store=True)
+    total_final_maps = fields.Float(string='Total Bruto PI', compute='_compute_totals', store=True)
+    total_final_eggs = fields.Float(string='Total Bruto Huevo', compute='_compute_totals', store=True)
     
-    total_produced_boxes = fields.Float(string='Total Producido', compute='_compute_totals', store=True)
-    total_produced_maps = fields.Float(string='Total Producido', compute='_compute_totals', store=True)
-    total_produced_eggs = fields.Float(string='Total Producido', compute='_compute_totals', store=True)
+    total_produced_boxes = fields.Float(string='Total Final PT', compute='_compute_totals', store=True)
+    total_produced_maps = fields.Float(string='Total Final PI', compute='_compute_totals', store=True)
+    total_produced_eggs = fields.Float(string='Total Final Huevo', compute='_compute_totals', store=True)
     
     notes = fields.Text(string='Notas')
     
@@ -151,41 +147,6 @@ class PoultryEggCollection(models.Model):
                 collection.product_variant_name = variant_name or ''
             else:
                 collection.product_variant_name = False
-    
-    @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
-                 'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
-                 'line_ids.produced_box', 'line_ids.produced_map', 'line_ids.produced_egg',
-                 'line_ids.uom_value_ids', 'line_ids.uom_value_ids.produced_qty',
-                 'line_ids.uom_value_ids.initial_qty', 'line_ids.uom_value_ids.final_qty',
-                 'line_ids.uom_value_ids.uom_id', 'line_ids.uom_value_ids.uom_id.poultry_display_name')
-    def _compute_uom_display_names(self):
-        """Calcula los nombres dinámicos de las unidades de medida para mostrar en títulos y columnas"""
-        for collection in self:
-            _logger.info("=== DEBUG _compute_uom_display_names para collection %s ===", collection.id)
-            # Obtener los nombres de la primera línea que tenga uom_value_ids
-            first_line_with_uoms = collection.line_ids.filtered(lambda l: l.uom_value_ids)[:1]
-            _logger.info("Collection %s: Tiene %d líneas, primera con UoMs: %s", 
-                        collection.id, len(collection.line_ids), first_line_with_uoms.id if first_line_with_uoms else 'Ninguna')
-            
-            if first_line_with_uoms and first_line_with_uoms.uom_value_ids:
-                sorted_uoms = sorted(first_line_with_uoms.uom_value_ids, 
-                                   key=lambda x: x.uom_ratio or 0.0, 
-                                   reverse=True)
-                _logger.info("Collection %s: Primera línea tiene %d UoMs", collection.id, len(sorted_uoms))
-                for idx, uom_val in enumerate(sorted_uoms[:3]):
-                    _logger.info("  UoM %d: uom_display_name=%s", idx+1, uom_val.uom_display_name)
-                
-                collection.uom_1_name = sorted_uoms[0].uom_display_name if len(sorted_uoms) > 0 and sorted_uoms[0].uom_display_name else ''
-                collection.uom_2_name = sorted_uoms[1].uom_display_name if len(sorted_uoms) > 1 and sorted_uoms[1].uom_display_name else ''
-                collection.uom_3_name = sorted_uoms[2].uom_display_name if len(sorted_uoms) > 2 and sorted_uoms[2].uom_display_name else ''
-            else:
-                _logger.warning("Collection %s: No tiene líneas con uom_value_ids", collection.id)
-                collection.uom_1_name = ''
-                collection.uom_2_name = ''
-                collection.uom_3_name = ''
-            
-            _logger.info("Collection %s: Resultados - uom_1_name=%s, uom_2_name=%s, uom_3_name=%s",
-                        collection.id, collection.uom_1_name, collection.uom_2_name, collection.uom_3_name)
     
     @api.depends('line_ids', 'line_ids.initial_box', 'line_ids.initial_map', 'line_ids.initial_egg',
                  'line_ids.final_box', 'line_ids.final_map', 'line_ids.final_egg',
@@ -560,6 +521,11 @@ class PoultryEggCollection(models.Model):
                     production.action_confirm()
                     # Establecer qty_producing igual a product_qty
                     production.qty_producing = production.product_qty
+                    # Establecer cantidades consumidas según la BOM
+                    for move in production.move_raw_ids:
+                        move.quantity_done = move.product_uom_qty
+                    # Cerrar la orden de producción
+                    production.button_mark_done()
                     productions_created.append(production.id)
         
         # Crear orden de producción para Huevo sin Clasificar
@@ -655,10 +621,6 @@ class PoultryEggCollection(models.Model):
                         line.product_variant_id.name if line.product_variant_id else 'N/A',
                         len(line.uom_value_ids))
             
-            # Forzar cálculo de nombres
-            line._compute_uom_display_names()
-            _logger.info("    uom_1_name=%s, uom_2_name=%s, uom_3_name=%s",
-                        line.uom_1_name, line.uom_2_name, line.uom_3_name)
             
             # Información de cada uom_value
             for uom_val in line.uom_value_ids:
@@ -670,62 +632,18 @@ class PoultryEggCollection(models.Model):
                             uom_val.uom_display_name,
                             uom_val.uom_id.poultry_display_name if uom_val.uom_id else 'N/A')
         
-        # Forzar cálculo de nombres de la collection
-        self._compute_uom_display_names()
-        _logger.info("Collection uom_1_name=%s, uom_2_name=%s, uom_3_name=%s",
-                    self.uom_1_name, self.uom_2_name, self.uom_3_name)
-        
         # Retornar mensaje al usuario
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Debug UoM Names',
-                'message': f'Revisa los logs del servidor. Collection: {self.name}, uom_1={self.uom_1_name}, uom_2={self.uom_2_name}, uom_3={self.uom_3_name}',
+                'message': f'Revisa los logs del servidor. Collection: {self.name}',
                 'type': 'info',
                 'sticky': False,
             }
         }
     
-    def action_recompute_uom_names(self):
-        """Método para recalcular los nombres de unidades de medida almacenados para esta collection"""
-        self.ensure_one()
-        _logger.info("=== Recalculando nombres UoM para collection %s ===", self.id)
-        
-        # Recalcular para todas las líneas de esta collection
-        self.line_ids._compute_uom_display_names()
-        
-        # Recalcular para esta collection
-        self._compute_uom_display_names()
-        
-        _logger.info("=== Recálculo completado ===")
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Recálculo Completado',
-                'message': f'Se recalcularon los nombres para {len(self.line_ids)} líneas',
-                'type': 'success',
-                'sticky': False,
-            }
-        }
-    
-    @api.model
-    def _recompute_uom_names_all(self):
-        """Método para recalcular todos los nombres de unidades de medida almacenados"""
-        _logger.info("=== Iniciando recálculo de nombres UoM para todas las collections ===")
-        
-        # Recalcular para todas las líneas
-        all_lines = self.env['poultry.egg.collection.line'].search([])
-        _logger.info("Recalculando %d líneas", len(all_lines))
-        all_lines._compute_uom_display_names()
-        
-        # Recalcular para todas las collections
-        all_collections = self.env['poultry.egg.collection'].search([])
-        _logger.info("Recalculando %d collections", len(all_collections))
-        all_collections._compute_uom_display_names()
-        
-        _logger.info("=== Recálculo completado ===")
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
