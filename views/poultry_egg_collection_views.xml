@@ -182,7 +182,7 @@
                 <field name="product_id"/>
                 <field name="date"/>
                 <separator/>
-                <filter string="Sin Procesar" name="not_done" domain="[('state', '!=', 'done')]" default_filter="1"/>
+                <filter string="Sin Procesar" name="not_done" domain="[('state', '!=', 'done')]"/>
                 <filter string="Inicio" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Bruto" name="counted" domain="[('state', '=', 'counted')]"/>
                 <filter string="Completada" name="completed" domain="[('state', '=', 'completed')]"/>
