@@ -47,6 +47,12 @@ class PoultryEggCollectionLine(models.Model):
     average_weight = fields.Float(string='Peso Medio', default=0.0, digits=(16, 3),
                                    help='Peso medio en gramos por huevo de esta variante')
     
+    # Total de huevos brutos calculados (para % de distribución)
+    total_eggs_gross = fields.Float(string='Total Huevos Bruto', 
+                                     compute='_compute_total_eggs_gross',
+                                     store=True, digits=(16, 2),
+                                     help='Total de huevos brutos convertidos a unidad de referencia')
+    
     # % de distribución basado en peso
     weight_distribution_percent = fields.Float(string='% Distribución', 
                                                 compute='_compute_weight_distribution',
@@ -144,8 +150,8 @@ class PoultryEggCollectionLine(models.Model):
         return reference_uom[0] if reference_uom else False
     
     @api.depends('collection_id', 'collection_id.line_ids.average_weight',
-                 'collection_id.line_ids.total_produced_reference',
-                 'average_weight', 'total_produced_reference')
+                 'collection_id.line_ids.total_eggs_gross',
+                 'average_weight', 'total_eggs_gross')
     def _compute_weight_distribution(self):
         """Calcula el % de distribución según el peso total de todas las variantes"""
         # Procesar todas las líneas de todas las collections afectadas
@@ -157,13 +163,13 @@ class PoultryEggCollectionLine(models.Model):
             # Calcular peso total de todas las líneas de la collection
             total_weight = 0.0
             for line in collection.line_ids:
-                if line.average_weight and line.total_produced_reference:
-                    total_weight += line.average_weight * line.total_produced_reference
+                if line.average_weight and line.total_eggs_gross:
+                    total_weight += line.average_weight * line.total_eggs_gross
             
             # Calcular % para cada línea de esta collection
             for line in collection.line_ids:
-                if total_weight > 0 and line.average_weight and line.total_produced_reference:
-                    line_weight = line.average_weight * line.total_produced_reference
+                if total_weight > 0 and line.average_weight and line.total_eggs_gross:
+                    line_weight = line.average_weight * line.total_eggs_gross
                     line.weight_distribution_percent = (line_weight / total_weight) * 100.0
                 else:
                     line.weight_distribution_percent = 0.0
