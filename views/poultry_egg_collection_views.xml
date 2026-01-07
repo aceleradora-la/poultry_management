@@ -33,8 +33,10 @@
                     <button name="action_complete" type="object" string="Completar Recolección" 
                             class="oe_highlight" 
                             invisible="state != 'counted'"/>
-                    <button name="action_set_to_draft" type="object" string="Pasar a Borrador" 
-                            invisible="state == 'draft' or state == 'done'"/>
+                    <button name="action_set_to_draft" type="object" string="Volver a Inicio" 
+                            invisible="state != 'counted'"/>
+                    <button name="action_set_to_draft" type="object" string="Volver a Bruto" 
+                            invisible="state != 'completed'"/>
                     <button name="action_generate_productions" type="object" 
                             string="Generar Órdenes de Fabricación" 
                             class="oe_highlight" 
@@ -42,7 +44,8 @@
                         <button name="action_view_productions" type="object" 
                                 string="Ver Órdenes Generadas" 
                                 invisible="production_count == 0"/>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done" 
+                               clickable="state != 'done'"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">

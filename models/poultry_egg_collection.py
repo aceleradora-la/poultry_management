@@ -432,8 +432,6 @@ class PoultryEggCollection(models.Model):
                 _ = line.produced_map
                 _ = line.produced_egg
                 _ = line.total_produced_reference
-            # Forzar recálculo de los totales después de calcular producción
-            record._compute_totals()
             record.state = 'completed'
     
     def action_set_to_draft(self):
