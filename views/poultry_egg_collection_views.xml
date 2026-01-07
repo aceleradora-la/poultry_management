@@ -86,35 +86,42 @@
                                    context="{'default_collection_id': id}">
                                 <list string="Líneas de Recolección" editable="bottom" 
                                       column_invisible="parent.state == 'draft'">
-                                    <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                                    <!-- Variante de producto: nunca editable -->
+                                    <field name="product_variant_id" 
+                                           readonly="1"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
                                     
-                                    <!-- Columnas Iniciales: visibles desde borrador -->
+                                    <!-- Columnas Iniciales: editables solo en borrador -->
                                     <field name="initial_box" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"/>
+                                           readonly="parent.state != 'draft'"/>
                                     <field name="initial_map" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"/>
+                                           readonly="parent.state != 'draft'"/>
                                     <field name="initial_egg" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"/>
+                                           readonly="parent.state != 'draft'"/>
                                     
-                                    <!-- Columnas Brutas, Peso Medio y %: visibles después de registrar iniciales -->
+                                    <!-- Columnas Brutas: editables solo en estado counted -->
                                     <field name="final_box" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
                                     <field name="final_map" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
                                     <field name="final_egg" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
+                                    
+                                    <!-- Peso Medio: editable solo en estado counted -->
                                     <field name="average_weight" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
+                                    
+                                    <!-- % Distribución: siempre readonly, visible después de iniciales -->
                                     <field name="weight_distribution_percent" 
                                            readonly="1"
                                            column_invisible="parent.state == 'draft'"
                                            widget="percentage"/>
                                     
-                                    <!-- Columnas Finales (producidos): visibles después de registrar iniciales -->
+                                    <!-- Columnas Finales (producidos): siempre readonly, visibles después de iniciales -->
                                     <field name="produced_box" 
                                            readonly="1"
                                            column_invisible="parent.state == 'draft'"/>
@@ -125,7 +132,7 @@
                                            readonly="1"
                                            column_invisible="parent.state == 'draft'"/>
                                     
-                                    <!-- Columna de huevos totales producidos -->
+                                    <!-- Columna de huevos totales producidos: siempre readonly -->
                                     <field name="total_produced_reference" 
                                            readonly="1"
                                            column_invisible="parent.state == 'draft'"
