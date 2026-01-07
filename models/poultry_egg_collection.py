@@ -435,13 +435,18 @@ class PoultryEggCollection(models.Model):
             record.state = 'completed'
     
     def action_set_to_draft(self):
-        """Permite volver a borrador si aún no se han generado las órdenes de fabricación"""
+        """Permite retroceder al estado anterior si aún no se han generado las órdenes de fabricación"""
         for record in self:
             if record.state == 'done':
-                raise UserError('No se puede volver a borrador una recolección que ya ha sido procesada (tiene órdenes de fabricación generadas).')
+                raise UserError('No se puede retroceder una recolección que ya ha sido procesada.')
             if record.production_ids:
-                raise UserError('No se puede volver a borrador porque ya se han generado órdenes de fabricación.')
-            record.state = 'draft'
+                raise UserError('No se puede retroceder una recolección que ya tiene órdenes de fabricación generadas.')
+            
+            # Retroceder al estado anterior
+            if record.state == 'completed':
+                record.state = 'counted'  # Volver a Bruto
+            elif record.state == 'counted':
+                record.state = 'draft'  # Volver a Inicio
     
     def action_generate_productions(self):
         """Genera automáticamente las Órdenes de Fabricación para todas las unidades producidas"""
