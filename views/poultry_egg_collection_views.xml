@@ -95,13 +95,16 @@
                                            readonly="id"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
                                     
-                    <!-- Columnas Iniciales: editables solo en Inicio (draft) -->
+                    <!-- Columnas Iniciales: editables solo en Inicio (draft), ocultas en Bruto, visibles en Completada/Procesada -->
                     <field name="initial_box" 
-                                           readonly="parent.state != 'draft'"/>
+                                           readonly="parent.state != 'draft'"
+                                           column_invisible="parent.state == 'counted'"/>
                                     <field name="initial_map" 
-                                           readonly="parent.state != 'draft'"/>
+                                           readonly="parent.state != 'draft'"
+                                           column_invisible="parent.state == 'counted'"/>
                                     <field name="initial_egg" 
-                                           readonly="parent.state != 'draft'"/>
+                                           readonly="parent.state != 'draft'"
+                                           column_invisible="parent.state == 'counted'"/>
                                     
                                     <!-- Columnas Brutas: editables solo en Bruto (counted), ocultas en Inicio -->
                                     <field name="final_box" 
