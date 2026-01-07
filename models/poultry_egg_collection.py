@@ -13,6 +13,13 @@ class PoultryEggCollection(models.Model):
     _order = 'date desc, coop_id'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     
+    @api.ondelete(at_uninstall=False)
+    def _unlink_only_draft(self):
+        """Solo permite eliminar partes de producción en estado Inicio (Borrador)"""
+        for record in self:
+            if record.state != 'draft':
+                raise UserError('Solo se pueden eliminar partes de producción en estado Inicio (Borrador).')
+    
     @api.model
     def _read_group_groupby(self, groupby_spec, query):
         """Override para evitar errores cuando se usa product_tmpl_id o product_id en pivot"""
