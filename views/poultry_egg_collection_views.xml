@@ -74,7 +74,7 @@
                                    readonly="state == 'done'"/>
                         </group>
                         <group>
-                            <group string="Totales Finales" invisible="state == 'draft'">
+                            <group string="Totales Finales" invisible="state == 'draft' or state == 'counted'">
                                 <label for="total_eggs" string="Total Huevos"/>
                                 <field name="total_eggs" readonly="1" nolabel="1"/>
                                 <label for="total_weight" string="Total Peso (kg)"/>
@@ -119,10 +119,10 @@
                                            readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
                                     
-                                    <!-- % Distribución: siempre readonly, visible desde Bruto -->
+                                    <!-- % Distribución: siempre readonly, visible solo en Completada y Procesada -->
                                     <field name="weight_distribution_percent" 
                                            readonly="1"
-                                           column_invisible="parent.state == 'draft'"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"
                                            widget="percentage"/>
                                     
                                     <!-- Columnas Finales (producidos): siempre readonly, visibles solo en Completada y Procesada -->
