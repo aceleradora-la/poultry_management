@@ -177,10 +177,14 @@ class PoultryEggCollectionLine(models.Model):
             line.total_eggs_gross = total_reference
     
     @api.depends('collection_id', 'collection_id.line_ids.average_weight',
-                 'collection_id.line_ids.total_eggs_gross',
-                 'average_weight', 'total_eggs_gross')
+                 'collection_id.line_ids.total_produced_reference',
+                 'average_weight', 'total_produced_reference')
     def _compute_weight_distribution(self):
-        """Calcula el % de distribución según el peso total de todas las variantes"""
+        """
+        Calcula el % de distribución según el peso total de todas las variantes.
+
+        Nota: `widget="percentage"` en Odoo espera una fracción (0..1), no 0..100.
+        """
         # Procesar todas las líneas de todas las collections afectadas
         all_collections = self.mapped('collection_id')
         for collection in all_collections:
@@ -190,14 +194,15 @@ class PoultryEggCollectionLine(models.Model):
             # Calcular peso total de todas las líneas de la collection
             total_weight = 0.0
             for line in collection.line_ids:
-                if line.average_weight and line.total_eggs_gross:
-                    total_weight += line.average_weight * line.total_eggs_gross
+                if line.average_weight and line.total_produced_reference:
+                    total_weight += line.average_weight * line.total_produced_reference
             
             # Calcular % para cada línea de esta collection
             for line in collection.line_ids:
-                if total_weight > 0 and line.average_weight and line.total_eggs_gross:
-                    line_weight = line.average_weight * line.total_eggs_gross
-                    line.weight_distribution_percent = (line_weight / total_weight) * 100.0
+                if total_weight > 0 and line.average_weight and line.total_produced_reference:
+                    line_weight = line.average_weight * line.total_produced_reference
+                    # Fracción 0..1 (el widget percentage lo muestra como 0..100%)
+                    line.weight_distribution_percent = (line_weight / total_weight)
                 else:
                     line.weight_distribution_percent = 0.0
     
