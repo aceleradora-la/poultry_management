@@ -43,6 +43,16 @@ class PoultryEggCollectionLine(models.Model):
     final_map = fields.Float(string='Bruto PI', default=0.0, digits=(16, 2))
     final_egg = fields.Float(string='Bruto Huevo', default=0.0, digits=(16, 2))
     
+    # Peso Medio por variante
+    average_weight = fields.Float(string='Peso Medio', default=0.0, digits=(16, 3),
+                                   help='Peso medio en gramos por huevo de esta variante')
+    
+    # % de distribución basado en peso
+    weight_distribution_percent = fields.Float(string='% Distribución', 
+                                                compute='_compute_weight_distribution',
+                                                store=True, digits=(16, 2),
+                                                help='Porcentaje de distribución según el peso total')
+    
     @api.model
     def _update_field_strings(self):
         """Actualiza los nombres de los campos legacy dinámicamente basándose en uom_value_ids"""
@@ -132,6 +142,30 @@ class PoultryEggCollectionLine(models.Model):
         reference_uom = uoms.filtered(lambda u: u.ratio == 1.0)
         
         return reference_uom[0] if reference_uom else False
+    
+    @api.depends('collection_id', 'collection_id.line_ids', 
+                 'collection_id.line_ids.average_weight',
+                 'collection_id.line_ids.total_produced_reference',
+                 'average_weight', 'total_produced_reference')
+    def _compute_weight_distribution(self):
+        """Calcula el % de distribución según el peso total de todas las variantes"""
+        for line in self:
+            if not line.collection_id:
+                line.weight_distribution_percent = 0.0
+                continue
+            
+            # Calcular peso total de todas las líneas de la collection
+            total_weight = 0.0
+            for other_line in line.collection_id.line_ids:
+                if other_line.average_weight and other_line.total_produced_reference:
+                    total_weight += other_line.average_weight * other_line.total_produced_reference
+            
+            # Calcular % de esta línea
+            if total_weight > 0 and line.average_weight and line.total_produced_reference:
+                line_weight = line.average_weight * line.total_produced_reference
+                line.weight_distribution_percent = (line_weight / total_weight) * 100.0
+            else:
+                line.weight_distribution_percent = 0.0
     
     def _sync_uom_values_to_legacy(self):
         """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""

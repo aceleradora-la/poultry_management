@@ -70,29 +70,13 @@
                                    readonly="state == 'done'"/>
                         </group>
                         <group>
-                            <group string="Totales Iniciales" invisible="state == 'draft'">
-                                <label for="total_initial_boxes" string="Total Inicial PT"/>
-                                <field name="total_initial_boxes" readonly="1" nolabel="1"/>
-                                <label for="total_initial_maps" string="Total Inicial PI"/>
-                                <field name="total_initial_maps" readonly="1" nolabel="1"/>
-                                <label for="total_initial_eggs" string="Total Inicial Huevo"/>
-                                <field name="total_initial_eggs" readonly="1" nolabel="1"/>
-                            </group>
-                            <group string="Totales Brutos" invisible="state == 'draft' or state == 'counted'">
-                                <label for="total_final_boxes" string="Total Bruto PT"/>
-                                <field name="total_final_boxes" readonly="1" nolabel="1"/>
-                                <label for="total_final_maps" string="Total Bruto PI"/>
-                                <field name="total_final_maps" readonly="1" nolabel="1"/>
-                                <label for="total_final_eggs" string="Total Bruto Huevo"/>
-                                <field name="total_final_eggs" readonly="1" nolabel="1"/>
-                            </group>
-                            <group string="Totales Finales" invisible="state == 'draft' or state == 'counted'">
-                                <label for="total_produced_boxes" string="Total Final PT"/>
-                                <field name="total_produced_boxes" readonly="1" nolabel="1"/>
-                                <label for="total_produced_maps" string="Total Final PI"/>
-                                <field name="total_produced_maps" readonly="1" nolabel="1"/>
-                                <label for="total_produced_eggs" string="Total Final Huevo"/>
-                                <field name="total_produced_eggs" readonly="1" nolabel="1"/>
+                            <group string="Totales Finales" invisible="state == 'draft'">
+                                <label for="total_eggs" string="Total Huevos"/>
+                                <field name="total_eggs" readonly="1" nolabel="1"/>
+                                <label for="total_weight" string="Total Peso"/>
+                                <field name="total_weight" readonly="1" nolabel="1"/>
+                                <label for="total_boxes" string="Total Cajones"/>
+                                <field name="total_boxes" readonly="1" nolabel="1"/>
                             </group>
                         </group>
                     </group>
@@ -102,18 +86,49 @@
                                    context="{'default_collection_id': id}">
                                 <list string="Líneas de Recolección" editable="bottom">
                                     <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                                    
+                                    <!-- Columnas Iniciales: visibles desde borrador -->
                                     <field name="initial_box" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"/>
                                     <field name="initial_map" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"/>
                                     <field name="initial_egg" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"/>
+                                    
+                                    <!-- Columnas Brutas, Peso Medio y %: visibles después de registrar iniciales -->
                                     <field name="final_box" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"/>
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           invisible="parent.state == 'draft'"/>
                                     <field name="final_map" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"/>
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           invisible="parent.state == 'draft'"/>
                                     <field name="final_egg" 
-                                           readonly="parent.state == 'done' or parent.state == 'completed'"/>
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           invisible="parent.state == 'draft'"/>
+                                    <field name="average_weight" 
+                                           readonly="parent.state == 'done' or parent.state == 'completed'"
+                                           invisible="parent.state == 'draft'"/>
+                                    <field name="weight_distribution_percent" 
+                                           readonly="1"
+                                           invisible="parent.state == 'draft'"
+                                           widget="percentage"/>
+                                    
+                                    <!-- Columnas Finales (producidos): visibles después de registrar iniciales -->
+                                    <field name="produced_box" 
+                                           readonly="1"
+                                           invisible="parent.state == 'draft'"/>
+                                    <field name="produced_map" 
+                                           readonly="1"
+                                           invisible="parent.state == 'draft'"/>
+                                    <field name="produced_egg" 
+                                           readonly="1"
+                                           invisible="parent.state == 'draft'"/>
+                                    
+                                    <!-- Columna de huevos totales producidos -->
+                                    <field name="total_produced_reference" 
+                                           readonly="1"
+                                           invisible="parent.state == 'draft'"
+                                           string="Total Huevos"/>
                                 </list>
                             </field>
                         </page>

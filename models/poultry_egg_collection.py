@@ -78,18 +78,13 @@ class PoultryEggCollection(models.Model):
     production_count = fields.Integer(string='Cantidad de OF', compute='_compute_production_count')
     
     
-    # Totales
-    total_initial_boxes = fields.Float(string='Total Inicial PT', compute='_compute_totals', store=True)
-    total_initial_maps = fields.Float(string='Total Inicial PI', compute='_compute_totals', store=True)
-    total_initial_eggs = fields.Float(string='Total Inicial Huevo', compute='_compute_totals', store=True)
-    
-    total_final_boxes = fields.Float(string='Total Bruto PT', compute='_compute_totals', store=True)
-    total_final_maps = fields.Float(string='Total Bruto PI', compute='_compute_totals', store=True)
-    total_final_eggs = fields.Float(string='Total Bruto Huevo', compute='_compute_totals', store=True)
-    
-    total_produced_boxes = fields.Float(string='Total Final PT', compute='_compute_totals', store=True)
-    total_produced_maps = fields.Float(string='Total Final PI', compute='_compute_totals', store=True)
-    total_produced_eggs = fields.Float(string='Total Final Huevo', compute='_compute_totals', store=True)
+    # Totales Finales (nuevos)
+    total_eggs = fields.Float(string='Total Huevos', compute='_compute_final_totals', store=True,
+                              help='Suma de huevos producidos de todas las variantes')
+    total_weight = fields.Float(string='Total Peso', compute='_compute_final_totals', store=True,
+                                help='Suma de pesos de todas las variantes (peso medio * huevos)')
+    total_boxes = fields.Float(string='Total Cajones', compute='_compute_final_totals', store=True,
+                               help='Total Huevos / 360')
     
     notes = fields.Text(string='Notas')
     
@@ -216,6 +211,27 @@ class PoultryEggCollection(models.Model):
                 collection.total_produced_boxes = sum(collection.line_ids.mapped('produced_box') or [0.0])
                 collection.total_produced_maps = sum(collection.line_ids.mapped('produced_map') or [0.0])
                 collection.total_produced_eggs = sum(collection.line_ids.mapped('produced_egg') or [0.0])
+    
+    @api.depends('line_ids', 'line_ids.total_produced_reference',
+                 'line_ids.average_weight', 'line_ids.total_produced_reference')
+    def _compute_final_totals(self):
+        """Calcula los totales finales: Total Huevos, Total Peso, Total Cajones"""
+        for collection in self:
+            # Total Huevos: suma de total_produced_reference de todas las variantes
+            collection.total_eggs = sum(collection.line_ids.mapped('total_produced_reference') or [0.0])
+            
+            # Total Peso: suma de (peso medio * huevos) de todas las variantes
+            total_weight = 0.0
+            for line in collection.line_ids:
+                if line.average_weight and line.total_produced_reference:
+                    total_weight += line.average_weight * line.total_produced_reference
+            collection.total_weight = total_weight
+            
+            # Total Cajones: Total Huevos / 360
+            if collection.total_eggs > 0:
+                collection.total_boxes = collection.total_eggs / 360.0
+            else:
+                collection.total_boxes = 0.0
     
     @api.depends('production_ids')
     def _compute_production_count(self):
