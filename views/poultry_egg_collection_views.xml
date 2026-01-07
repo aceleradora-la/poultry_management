@@ -84,7 +84,8 @@
                         <page string="Líneas de Recolección" name="lines">
                             <field name="line_ids" nolabel="1" readonly="state == 'done'" 
                                    context="{'default_collection_id': id}">
-                                <list string="Líneas de Recolección" editable="bottom">
+                                <list string="Líneas de Recolección" editable="bottom" 
+                                      column_invisible="parent.state == 'draft'">
                                     <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                     
                                     <!-- Columnas Iniciales: visibles desde borrador -->
@@ -98,36 +99,36 @@
                                     <!-- Columnas Brutas, Peso Medio y %: visibles después de registrar iniciales -->
                                     <field name="final_box" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft'"/>
                                     <field name="final_map" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft'"/>
                                     <field name="final_egg" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft'"/>
                                     <field name="average_weight" 
                                            readonly="parent.state == 'done' or parent.state == 'completed'"
-                                           invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft'"/>
                                     <field name="weight_distribution_percent" 
                                            readonly="1"
-                                           invisible="parent.state == 'draft'"
+                                           column_invisible="parent.state == 'draft'"
                                            widget="percentage"/>
                                     
                                     <!-- Columnas Finales (producidos): visibles después de registrar iniciales -->
                                     <field name="produced_box" 
                                            readonly="1"
-                                           invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft'"/>
                                     <field name="produced_map" 
                                            readonly="1"
-                                           invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft'"/>
                                     <field name="produced_egg" 
                                            readonly="1"
-                                           invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft'"/>
                                     
                                     <!-- Columna de huevos totales producidos -->
                                     <field name="total_produced_reference" 
                                            readonly="1"
-                                           invisible="parent.state == 'draft'"
+                                           column_invisible="parent.state == 'draft'"
                                            string="Total Huevos"/>
                                 </list>
                             </field>
