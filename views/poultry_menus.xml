@@ -1,6 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- La configuración del producto "Huevo sin Clasificar" fue movida a los parámetros de cada galpón -->
+    <!-- Vista de Configuración del Módulo -->
+    <record id="view_poultry_config_settings_form" model="ir.ui.view">
+        <field name="name">poultry.config.settings.form</field>
+        <field name="model">res.config.settings</field>
+        <field name="arch" type="xml">
+            <form string="Configuración de Gestión Avícola" class="oe_form_configuration">
+                <header>
+                    <button string="Aplicar" type="object" name="execute" class="oe_highlight"/>
+                    <button string="Cancelar" type="object" name="cancel" class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Parámetros Generales">
+                            <field name="poultry_unclassified_egg_product_id" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción."/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Acción para la configuración -->
+    <record id="action_poultry_config_settings" model="ir.actions.act_window">
+        <field name="name">Parámetros Generales</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="view_id" ref="view_poultry_config_settings_form"/>
+    </record>
+    
+    <!-- Menú en Configuración del módulo -->
+    <menuitem id="menu_poultry_settings" 
+              name="Parámetros Generales" 
+              parent="menu_poultry_configuration" 
+              action="action_poultry_config_settings" 
+              sequence="50"/>
 
     <menuitem id="menu_poultry_management_root" 
               name="Gestión Avícola" 
