@@ -79,8 +79,8 @@
                                 <field name="total_eggs" readonly="1" nolabel="1"/>
                                 <label for="total_weight" string="Total Peso (kg)"/>
                                 <field name="total_weight" readonly="1" nolabel="1"/>
-                                <label for="average_weight_elaborated" string="Peso Medio Elaborado"/>
-                                <field name="average_weight_elaborated" readonly="1" nolabel="1" widget="float" options="{'suffix': ' g'}"/>
+                                <label for="average_weight_elaborated" string="Peso Medio Elaborado (g)"/>
+                                <field name="average_weight_elaborated" readonly="1" nolabel="1"/>
                                 <label for="total_boxes" string="Total Cajones"/>
                                 <field name="total_boxes" readonly="1" nolabel="1"/>
                             </group>
