@@ -213,7 +213,7 @@ class PoultryEggCollection(models.Model):
                 collection.total_produced_eggs = sum(collection.line_ids.mapped('produced_egg') or [0.0])
     
     @api.depends('line_ids', 'line_ids.total_produced_reference',
-                 'line_ids.average_weight', 'line_ids.total_produced_reference')
+                 'line_ids.average_weight')
     def _compute_final_totals(self):
         """Calcula los totales finales: Total Huevos, Total Peso, Total Cajones"""
         for collection in self:
