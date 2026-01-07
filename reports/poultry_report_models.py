@@ -39,9 +39,10 @@ class PoultryProductionReportWizard(models.TransientModel):
                 'date': collection.date,
                 'coop': collection.coop_id.name,
                 'product': collection.product_tmpl_id.name,
-                'total_produced_boxes': collection.total_produced_boxes,
-                'total_produced_maps': collection.total_produced_maps,
-                'total_produced_eggs': collection.total_produced_eggs,
+                'total_eggs': collection.total_eggs,
+                'total_weight': collection.total_weight,
+                'total_boxes': collection.total_boxes,
+                'average_weight_elaborated': collection.average_weight_elaborated,
             })
         
         return {
@@ -52,7 +53,7 @@ class PoultryProductionReportWizard(models.TransientModel):
             'domain': domain,
             'context': {
                 'search_default_group_by_date': self.group_by_date if self.group_by_date else False,
-                'pivot_measures': ['total_produced_boxes', 'total_produced_maps', 'total_produced_eggs'],
+                'pivot_measures': ['total_eggs', 'total_weight', 'total_boxes', 'average_weight_elaborated'],
             },
         }
 
