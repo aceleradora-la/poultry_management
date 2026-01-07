@@ -516,6 +516,11 @@ class PoultryEggCollection(models.Model):
                         production.action_confirm()
                         # Establecer qty_producing igual a product_qty
                         production.qty_producing = production.product_qty
+                        # Establecer cantidades consumidas según la BOM (cantidad estimada)
+                        for move in production.move_raw_ids:
+                            move.quantity_done = move.product_uom_qty
+                        # Cerrar la orden de producción (estado "Disponible")
+                        production.button_mark_done()
                         productions_created.append(production.id)
             else:
                 # Método legacy: solo generar para cajones
