@@ -28,32 +28,31 @@ class PoultryProductionReportWizard(models.TransientModel):
         ]
         
         if self.coop_id:
-            domain.append(('coop_id', '=', self.coop_id.id))
+            domain.append(('collection_id.coop_id', '=', self.coop_id.id))
         
-        collections = self.env['poultry.egg.collection'].search(domain, order='date desc, coop_id')
+        # Buscar líneas de recolección en lugar de collections
+        lines = self.env['poultry.egg.collection.line'].search(domain, order='collection_id.date desc, collection_id.coop_id')
         
         # Preparar datos para el reporte
         report_data = []
-        for collection in collections:
+        for line in lines:
             report_data.append({
-                'date': collection.date,
-                'coop': collection.coop_id.name,
-                'product': collection.product_tmpl_id.name,
-                'total_eggs': collection.total_eggs,
-                'total_weight': collection.total_weight,
-                'total_boxes': collection.total_boxes,
-                'average_weight_elaborated': collection.average_weight_elaborated,
+                'date': line.collection_id.date,
+                'coop': line.collection_id.coop_id.name,
+                'variant': line.product_variant_id.name,
+                'total_eggs': line.total_produced_reference,
+                'total_boxes': line.total_boxes,
+                'average_weight': line.average_weight,
             })
         
         return {
             'name': 'Reporte de Producción de Huevos',
             'type': 'ir.actions.act_window',
-            'res_model': 'poultry.egg.collection',
+            'res_model': 'poultry.egg.collection.line',
             'view_mode': 'list,pivot,form',
             'domain': domain,
             'context': {
-                'search_default_group_by_date': self.group_by_date if self.group_by_date else False,
-                'pivot_measures': ['total_eggs', 'total_weight', 'total_boxes', 'average_weight_elaborated'],
+                'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight'],
             },
         }
 

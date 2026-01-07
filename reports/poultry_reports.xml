@@ -25,13 +25,13 @@
     </record>
 
 
-    <!-- Acción directa para Reporte de Producción con Pivot -->
+    <!-- Acción directa para Reporte de Producción con Pivot (basado en líneas) -->
     <record id="action_poultry_production_report_direct" model="ir.actions.act_window">
         <field name="name">Reporte de Producción</field>
-        <field name="res_model">poultry.egg.collection</field>
+        <field name="res_model">poultry.egg.collection.line</field>
         <field name="view_mode">list,pivot,form</field>
-        <field name="domain">[('state', '=', 'done')]</field>
-        <field name="context">{'search_default_group_by_date': 1, 'pivot_measures': ['total_eggs', 'total_weight', 'total_boxes', 'average_weight_elaborated']}</field>
+        <field name="domain">[('collection_id.state', '=', 'done')]</field>
+        <field name="context">{'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight']}</field>
     </record>
 
     <!-- Menús de Reportes (el menú padre "Reportes" está definido en poultry_menus.xml) -->

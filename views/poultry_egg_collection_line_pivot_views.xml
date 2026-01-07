@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista Pivot para Líneas de Recolección -->
+    <record id="view_poultry_egg_collection_line_pivot" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.pivot</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Reporte de Producción por Variante">
+                <field name="collection_id" type="row"/>
+                <field name="product_variant_id" type="row" string="Variante"/>
+                <field name="collection_id.date" type="col" interval="day"/>
+                <field name="total_produced_reference" type="measure" string="Total Huevos"/>
+                <field name="total_boxes" type="measure" string="Total Cajones"/>
+                <field name="average_weight" type="measure" string="Peso Medio"/>
+            </pivot>
+        </field>
+    </record>
+    
+    <!-- Vista Tree para Líneas de Recolección (para el reporte) -->
+    <record id="view_poultry_egg_collection_line_tree_report" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.tree.report</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <list string="Líneas de Producción">
+                <field name="collection_id"/>
+                <field name="product_variant_id" string="Variante"/>
+                <field name="collection_id.date" string="Fecha"/>
+                <field name="collection_id.coop_id" string="Galpón"/>
+                <field name="total_produced_reference" string="Total Huevos"/>
+                <field name="total_boxes" string="Total Cajones"/>
+                <field name="average_weight" string="Peso Medio"/>
+                <field name="produced_box" string="Final PT"/>
+                <field name="produced_map" string="Final PI"/>
+                <field name="produced_egg" string="Final Huevo"/>
+                <field name="weight_distribution_percent" string="% Distribución" widget="percentage"/>
+            </list>
+        </field>
+    </record>
+</odoo>
+

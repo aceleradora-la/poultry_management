@@ -34,6 +34,7 @@
         'views/poultry_coop_bom_views.xml',
         'views/poultry_egg_collection_views.xml',
         'views/poultry_egg_collection_line_views.xml',
+        'views/poultry_egg_collection_line_pivot_views.xml',
         'views/poultry_mortality_views.xml',
         'views/poultry_genetics_standard_views.xml',
         'views/mrp_production_views.xml',

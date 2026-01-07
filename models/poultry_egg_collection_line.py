@@ -79,6 +79,12 @@ class PoultryEggCollectionLine(models.Model):
                                              store=True, digits=(16, 2),
                                              help='Total producido en la unidad de medida de referencia (Huevo)')
     
+    # Total de cajones producidos (Total Huevos / 360)
+    total_boxes = fields.Float(string='Total Cajones', 
+                               compute='_compute_total_boxes',
+                               store=True, digits=(16, 2),
+                               help='Total de cajones producidos (Total Huevos / 360)')
+    
     @api.depends('product_variant_id')
     def _compute_uom_ids(self):
         """Obtiene las unidades de medida (método legacy)"""
@@ -477,9 +483,9 @@ class PoultryEggCollectionLine(models.Model):
                     line.produced_egg = ref_uom_val.produced_qty if ref_uom_val else 0.0
             else:
                 # Fallback a método legacy
-                line.produced_box = line.final_box - line.initial_box
-                line.produced_map = line.final_map - line.initial_map
-                line.produced_egg = line.final_egg - line.initial_egg
+            line.produced_box = line.final_box - line.initial_box
+            line.produced_map = line.final_map - line.initial_map
+            line.produced_egg = line.final_egg - line.initial_egg
                 line.total_produced_reference = 0.0
     
     _sql_constraints = [

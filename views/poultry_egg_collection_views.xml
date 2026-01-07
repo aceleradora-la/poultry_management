@@ -149,6 +149,12 @@
                                            readonly="1"
                                            column_invisible="parent.state == 'draft' or parent.state == 'counted'"
                                            string="Total Huevos"/>
+                                    
+                                    <!-- Columna de cajones totales producidos: visible solo en Completada y Procesada -->
+                                    <field name="total_boxes" 
+                                           readonly="1"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"
+                                           string="Total Cajones"/>
                                 </list>
                             </field>
                         </page>
