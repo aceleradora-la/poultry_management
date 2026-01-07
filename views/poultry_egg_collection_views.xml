@@ -90,9 +90,9 @@
                                    context="{'default_collection_id': id}">
                                 <list string="Líneas de Recolección" editable="bottom" 
                                       column_invisible="parent.state == 'draft'">
-                                    <!-- Variante de producto: nunca editable -->
+                                    <!-- Variante de producto: editable solo al crear (cuando id es False) -->
                                     <field name="product_variant_id" 
-                                           readonly="1"
+                                           readonly="id"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
                                     
                     <!-- Columnas Iniciales: editables solo en Inicio (draft) -->
