@@ -6,13 +6,16 @@
         <field name="arch" type="xml">
             <list string="Recolecciones de Producción" decoration-info="state == 'draft'" 
                   decoration-warning="state == 'counted'" 
-                  decoration-success="state == 'completed' or state == 'done'">
+                  decoration-success="state == 'completed' or state == 'done'"
+                  default_order="date desc">
                 <field name="name"/>
                 <field name="coop_id"/>
                 <field name="product_id"/>
                 <field name="date"/>
                 <field name="total_eggs"/>
-                <field name="production_count"/>
+                <field name="total_boxes"/>
+                <field name="total_weight"/>
+                <field name="average_weight_elaborated"/>
                 <field name="state" widget="badge" 
                        decoration-info="state == 'draft'"
                        decoration-warning="state == 'counted'"
@@ -173,7 +176,7 @@
         <field name="name">poultry.egg.collection.search</field>
         <field name="model">poultry.egg.collection</field>
         <field name="arch" type="xml">
-            <search string="Buscar Recolecciones">
+            <search string="Buscar Recolecciones" default_filter_domain="[('state', '!=', 'done')]">
                 <field name="name"/>
                 <field name="coop_id"/>
                 <field name="product_id"/>
@@ -185,7 +188,7 @@
                 <filter string="Procesada" name="done" domain="[('state', '=', 'done')]"/>
                 <separator/>
                 <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
-                <filter string="Por Producto" name="by_product" context="{'group_by': 'product_id'}"/>
+                <filter string="Por Producto" name="by_product" context="{'group_by': 'product_variant_id'}"/>
                 <filter string="Por Fecha" name="by_date" context="{'group_by': 'date'}"/>
             </search>
         </field>
@@ -197,7 +200,7 @@
         <field name="arch" type="xml">
             <pivot string="Reporte de Producción">
                 <field name="date" type="row" interval="day"/>
-                <field name="product_variant_id" type="row"/>
+                <field name="product_variant_id" type="row" string="Variante Producto"/>
                 <field name="coop_id" type="col"/>
                 <field name="total_eggs" type="measure"/>
                 <field name="total_weight" type="measure"/>
