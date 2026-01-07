@@ -119,27 +119,27 @@
                                            readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
                                     
-                                    <!-- % Distribución: siempre readonly, visible después de iniciales -->
+                                    <!-- % Distribución: siempre readonly, visible desde Bruto -->
                                     <field name="weight_distribution_percent" 
                                            readonly="1"
                                            column_invisible="parent.state == 'draft'"
                                            widget="percentage"/>
                                     
-                                    <!-- Columnas Finales (producidos): siempre readonly, visibles después de iniciales -->
+                                    <!-- Columnas Finales (producidos): siempre readonly, visibles solo en Completada y Procesada -->
                                     <field name="produced_box" 
                                            readonly="1"
-                                           column_invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"/>
                                     <field name="produced_map" 
                                            readonly="1"
-                                           column_invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"/>
                                     <field name="produced_egg" 
                                            readonly="1"
-                                           column_invisible="parent.state == 'draft'"/>
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"/>
                                     
-                                    <!-- Columna de huevos totales producidos: siempre readonly -->
+                                    <!-- Columna de huevos totales producidos: visible solo en Completada y Procesada -->
                                     <field name="total_produced_reference" 
                                            readonly="1"
-                                           column_invisible="parent.state == 'draft'"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"
                                            string="Total Huevos"/>
                                 </list>
                             </field>
