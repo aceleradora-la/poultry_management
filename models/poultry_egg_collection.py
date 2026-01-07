@@ -525,7 +525,14 @@ class PoultryEggCollection(models.Model):
                         production.qty_producing = production.product_qty
                         # Establecer cantidades consumidas según la BOM (cantidad estimada)
                         for move in production.move_raw_ids:
-                            move.quantity_done = move.product_uom_qty
+                            # En Odoo 18, las cantidades se establecen a través de move_line_ids
+                            for move_line in move.move_line_ids:
+                                move_line.qty_done = move.product_uom_qty
+                            # Si no hay move_line_ids, crear uno
+                            if not move.move_line_ids:
+                                move._action_assign()
+                                for move_line in move.move_line_ids:
+                                    move_line.qty_done = move.product_uom_qty
                         # Cerrar la orden de producción (estado "Disponible")
                         production.button_mark_done()
                         productions_created.append(production.id)
@@ -555,7 +562,14 @@ class PoultryEggCollection(models.Model):
                     production.qty_producing = production.product_qty
                     # Establecer cantidades consumidas según la BOM
                     for move in production.move_raw_ids:
-                        move.quantity_done = move.product_uom_qty
+                        # En Odoo 18, las cantidades se establecen a través de move_line_ids
+                        for move_line in move.move_line_ids:
+                            move_line.qty_done = move.product_uom_qty
+                        # Si no hay move_line_ids, crear uno
+                        if not move.move_line_ids:
+                            move._action_assign()
+                            for move_line in move.move_line_ids:
+                                move_line.qty_done = move.product_uom_qty
                     # Cerrar la orden de producción
                     production.button_mark_done()
                     productions_created.append(production.id)
