@@ -536,18 +536,8 @@ class PoultryEggCollection(models.Model):
                         production.action_confirm()
                         # Establecer qty_producing igual a product_qty
                         production.qty_producing = production.product_qty
-                        # Establecer cantidades consumidas según la BOM (cantidad estimada)
-                        for move in production.move_raw_ids:
-                            # En Odoo 18, las cantidades se establecen a través de move_line_ids
-                            for move_line in move.move_line_ids:
-                                move_line.qty_done = move.product_uom_qty
-                            # Si no hay move_line_ids, crear uno
-                            if not move.move_line_ids:
-                                move._action_assign()
-                                for move_line in move.move_line_ids:
-                                    move_line.qty_done = move.product_uom_qty
-                        # Cerrar la orden de producción (estado "Disponible")
-                        production.button_mark_done()
+                        # Establecer cantidades consumidas y cerrar la orden
+                        self._force_close_production_order(production)
                         productions_created.append(production.id)
             else:
                 # Método legacy: solo generar para cajones
@@ -573,18 +563,8 @@ class PoultryEggCollection(models.Model):
                     production.action_confirm()
                     # Establecer qty_producing igual a product_qty
                     production.qty_producing = production.product_qty
-                    # Establecer cantidades consumidas según la BOM
-                    for move in production.move_raw_ids:
-                        # En Odoo 18, las cantidades se establecen a través de move_line_ids
-                        for move_line in move.move_line_ids:
-                            move_line.qty_done = move.product_uom_qty
-                        # Si no hay move_line_ids, crear uno
-                        if not move.move_line_ids:
-                            move._action_assign()
-                            for move_line in move.move_line_ids:
-                                move_line.qty_done = move.product_uom_qty
-                    # Cerrar la orden de producción
-                    production.button_mark_done()
+                    # Establecer cantidades consumidas y cerrar la orden
+                    self._force_close_production_order(production)
                     productions_created.append(production.id)
         
         # Crear orden de producción para Huevo sin Clasificar
@@ -638,6 +618,102 @@ class PoultryEggCollection(models.Model):
             }
         else:
             raise UserError('No hay producción para generar órdenes de fabricación.')
+    
+    def _force_close_production_order(self, production):
+        """
+        Fuerza el cierre de una orden de producción estableciendo las cantidades consumidas
+        incluso si no hay stock disponible. Crea move_line_ids manualmente si es necesario.
+        """
+        # Establecer cantidades consumidas según la BOM (cantidad estimada)
+        for move in production.move_raw_ids:
+            # Intentar asignar stock primero
+            if move.state not in ('assigned', 'done'):
+                try:
+                    move._action_assign()
+                except Exception as e:
+                    _logger.warning(f'No se pudo asignar stock para move {move.id}: {str(e)}')
+            
+            # Si hay move_line_ids, establecer las cantidades
+            if move.move_line_ids:
+                for move_line in move.move_line_ids:
+                    move_line.qty_done = move.product_uom_qty
+            else:
+                # Si no hay move_line_ids (sin stock disponible), crear uno manualmente
+                # Esto fuerza la creación de move_line_ids incluso sin stock
+                try:
+                    # Intentar asignar nuevamente por si acaso
+                    move._action_assign()
+                except:
+                    pass
+                
+                # Si aún no hay move_line_ids después de _action_assign(), crear manualmente
+                if not move.move_line_ids:
+                    # Crear move_line manualmente con la cantidad requerida
+                    self.env['stock.move.line'].create({
+                        'move_id': move.id,
+                        'product_id': move.product_id.id,
+                        'product_uom_id': move.product_uom.id,
+                        'location_id': move.location_id.id,
+                        'location_dest_id': move.location_dest_id.id,
+                        'product_uom_qty': 0,  # Se establece a 0 inicialmente
+                        'qty_done': move.product_uom_qty,  # Cantidad a consumir
+                        'picking_id': False,  # No pertenece a un picking
+                    })
+                    # Recargar el move para obtener los nuevos move_line_ids
+                    move.invalidate_recordset(['move_line_ids'])
+                
+                # Establecer las cantidades en los move_line_ids
+                for move_line in move.move_line_ids:
+                    if move_line.qty_done == 0:
+                        move_line.qty_done = move.product_uom_qty
+        
+        # Intentar cerrar la orden de producción (estado "Disponible")
+        try:
+            # Asegurar que todos los movimientos estén en estado correcto
+            production.move_raw_ids._action_assign()
+            production.button_mark_done()
+        except Exception as e:
+            # Si falla el cierre, intentar forzar el estado
+            _logger.warning(f'Error al cerrar orden de producción {production.name}: {str(e)}')
+            
+            # Marcar los movimientos como completados manualmente
+            for move in production.move_raw_ids:
+                if move.state not in ('done', 'cancel'):
+                    # Forzar las cantidades consumidas
+                    for move_line in move.move_line_ids:
+                        move_line.qty_done = move.product_uom_qty
+                    # Si el move no tiene move_line_ids, crear uno
+                    if not move.move_line_ids:
+                        self.env['stock.move.line'].create({
+                            'move_id': move.id,
+                            'product_id': move.product_id.id,
+                            'product_uom_id': move.product_uom.id,
+                            'location_id': move.location_id.id,
+                            'location_dest_id': move.location_dest_id.id,
+                            'product_uom_qty': 0,
+                            'qty_done': move.product_uom_qty,
+                            'picking_id': False,
+                        })
+                        move.invalidate_recordset(['move_line_ids'])
+                    
+                    # Intentar marcar como done
+                    try:
+                        if hasattr(move, '_action_done'):
+                            move._action_done()
+                        elif move.state == 'assigned':
+                            # Forzar el cambio de estado
+                            move.quantity_done = sum(move.move_line_ids.mapped('qty_done'))
+                    except Exception as move_error:
+                        _logger.warning(f'No se pudo marcar move {move.id} como done: {str(move_error)}')
+            
+            # Intentar cerrar nuevamente
+            try:
+                production.button_mark_done()
+            except Exception as e2:
+                # Si aún falla, registrar el error pero continuar
+                _logger.error(f'No se pudo cerrar automáticamente la orden de producción {production.name}: {str(e2)}')
+                raise UserError(f'No se pudo cerrar automáticamente la orden de producción {production.name}. '
+                              f'Por favor, ciérrela manualmente desde el menú de acciones. Error: {str(e2)}')
     
     def _get_uom_box(self):
         """Obtiene la unidad de medida 'Cajón' en cualquier categoría"""
