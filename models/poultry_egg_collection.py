@@ -655,9 +655,7 @@ class PoultryEggCollection(models.Model):
                         'product_uom_id': move.product_uom.id,
                         'location_id': move.location_id.id,
                         'location_dest_id': move.location_dest_id.id,
-                        'product_uom_qty': 0,  # Se establece a 0 inicialmente
                         'qty_done': move.product_uom_qty,  # Cantidad a consumir
-                        'picking_id': False,  # No pertenece a un picking
                     })
                     # Recargar el move para obtener los nuevos move_line_ids
                     move.invalidate_recordset(['move_line_ids'])
@@ -690,9 +688,7 @@ class PoultryEggCollection(models.Model):
                             'product_uom_id': move.product_uom.id,
                             'location_id': move.location_id.id,
                             'location_dest_id': move.location_dest_id.id,
-                            'product_uom_qty': 0,
                             'qty_done': move.product_uom_qty,
-                            'picking_id': False,
                         })
                         move.invalidate_recordset(['move_line_ids'])
                     
