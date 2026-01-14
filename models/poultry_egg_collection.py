@@ -433,15 +433,26 @@ class PoultryEggCollection(models.Model):
         for record in self:
             if record.state != 'counted':
                 raise UserError('Debe registrar primero la cantidad inicial.')
-            # Verificar si hay valores finales (nuevo sistema o legacy)
+            
+            # PRIMERO: Sincronizar campos legacy a uom_value_ids para que la validación funcione
+            # Esto asegura que los valores ingresados en los campos legacy se reflejen en uom_value_ids
+            for line in record.line_ids:
+                if line.product_variant_id:
+                    # Asegurar que existan los uom_value_ids
+                    line._ensure_uom_value_ids()
+                    # Sincronizar valores legacy a uom_value_ids
+                    line._sync_legacy_to_uom_values()
+            
+            # SEGUNDO: Verificar si hay valores finales (después de sincronizar)
             has_final_values = False
             for line in record.line_ids:
+                # Verificar primero en campos legacy (más directo)
+                if line.final_box or line.final_map or line.final_egg:
+                    has_final_values = True
+                    break
+                # También verificar en uom_value_ids (por si acaso)
                 if line.uom_value_ids:
                     if any(uom_val.final_qty > 0 for uom_val in line.uom_value_ids):
-                        has_final_values = True
-                        break
-                else:
-                    if line.final_box or line.final_map or line.final_egg:
                         has_final_values = True
                         break
             
