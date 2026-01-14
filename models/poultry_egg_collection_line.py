@@ -399,6 +399,10 @@ class PoultryEggCollectionLine(models.Model):
     def _ensure_uom_value_ids(self):
         """Asegura que existan los registros uom_value_ids para este producto"""
         for line in self:
+            # Solo crear uom_value_ids si la línea ya tiene un ID (está guardada)
+            if not line.id:
+                continue
+                
             if not line.product_variant_id:
                 continue
             
@@ -561,6 +565,26 @@ class PoultryEggCollectionLine(models.Model):
                     (line.produced_map or 0.0) * map_ratio +
                     (line.produced_egg or 0.0) * egg_ratio
                 )
+    
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Crea las líneas y luego asegura que existan los uom_value_ids"""
+        lines = super().create(vals_list)
+        # Después de crear, asegurar que existan los uom_value_ids
+        for line in lines:
+            if line.product_variant_id:
+                line._ensure_uom_value_ids()
+        return lines
+    
+    def write(self, vals):
+        """Actualiza las líneas y asegura que existan los uom_value_ids si cambió el producto"""
+        result = super().write(vals)
+        # Si cambió el producto, asegurar que existan los uom_value_ids
+        if 'product_variant_id' in vals:
+            for line in self:
+                if line.product_variant_id:
+                    line._ensure_uom_value_ids()
+        return result
     
     _sql_constraints = [
         ('unique_collection_variant', 'unique(collection_id, product_variant_id)',
