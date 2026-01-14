@@ -284,6 +284,7 @@ class PoultryEggCollectionLine(models.Model):
         """
         fields_list = fields or []
         # Remover average_weight_elaborated_aggregated de fields para calcularlo manualmente
+        # Esto evita que Odoo use el valor almacenado (que es un promedio simple) y lo agregue incorrectamente
         if 'average_weight_elaborated_aggregated' in fields_list:
             fields_without_avg = [f for f in fields_list if f != 'average_weight_elaborated_aggregated']
             if fields_without_avg:
@@ -325,19 +326,6 @@ class PoultryEggCollectionLine(models.Model):
                         group['average_weight_elaborated_aggregated'] = 0.0
                 else:
                     group['average_weight_elaborated_aggregated'] = 0.0
-        else:
-            # Si no hay groupby, estamos en el nivel más bajo o en un total general
-            # Calcular desde todos los registros que coinciden con el dominio
-            lines = self.search(domain)
-            if lines:
-                total_weight = sum(lines.mapped('weight_total_grams'))
-                total_eggs = sum(lines.mapped('eggs_with_weight'))
-                
-                if total_eggs and total_eggs > 0:
-                    calculated_avg = total_weight / total_eggs
-                    # Si hay un solo resultado (sin agrupación), actualizar su valor
-                    if len(result) == 1:
-                        result[0]['average_weight_elaborated_aggregated'] = calculated_avg
         
         return result
     
@@ -559,9 +547,9 @@ class PoultryEggCollectionLine(models.Model):
                     line.produced_egg = ref_uom_val.produced_qty if ref_uom_val else 0.0
             else:
                 # Fallback a método legacy
-            line.produced_box = line.final_box - line.initial_box
-            line.produced_map = line.final_map - line.initial_map
-            line.produced_egg = line.final_egg - line.initial_egg
+                line.produced_box = line.final_box - line.initial_box
+                line.produced_map = line.final_map - line.initial_map
+                line.produced_egg = line.final_egg - line.initial_egg
                 line.total_produced_reference = 0.0
             
             # Calcular total_produced_reference
