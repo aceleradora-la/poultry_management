@@ -108,9 +108,11 @@ class PoultryEggCollectionLine(models.Model):
                                     help='Total de huevos que tienen peso medio definido')
     
     # Peso medio elaborado agregado (para usar en pivot)
+    # group_operator="avg" se usa como fallback, pero read_group calcula el promedio ponderado correctamente
     average_weight_elaborated_aggregated = fields.Float(string='Peso Medio Elaborado (g)', 
                                                          compute='_compute_average_weight_elaborated_aggregated',
                                                          store=False, digits=(16, 3),
+                                                         group_operator="avg",
                                                          help='Peso medio elaborado agregado: suma de (peso * huevos) / suma de huevos (solo variantes con peso medio)')
     
     @api.depends('product_variant_id')
