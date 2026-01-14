@@ -183,10 +183,12 @@
                 <field name="date"/>
                 <separator/>
                 <filter string="Sin Procesar" name="not_done" domain="[('state', '!=', 'done')]"/>
+                <filter string="Procesada" name="done" domain="[('state', '=', 'done')]" 
+                        context="{'search_default_not_done': 0}"/>
+                <separator/>
                 <filter string="Inicio" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Bruto" name="counted" domain="[('state', '=', 'counted')]"/>
                 <filter string="Completada" name="completed" domain="[('state', '=', 'completed')]"/>
-                <filter string="Procesada" name="done" domain="[('state', '=', 'done')]"/>
                 <separator/>
                 <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
                 <filter string="Por Producto" name="by_product" context="{'group_by': 'product_variant_id'}"/>
