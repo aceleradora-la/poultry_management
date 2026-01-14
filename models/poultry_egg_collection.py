@@ -2,7 +2,7 @@
 
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError, UserError
-from odoo.tools import Markup
+from markupsafe import Markup
 import logging
 
 _logger = logging.getLogger(__name__)
