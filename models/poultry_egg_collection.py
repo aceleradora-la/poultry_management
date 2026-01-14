@@ -570,17 +570,17 @@ class PoultryEggCollection(models.Model):
 
         # Registrar en chatter
         body_lines = [
-            '<b>Parte cancelado</b>',
+            '<strong>Parte cancelado</strong>',
             f'Usuario: {self.env.user.display_name}',
         ]
         if cancelled:
-            body_lines.append('<br/><b>OF canceladas:</b> ' + ', '.join(cancelled))
+            body_lines.append('<br/><strong>OF canceladas:</strong> ' + ', '.join(cancelled))
         if unbuilt:
-            body_lines.append('<br/><b>OF desmanteladas:</b> ' + ', '.join(unbuilt))
+            body_lines.append('<br/><strong>OF desmanteladas:</strong> ' + ', '.join(unbuilt))
         if skipped:
-            body_lines.append('<br/><b>OF omitidas:</b> ' + ', '.join([f'{n} ({r})' for n, r in skipped]))
+            body_lines.append('<br/><strong>OF omitidas:</strong> ' + ', '.join([f'{n} ({r})' for n, r in skipped]))
 
-        self.message_post(body='<br/>'.join(body_lines))
+        self.message_post(body='<br/>'.join(body_lines), message_type='notification')
 
         return True
     
