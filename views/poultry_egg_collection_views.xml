@@ -191,8 +191,9 @@
                 <field name="product_id"/>
                 <field name="date"/>
                 <separator/>
-                <filter string="Sin Procesar" name="not_done" domain="[('state', '!=', 'done')]"/>
+                <filter string="Sin Procesar" name="not_done" domain="[('state', '!=', 'done'), ('state', '!=', 'cancel')]"/>
                 <filter string="Procesada" name="done" domain="[('state', '=', 'done')]"/>
+                <filter string="Cancelada" name="cancel" domain="[('state', '=', 'cancel')]"/>
                 <separator/>
                 <filter string="Inicio" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Bruto" name="counted" domain="[('state', '=', 'counted')]"/>
