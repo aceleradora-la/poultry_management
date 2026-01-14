@@ -108,10 +108,10 @@ class PoultryEggCollectionLine(models.Model):
                                     help='Total de huevos que tienen peso medio definido')
     
     # Peso medio elaborado agregado (para usar en pivot)
-    # group_operator="avg" se usa como fallback, pero read_group calcula el promedio ponderado correctamente
+    # store=True permite que Odoo calcule agregaciones, pero read_group sobrescribe con el promedio ponderado correcto
     average_weight_elaborated_aggregated = fields.Float(string='Peso Medio Elaborado (g)', 
                                                          compute='_compute_average_weight_elaborated_aggregated',
-                                                         store=False, digits=(16, 3),
+                                                         store=True, digits=(16, 3),
                                                          group_operator="avg",
                                                          help='Peso medio elaborado agregado: suma de (peso * huevos) / suma de huevos (solo variantes con peso medio)')
     
@@ -261,7 +261,7 @@ class PoultryEggCollectionLine(models.Model):
                 line.weight_total_grams = 0.0
                 line.eggs_with_weight = 0.0
     
-    @api.depends('weight_total_grams', 'eggs_with_weight')
+    @api.depends('average_weight', 'total_produced_reference', 'weight_total_grams', 'eggs_with_weight')
     def _compute_average_weight_elaborated_aggregated(self):
         """
         Calcula el peso medio elaborado agregado.
