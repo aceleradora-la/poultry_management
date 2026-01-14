@@ -56,12 +56,20 @@
                                    invisible="not active_bom_id"/>
                             <field name="active_bom_start_date" readonly="1"
                                    invisible="not active_bom_id"/>
-                            <field name="routing_workcenter_id" 
+                            <field name="sequence_prefix" 
+                                   help="Prefijo para la numeración de partes de producción (ej: REC, GP1, etc.)"/>
+                            <field name="unclassified_egg_product_id" 
                                    options="{'no_create': True, 'no_create_edit': True}"
-                                   help="Tipo de operación a utilizar al crear las listas de materiales para este galpón"/>
+                                   help="Producto de huevo sin clasificar para este galpón"/>
                             <field name="unclassified_egg_bom_id" 
                                    options="{'no_create': True, 'no_create_edit': True}"
                                    help="Lista de materiales para el producto de huevo sin clasificar de este galpón"/>
+                            <field name="picking_type_id_finished" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Tipo de operación de inventario para órdenes de producción de productos terminados"/>
+                            <field name="picking_type_id_unclassified" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Tipo de operación de inventario para órdenes de producción de huevo sin clasificar"/>
                         </group>
                     </group>
                     <notebook>

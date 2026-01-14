@@ -39,9 +39,22 @@ class PoultryCoop(models.Model):
                                              help='Tipo de operación a utilizar al crear las listas de materiales para este galpón')
     
     # Lista de Materiales para Huevo sin Clasificar
+    unclassified_egg_product_id = fields.Many2one('product.product', string='Producto - Huevo sin Clasificar',
+                                                    domain="[('type', '=', 'product')]",
+                                                    help='Producto de huevo sin clasificar para este galpón')
     unclassified_egg_bom_id = fields.Many2one('mrp.bom', string='Lista de Materiales - Huevo sin Clasificar',
                                                domain="[('type', '=', 'normal')]",
                                                help='Lista de materiales para el producto de huevo sin clasificar de este galpón')
+    
+    # Tipos de Operación de Inventario
+    picking_type_id_finished = fields.Many2one('stock.picking.type', string='Tipo de Operación - Productos Terminados',
+                                               help='Tipo de operación de inventario para órdenes de producción de productos terminados')
+    picking_type_id_unclassified = fields.Many2one('stock.picking.type', string='Tipo de Operación - Huevo sin Clasificar',
+                                                    help='Tipo de operación de inventario para órdenes de producción de huevo sin clasificar')
+    
+    # Prefijo de Secuencia para Partes de Producción
+    sequence_prefix = fields.Char(string='Prefijo de Secuencia', default='REC',
+                                  help='Prefijo para la numeración de partes de producción de este galpón (ej: REC, GP1, etc.)')
     
     # Total de aves actualmente en el galpón
     current_birds_count = fields.Integer(string='Total de Aves Actuales', 
