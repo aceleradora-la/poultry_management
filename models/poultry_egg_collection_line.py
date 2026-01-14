@@ -281,16 +281,15 @@ class PoultryEggCollectionLine(models.Model):
         Sobrescribe read_group para calcular average_weight_elaborated_aggregated
         correctamente en las agrupaciones del pivot usando promedio ponderado.
         """
-        # Si average_weight_elaborated_aggregated está en fields, necesitamos calcularlo manualmente
-        # porque el promedio ponderado no se puede hacer con group_operator="avg"
         fields_list = fields or []
+        # Remover average_weight_elaborated_aggregated de fields para calcularlo manualmente
         if 'average_weight_elaborated_aggregated' in fields_list:
-            # Remover el campo de fields para que no se calcule automáticamente con AVG()
             fields_without_avg = [f for f in fields_list if f != 'average_weight_elaborated_aggregated']
             if fields_without_avg:
                 result = super().read_group(domain, fields_without_avg, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
             else:
-                result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
+                # Si solo está average_weight_elaborated_aggregated, llamar sin fields para obtener la estructura
+                result = super().read_group(domain, [], groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
         else:
             result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
         
@@ -325,175 +324,121 @@ class PoultryEggCollectionLine(models.Model):
             if not line.uom_value_ids:
                 return
             
-            # Ordenar unidades por ratio descendente
-            sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
+            # Ordenar por ratio descendente
+            sorted_uoms = sorted(line.uom_value_ids, 
+                               key=lambda x: x.uom_ratio or 0.0, 
+                               reverse=True)
             
-            # Mapear a campos legacy (máximo 3 unidades)
+            # Mapear a los primeros 3 campos legacy
             if len(sorted_uoms) > 0:
                 line.initial_box = sorted_uoms[0].initial_qty
                 line.final_box = sorted_uoms[0].final_qty
-            else:
-                line.initial_box = 0.0
-                line.final_box = 0.0
-                
             if len(sorted_uoms) > 1:
                 line.initial_map = sorted_uoms[1].initial_qty
                 line.final_map = sorted_uoms[1].final_qty
-            else:
-                line.initial_map = 0.0
-                line.final_map = 0.0
-                
             if len(sorted_uoms) > 2:
                 line.initial_egg = sorted_uoms[2].initial_qty
                 line.final_egg = sorted_uoms[2].final_qty
-            else:
-                line.initial_egg = 0.0
-                line.final_egg = 0.0
     
     def _sync_legacy_to_uom_values(self):
-        """Sincroniza valores de campos legacy a uom_value_ids cuando se editan en el tree"""
-        for line in self:
-            # Si no hay uom_value_ids, crearlos primero
-            if not line.uom_value_ids and line.product_variant_id:
-                line._ensure_uom_value_ids()
-            
-            # Si aún no hay uom_value_ids después de intentar crearlos, no hacer nada
-            if not line.uom_value_ids:
-                return
-            
-            sorted_uoms = sorted(line.uom_value_ids, key=lambda x: x.uom_ratio or 0.0, reverse=True)
-            
-            # Actualizar valores desde campos legacy
-            # Usar sudo para evitar problemas de permisos al escribir en registros hijos
-            if len(sorted_uoms) > 0:
-                sorted_uoms[0].sudo().write({
-                    'initial_qty': line.initial_box,
-                    'final_qty': line.final_box,
-                })
-            if len(sorted_uoms) > 1:
-                sorted_uoms[1].sudo().write({
-                    'initial_qty': line.initial_map,
-                    'final_qty': line.final_map,
-                })
-            if len(sorted_uoms) > 2:
-                sorted_uoms[2].sudo().write({
-                    'initial_qty': line.initial_egg,
-                    'final_qty': line.final_egg,
-                })
-    
-    def _ensure_uom_value_ids(self):
-        """Asegura que uom_value_ids exista para el producto actual"""
-        if not self.product_variant_id:
-            return
-        
-        # Verificar que el producto tenga unidad de medida
-        if not self.product_variant_id.uom_id:
-            return
-        
-        # Obtener la categoría de unidad de medida del producto
-        uom_category = self.product_variant_id.uom_id.category_id
-        if not uom_category:
-            return
-        
-        # Obtener las unidades de medida configuradas para este producto
-        poultry_uoms = self._get_poultry_uoms(self.product_variant_id)
-        
-        # Si no hay unidades configuradas, no hacer nada (puede ser que no estén marcadas como use_in_poultry)
-        if not poultry_uoms:
-            return
-        
-        # Crear los registros si no existen
-        existing_uom_ids = self.uom_value_ids.mapped('uom_id.id')
-        new_values = []
-        
-        for uom in poultry_uoms:
-            if uom.id not in existing_uom_ids:
-                new_values.append((0, 0, {
-                    'uom_id': uom.id,
-                    'initial_qty': 0.0,
-                    'final_qty': 0.0,
-                }))
-        
-        if new_values:
-            self.uom_value_ids = new_values
-    
-    @api.model_create_multi
-    def create(self, vals_list):
-        """Crear líneas y asegurar que uom_value_ids se cree automáticamente"""
-        lines = super().create(vals_list)
-        # Crear uom_value_ids después de crear las líneas
-        for line in lines:
-            if line.product_variant_id:
-                # Usar sudo para evitar problemas de permisos al crear los registros hijos
-                line.sudo()._ensure_uom_value_ids()
-                # Sincronizar valores legacy a uom_value_ids si hay valores iniciales
-                if any(vals.get(field, 0) for field in ['initial_box', 'initial_map', 'initial_egg', 
-                                                       'final_box', 'final_map', 'final_egg'] 
-                       for vals in vals_list):
-                    line._sync_legacy_to_uom_values()
-                else:
-                    # Si no hay valores legacy, sincronizar desde uom_value_ids
-                    line._sync_uom_values_to_legacy()
-        return lines
-    
-    def read(self, fields=None, load='_classic_read'):
-        """Al leer, sincronizar valores desde uom_value_ids a campos legacy"""
-        result = super().read(fields=fields, load=load)
-        # Sincronizar después de leer para asegurar que los valores estén actualizados
-        if fields is None or any(f in fields for f in ['initial_box', 'initial_map', 'initial_egg', 
-                                                       'final_box', 'final_map', 'final_egg']):
-            for line in self:
-                line._sync_uom_values_to_legacy()
-        return result
-    
-    def write(self, vals):
-        """Al escribir, sincronizar valores entre campos legacy y uom_value_ids"""
-        # Si se están editando campos legacy, sincronizar a uom_value_ids
-        legacy_fields = ['initial_box', 'initial_map', 'initial_egg', 
-                        'final_box', 'final_map', 'final_egg']
-        if any(field in vals for field in legacy_fields):
-            # Primero escribir los valores legacy
-            result = super().write(vals)
-            # Luego sincronizar a uom_value_ids
-            self._sync_legacy_to_uom_values()
-            return result
-        
-        # Si se cambió el producto, asegurar que existan los uom_value_ids
-        if 'product_variant_id' in vals:
-            result = super().write(vals)
-            for line in self:
-                if line.product_variant_id:
-                    line._ensure_uom_value_ids()
-                    # Sincronizar valores existentes a uom_value_ids
-                    line._sync_legacy_to_uom_values()
-            return result
-        
-        # Si se están editando uom_value_ids, sincronizar a campos legacy
-        if 'uom_value_ids' in vals:
-            result = super().write(vals)
-            self._sync_uom_values_to_legacy()
-            return result
-        
-        return super().write(vals)
-    
-    @api.onchange('product_variant_id')
-    def _onchange_product_variant_id(self):
-        """Al cambiar el producto, actualizar las unidades de medida disponibles"""
-        if self.product_variant_id:
-            self._ensure_uom_value_ids()
-    
-    @api.depends('uom_value_ids.initial_qty', 'uom_value_ids.final_qty', 
-                 'uom_value_ids.uom_ratio', 'final_box', 'initial_box', 
-                 'final_map', 'initial_map', 'final_egg', 'initial_egg')
-    def _compute_production(self):
-        """Calcula la producción usando la nueva lógica dinámica"""
+        """Sincroniza valores de campos legacy a uom_value_ids al guardar"""
         for line in self:
             if not line.product_variant_id:
-                line.produced_box = 0.0
-                line.produced_map = 0.0
-                line.produced_egg = 0.0
-                line.total_produced_reference = 0.0
                 continue
+            
+            # Obtener las unidades de medida configuradas
+            uoms = self._get_poultry_uoms(line.product_variant_id)
+            if not uoms:
+                continue
+            
+            # Asegurar que existan los registros uom_value_ids
+            line._ensure_uom_value_ids()
+            
+            # Ordenar por ratio descendente
+            sorted_uoms = uoms[:3]  # Solo las primeras 3
+            
+            # Mapear desde campos legacy
+            if len(sorted_uoms) > 0:
+                uom_val = line.uom_value_ids.filtered(lambda x: x.uom_id.id == sorted_uoms[0].id)
+                if uom_val:
+                    uom_val.initial_qty = line.initial_box
+                    uom_val.final_qty = line.final_box
+            if len(sorted_uoms) > 1:
+                uom_val = line.uom_value_ids.filtered(lambda x: x.uom_id.id == sorted_uoms[1].id)
+                if uom_val:
+                    uom_val.initial_qty = line.initial_map
+                    uom_val.final_qty = line.final_map
+            if len(sorted_uoms) > 2:
+                uom_val = line.uom_value_ids.filtered(lambda x: x.uom_id.id == sorted_uoms[2].id)
+                if uom_val:
+                    uom_val.initial_qty = line.initial_egg
+                    uom_val.final_qty = line.final_egg
+    
+    @api.onchange('initial_box', 'initial_map', 'initial_egg')
+    def _onchange_initial_values(self):
+        """Sincroniza valores iniciales a uom_value_ids cuando se editan en el tree"""
+        self._sync_legacy_to_uom_values()
+    
+    @api.onchange('final_box', 'final_map', 'final_egg')
+    def _onchange_final_values(self):
+        """Sincroniza valores finales a uom_value_ids cuando se editan en el tree"""
+        self._sync_legacy_to_uom_values()
+    
+    @api.onchange('product_variant_id')
+    def _onchange_product_variant(self):
+        """Cuando se cambia el producto, asegurar que existan los uom_value_ids"""
+        if self.product_variant_id:
+            self._ensure_uom_value_ids()
+            self._sync_uom_values_to_legacy()
+    
+    def _ensure_uom_value_ids(self):
+        """Asegura que existan los registros uom_value_ids para este producto"""
+        for line in self:
+            if not line.product_variant_id:
+                continue
+            
+            # Obtener las unidades de medida configuradas
+            uoms = self._get_poultry_uoms(line.product_variant_id)
+            if not uoms:
+                # Si no hay unidades configuradas, no hacer nada
+                continue
+            
+            # Obtener la unidad de referencia
+            reference_uom = self._get_reference_uom(line.product_variant_id)
+            if not reference_uom:
+                # Si no hay unidad de referencia, no podemos calcular
+                continue
+            
+            # Verificar qué uom_value_ids ya existen
+            existing_uoms = line.uom_value_ids.mapped('uom_id')
+            
+            # Crear los que faltan (solo las primeras 3 unidades ordenadas por ratio)
+            for uom in uoms[:3]:
+                if uom not in existing_uoms:
+                    self.env['poultry.egg.collection.line.uom'].create({
+                        'line_id': line.id,
+                        'uom_id': uom.id,
+                        'initial_qty': 0.0,
+                        'final_qty': 0.0,
+                        'produced_qty': 0.0,
+                    })
+            
+            # Recargar para obtener los nuevos registros
+            line.invalidate_recordset(['uom_value_ids'])
+    
+    @api.depends('initial_box', 'initial_map', 'initial_egg',
+                 'final_box', 'final_map', 'final_egg',
+                 'uom_value_ids.initial_qty', 'uom_value_ids.final_qty',
+                 'uom_value_ids.produced_qty', 'uom_value_ids.uom_ratio',
+                 'product_variant_id')
+    def _compute_production(self):
+        """
+        Calcula los valores producidos (Final - Inicial) usando el sistema dinámico de UoM.
+        Si hay uom_value_ids, usa esos valores. Si no, usa el método legacy.
+        """
+        for line in self:
+            # Asegurar que existan los uom_value_ids
+            line._ensure_uom_value_ids()
             
             # Obtener la unidad de referencia
             reference_uom = self._get_reference_uom(line.product_variant_id)
@@ -505,37 +450,33 @@ class PoultryEggCollectionLine(models.Model):
                 line.total_produced_reference = 0.0
                 continue
             
-            # Si hay valores en uom_value_ids, usar el nuevo sistema
+            # Usar el sistema dinámico si hay uom_value_ids
             if line.uom_value_ids:
-                # Calcular total inicial en unidad de referencia
-                total_initial_ref = 0.0
-                total_final_ref = 0.0
+                # Calcular produced_qty para cada uom_value
+                uom_values_to_write = {}
+                total_produced_ref = 0.0
                 
                 for uom_val in line.uom_value_ids:
-                    ratio = uom_val.uom_ratio or 1.0
-                    total_initial_ref += uom_val.initial_qty * ratio
-                    total_final_ref += uom_val.final_qty * ratio
+                    # Calcular produced_qty = final_qty - initial_qty
+                    produced_qty = (uom_val.final_qty or 0.0) - (uom_val.initial_qty or 0.0)
+                    uom_val.produced_qty = produced_qty
+                    
+                    # Calcular el total en unidad de referencia
+                    ratio = uom_val.uom_ratio or 0.0
+                    total_produced_ref += produced_qty * ratio
+                    
+                    uom_values_to_write[uom_val.id] = produced_qty
                 
-                # Calcular producción total en unidad de referencia
-                total_produced_ref = total_final_ref - total_initial_ref
-                line.total_produced_reference = total_produced_ref
-                
-                # Distribuir la producción de vuelta a las unidades mayores (de mayor a menor ratio)
-                # EXCLUYENDO la unidad de referencia, que recibirá el resto al final
+                # Distribuir el total producido entre las unidades de medida
+                # Primero, calcular cuánto se produjo en total (en unidad de referencia)
                 remaining_produced = total_produced_ref
                 
-                # Filtrar unidades excluyendo la de referencia (ratio = 1.0)
-                non_ref_uom_values = line.uom_value_ids.filtered(
-                    lambda x: x.uom_id.id != reference_uom.id
+                # Ordenar uom_values por ratio descendente (excluyendo la unidad de referencia)
+                sorted_uom_values = sorted(
+                    [uv for uv in line.uom_value_ids if uv.uom_id.id != reference_uom.id],
+                    key=lambda x: x.uom_ratio or 0.0,
+                    reverse=True
                 )
-                
-                # Ordenar unidades de medida por ratio descendente (mayor a menor)
-                sorted_uom_values = sorted(non_ref_uom_values, 
-                                           key=lambda x: x.uom_ratio or 0.0, 
-                                           reverse=True)
-                
-                # Preparar valores para escribir
-                uom_values_to_write = {}
                 
                 # Distribuir primero a las unidades mayores (excluyendo referencia)
                 for uom_val in sorted_uom_values:
@@ -591,12 +532,32 @@ class PoultryEggCollectionLine(models.Model):
                     line.produced_egg = ref_uom_val.produced_qty if ref_uom_val else 0.0
             else:
                 # Fallback a método legacy
-            line.produced_box = line.final_box - line.initial_box
-            line.produced_map = line.final_map - line.initial_map
-            line.produced_egg = line.final_egg - line.initial_egg
+                line.produced_box = line.final_box - line.initial_box
+                line.produced_map = line.final_map - line.initial_map
+                line.produced_egg = line.final_egg - line.initial_egg
                 line.total_produced_reference = 0.0
+            
+            # Calcular total_produced_reference
+            if line.uom_value_ids:
+                total_ref = 0.0
+                for uom_val in line.uom_value_ids:
+                    produced = uom_val.produced_qty or 0.0
+                    ratio = uom_val.uom_ratio or 0.0
+                    total_ref += produced * ratio
+                line.total_produced_reference = total_ref
+            else:
+                # Método legacy
+                box_ratio = line.uom_box_id.ratio if line.uom_box_id else 0.0
+                map_ratio = line.uom_map_id.ratio if line.uom_map_id else 0.0
+                egg_ratio = line.uom_egg_id.ratio if line.uom_egg_id else 0.0
+                
+                line.total_produced_reference = (
+                    (line.produced_box or 0.0) * box_ratio +
+                    (line.produced_map or 0.0) * map_ratio +
+                    (line.produced_egg or 0.0) * egg_ratio
+                )
     
     _sql_constraints = [
         ('unique_collection_variant', 'unique(collection_id, product_variant_id)',
-         'No puede haber dos líneas con la misma variante en una recolección.'),
+         'Ya existe una línea para esta variante en esta recolección.'),
     ]
