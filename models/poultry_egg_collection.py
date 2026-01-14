@@ -296,33 +296,43 @@ class PoultryEggCollection(models.Model):
         
         return sequence
     
-    @api.model
-    def create(self, vals):
+    @api.model_create_multi
+    def create(self, vals_list):
         """Genera referencia automática usando secuencia numérica basada en el prefijo del galpón"""
-        # Siempre generar el nombre si no se proporciona o si es el valor por defecto
-        if not vals.get('name') or vals.get('name') == 'NUEVA':
-            # Obtener la secuencia basada en el galpón
-            coop_id = vals.get('coop_id')
-            sequence = self._get_sequence_for_coop(coop_id)
-            if sequence:
-                vals['name'] = sequence.next_by_id() or 'NUEVA'
-            else:
-                # Fallback a secuencia por defecto
-                vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
+        # Si vals_list es un diccionario único (compatibilidad), convertirlo a lista
+        if isinstance(vals_list, dict):
+            vals_list = [vals_list]
         
-        record = super().create(vals)
+        # Procesar cada conjunto de valores
+        for vals in vals_list:
+            # Siempre generar el nombre si no se proporciona o si es el valor por defecto
+            if not vals.get('name') or vals.get('name') == 'NUEVA':
+                # Obtener la secuencia basada en el galpón
+                coop_id = vals.get('coop_id')
+                sequence = self._get_sequence_for_coop(coop_id)
+                if sequence:
+                    vals['name'] = sequence.next_by_id() or 'NUEVA'
+                else:
+                    # Fallback a secuencia por defecto
+                    vals['name'] = self.env['ir.sequence'].next_by_code('poultry.egg.collection') or 'NUEVA'
         
-        # Si el nombre sigue siendo 'NUEVA' o vacío después de crear, regenerarlo
-        if record.name == 'NUEVA' or not record.name:
-            coop_id = record.coop_id.id if record.coop_id else vals.get('coop_id')
-            sequence = self._get_sequence_for_coop(coop_id)
-            if sequence:
-                record.name = sequence.next_by_id() or 'NUEVA'
+        # Crear todos los registros
+        records = super().create(vals_list)
         
-        # Forzar recálculo de product_variant_name después de crear
-        if 'product_tmpl_id' in vals:
-            record._compute_product_variant_name()
-        return record
+        # Procesar cada registro creado
+        for record in records:
+            # Si el nombre sigue siendo 'NUEVA' o vacío después de crear, regenerarlo
+            if record.name == 'NUEVA' or not record.name:
+                coop_id = record.coop_id.id if record.coop_id else None
+                sequence = self._get_sequence_for_coop(coop_id)
+                if sequence:
+                    record.name = sequence.next_by_id() or 'NUEVA'
+            
+            # Forzar recálculo de product_variant_name después de crear
+            if record.product_tmpl_id:
+                record._compute_product_variant_name()
+        
+        return records
     
     @api.onchange('coop_id')
     def _onchange_coop_id(self):
