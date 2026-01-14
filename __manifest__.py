@@ -15,9 +15,10 @@
     'website': 'https://www.tuempresa.com',
     'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web'],
     'assets': {
-        'web.assets_backend': [
-            'poultry_management/static/src/js/poultry_mutually_exclusive_filters.js',
-        ],
+        # JavaScript dinámico desactivado - usando nombres fijos ahora
+        # 'web.assets_backend': [
+        #     'poultry_management/static/src/js/poultry_dynamic_columns.js',
+        # ],
     },
     'data': [
         'security/poultry_security.xml',

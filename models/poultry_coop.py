@@ -34,26 +34,9 @@ class PoultryCoop(models.Model):
     active_bom_start_date = fields.Date(string='Fecha Inicio Lista Activa', 
                                          related='active_bom_id.start_date', readonly=True)
     
-    # Prefijo de Secuencia para Partes de Producción
-    sequence_prefix = fields.Char(string='Prefijo de Secuencia', 
-                                  default='REC',
-                                  help='Prefijo para la numeración de los partes de producción de este galpón (ej: REC, PART, etc.)')
-    
-    # Tipo de Operación de Inventario para órdenes de producción de productos terminados
-    picking_type_id_finished = fields.Many2one('stock.picking.type', string='Tipo de Operación - Productos Terminados',
-                                                help='Tipo de operación de inventario a utilizar al crear las órdenes de producción de productos terminados para este galpón')
-    
-    # Tipo de Operación de Inventario para órdenes de producción de huevo sin clasificar
-    picking_type_id_unclassified = fields.Many2one('stock.picking.type', string='Tipo de Operación - Huevo sin Clasificar',
-                                                     help='Tipo de operación de inventario a utilizar al crear las órdenes de producción de huevo sin clasificar para este galpón')
-    
-    # Producto para Huevo sin Clasificar
-    unclassified_egg_product_id = fields.Many2one(
-        'product.product',
-        string='Producto para Huevo sin Clasificar',
-        domain="[('type', '=', 'consu'), ('active', '=', True)]",
-        help='Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción de este galpón'
-    )
+    # Tipo de Operación para listas de materiales
+    routing_workcenter_id = fields.Many2one('mrp.routing.workcenter', string='Tipo de Operación',
+                                             help='Tipo de operación a utilizar al crear las listas de materiales para este galpón')
     
     # Lista de Materiales para Huevo sin Clasificar
     unclassified_egg_bom_id = fields.Many2one('mrp.bom', string='Lista de Materiales - Huevo sin Clasificar',
