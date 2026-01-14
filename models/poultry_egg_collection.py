@@ -539,11 +539,9 @@ class PoultryEggCollection(models.Model):
                     'location_id': loc.id,
                     'location_dest_id': loc.id,
                 }
-                # Opcionales comunes
-                if hasattr(production, 'company_id') and production.company_id:
+                # Agregar solo campos que existan en mrp.unbuild (evita errores por addons/versiones)
+                if 'company_id' in Unbuild._fields and getattr(production, 'company_id', False):
                     unbuild_vals['company_id'] = production.company_id.id
-                if hasattr(production, 'picking_type_id') and production.picking_type_id:
-                    unbuild_vals['picking_type_id'] = production.picking_type_id.id
 
                 unbuild_rec = Unbuild.create(unbuild_vals)
                 # Validar desmantelado
