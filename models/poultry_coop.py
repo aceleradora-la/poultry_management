@@ -40,7 +40,6 @@ class PoultryCoop(models.Model):
     
     # Lista de Materiales para Huevo sin Clasificar
     unclassified_egg_product_id = fields.Many2one('product.product', string='Producto - Huevo sin Clasificar',
-                                                    domain="[('type', '=', 'product'), ('active', '=', True)]",
                                                     help='Producto de huevo sin clasificar para este galpón')
     unclassified_egg_bom_id = fields.Many2one('mrp.bom', string='Lista de Materiales - Huevo sin Clasificar',
                                                domain="[('type', '=', 'normal')]",
