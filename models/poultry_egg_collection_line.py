@@ -330,18 +330,19 @@ class PoultryEggCollectionLine(models.Model):
         # Si no hay groupby, estamos calculando el total general (o una consulta sin agrupación)
         # Calcular desde TODOS los registros del dominio base para el promedio ponderado correcto
         # Esto es importante cuando Odoo calcula el Total general del pivot
-        lines = self.search(domain)
-        if lines:
-            total_weight = sum(lines.mapped('weight_total_grams'))
-            total_eggs = sum(lines.mapped('eggs_with_weight'))
-            
-            if total_eggs and total_eggs > 0:
-                calculated_avg = total_weight / total_eggs
-                # Si hay un solo resultado (sin agrupación), actualizar su valor
-                if len(result) == 1:
-                    result[0]['average_weight_elaborated_aggregated'] = calculated_avg
-                    _logger.debug(f"read_group (total general): Calculado promedio ponderado {calculated_avg} (peso_total={total_weight}, huevos={total_eggs}, registros={len(lines)})")
-    
+        if 'average_weight_elaborated_aggregated' in fields_list or True:  # Siempre calcular para asegurar que el Total sea correcto
+            lines = self.search(domain)
+            if lines:
+                total_weight = sum(lines.mapped('weight_total_grams'))
+                total_eggs = sum(lines.mapped('eggs_with_weight'))
+                
+                if total_eggs and total_eggs > 0:
+                    calculated_avg = total_weight / total_eggs
+                    # Si hay un solo resultado (sin agrupación), actualizar su valor
+                    if len(result) == 1:
+                        result[0]['average_weight_elaborated_aggregated'] = calculated_avg
+                        _logger.debug(f"read_group (total general): Calculado promedio ponderado {calculated_avg} (peso_total={total_weight}, huevos={total_eggs}, registros={len(lines)})")
+        
     return result
     
     def _sync_uom_values_to_legacy(self):
