@@ -577,13 +577,22 @@ class PoultryEggCollectionLine(models.Model):
         return lines
     
     def write(self, vals):
-        """Actualiza las líneas y asegura que existan los uom_value_ids si cambió el producto"""
+        """Actualiza las líneas y asegura que existan los uom_value_ids si cambió el producto o los valores legacy"""
         result = super().write(vals)
-        # Si cambió el producto, asegurar que existan los uom_value_ids
-        if 'product_variant_id' in vals:
+        
+        # Campos legacy que requieren sincronización
+        legacy_fields = ['product_variant_id', 'initial_box', 'initial_map', 'initial_egg', 
+                         'final_box', 'final_map', 'final_egg']
+        
+        # Si cambió alguno de estos campos, sincronizar
+        if any(field in vals for field in legacy_fields):
             for line in self:
                 if line.product_variant_id:
+                    # Asegurar que existan los uom_value_ids
                     line._ensure_uom_value_ids()
+                    # Sincronizar valores legacy a uom_value_ids
+                    line._sync_legacy_to_uom_values()
+        
         return result
     
     _sql_constraints = [
