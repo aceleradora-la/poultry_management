@@ -227,23 +227,5 @@
             </p>
         </field>
     </record>
-
-    <!-- Acción separada para registros procesados -->
-    <record id="action_poultry_egg_collection_done" model="ir.actions.act_window">
-        <field name="name">Producción - Procesadas</field>
-        <field name="res_model">poultry.egg.collection</field>
-        <field name="view_mode">list,pivot,form</field>
-        <field name="context">{'search_default_done': 1, 'default_order': 'date desc'}</field>
-        <field name="domain">[('state', '=', 'done')]</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                No hay recolecciones procesadas
-            </p>
-            <p>
-                Esta vista muestra solo las recolecciones de producción que ya han sido procesadas
-                (se han generado las órdenes de fabricación).
-            </p>
-        </field>
-    </record>
 </odoo>
 
