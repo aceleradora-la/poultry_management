@@ -265,14 +265,15 @@ class PoultryEggCollectionLine(models.Model):
     def _compute_average_weight_elaborated_aggregated(self):
         """
         Calcula el peso medio elaborado agregado.
-        Para líneas individuales, retorna 0 para forzar a Odoo a usar read_group.
+        Para líneas individuales, retorna el average_weight si existe.
         En el pivot, read_group calculará el promedio ponderado agregado correctamente.
-        Esto evita que Odoo use valores almacenados incorrectos para el Total general.
         """
         for line in self:
-            # Retornar 0 para líneas individuales para forzar a Odoo a usar read_group
-            # Esto evita que Odoo use valores almacenados incorrectos para el Total
-            line.average_weight_elaborated_aggregated = 0.0
+            if line.eggs_with_weight and line.eggs_with_weight > 0:
+                # Para una línea individual, el promedio es simplemente average_weight
+                line.average_weight_elaborated_aggregated = line.average_weight if line.average_weight > 0 else 0.0
+            else:
+                line.average_weight_elaborated_aggregated = 0.0
     
     @api.model
     def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
