@@ -11,6 +11,13 @@
               parent="menu_poultry_management_root" 
               action="action_poultry_egg_collection" 
               sequence="10"/>
+    
+    <!-- Menú: Producción Procesada -->
+    <menuitem id="menu_poultry_egg_collection_done" 
+              name="Producción - Procesadas" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_egg_collection_done" 
+              sequence="11"/>
 
     <!-- Menú: Registro Aves Muertas -->
     <menuitem id="menu_poultry_mortality" 
