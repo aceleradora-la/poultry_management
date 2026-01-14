@@ -108,12 +108,11 @@ class PoultryEggCollectionLine(models.Model):
                                     help='Total de huevos que tienen peso medio definido')
     
     # Peso medio elaborado agregado (para usar en pivot)
-    # store=True y group_operator="avg" son necesarios para que Odoo permita agregaciones
-    # pero read_group sobrescribe el cálculo con el promedio ponderado correcto
+    # Sin group_operator para que read_group calcule el promedio ponderado correctamente
+    # store=True permite que el campo esté disponible, pero el cálculo se hace en read_group
     average_weight_elaborated_aggregated = fields.Float(string='Peso Medio Elaborado (g)', 
                                                          compute='_compute_average_weight_elaborated_aggregated',
                                                          store=True, digits=(16, 3),
-                                                         group_operator="avg",
                                                          help='Peso medio elaborado agregado: suma de (peso * huevos) / suma de huevos (solo variantes con peso medio)')
     
     @api.depends('product_variant_id')
@@ -592,9 +591,9 @@ class PoultryEggCollectionLine(models.Model):
                     line.produced_egg = ref_uom_val.produced_qty if ref_uom_val else 0.0
             else:
                 # Fallback a método legacy
-                line.produced_box = line.final_box - line.initial_box
-                line.produced_map = line.final_map - line.initial_map
-                line.produced_egg = line.final_egg - line.initial_egg
+            line.produced_box = line.final_box - line.initial_box
+            line.produced_map = line.final_map - line.initial_map
+            line.produced_egg = line.final_egg - line.initial_egg
                 line.total_produced_reference = 0.0
     
     _sql_constraints = [
