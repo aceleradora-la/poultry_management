@@ -112,8 +112,8 @@ class PoultryEggCollectionLine(models.Model):
     # store=True permite que el campo esté disponible, pero el cálculo se hace en read_group
     average_weight_elaborated_aggregated = fields.Float(string='Peso Medio Elaborado (g)', 
                                                          compute='_compute_average_weight_elaborated_aggregated',
-                                                         store=False, digits=(16, 3),
-                                                         help='Peso medio elaborado agregado: suma de (peso * huevos) / suma de huevos (solo variantes con peso medio). No se almacena para que read_group siempre calcule desde registros base.')
+                                                         store=True, digits=(16, 3),
+                                                         help='Peso medio elaborado agregado: suma de (peso * huevos) / suma de huevos (solo variantes con peso medio)')
     
     @api.depends('product_variant_id')
     def _compute_uom_ids(self):
