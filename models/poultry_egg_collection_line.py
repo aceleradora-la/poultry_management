@@ -280,6 +280,7 @@ class PoultryEggCollectionLine(models.Model):
         """
         Sobrescribe read_group para calcular average_weight_elaborated_aggregated
         correctamente en las agrupaciones del pivot usando promedio ponderado.
+        Siempre calcula desde los registros base para evitar promedios de promedios.
         """
         fields_list = fields or []
         # Remover average_weight_elaborated_aggregated de fields para calcularlo manualmente
@@ -294,8 +295,8 @@ class PoultryEggCollectionLine(models.Model):
             result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
         
         # Calcular average_weight_elaborated_aggregated usando promedio ponderado
-        # IMPORTANTE: Esto se ejecuta SIEMPRE cuando hay groupby, incluso si el campo no está en fields
-        # porque Odoo puede estar agregando el campo automáticamente
+        # IMPORTANTE: Siempre calcular desde los registros base, nunca desde valores agregados
+        # Esto evita el problema de "promedio de promedios" en el Total general
         if groupby:
             for group in result:
                 # Obtener el dominio para este grupo
@@ -303,11 +304,13 @@ class PoultryEggCollectionLine(models.Model):
                 if group.get('__domain'):
                     group_domain.extend(group['__domain'])
                 
-                # Buscar los registros en este grupo
+                # Buscar los registros BASE en este grupo (no usar valores agregados)
                 lines = self.search(group_domain)
                 
                 if lines:
-                    # Calcular promedio ponderado: suma(weight_total_grams) / suma(eggs_with_weight)
+                    # Calcular promedio ponderado desde los registros base:
+                    # suma(weight_total_grams) / suma(eggs_with_weight)
+                    # Esto asegura que el Total general también se calcule correctamente
                     total_weight = sum(lines.mapped('weight_total_grams'))
                     total_eggs = sum(lines.mapped('eggs_with_weight'))
                     
@@ -315,11 +318,24 @@ class PoultryEggCollectionLine(models.Model):
                         calculated_avg = total_weight / total_eggs
                         # Sobrescribir el valor calculado automáticamente por Odoo
                         group['average_weight_elaborated_aggregated'] = calculated_avg
-                        _logger.debug(f"read_group: Calculado promedio ponderado {calculated_avg} para grupo (peso_total={total_weight}, huevos={total_eggs})")
+                        _logger.debug(f"read_group: Calculado promedio ponderado {calculated_avg} para grupo (peso_total={total_weight}, huevos={total_eggs}, registros={len(lines)})")
                     else:
                         group['average_weight_elaborated_aggregated'] = 0.0
                 else:
                     group['average_weight_elaborated_aggregated'] = 0.0
+        else:
+            # Si no hay groupby, estamos en el nivel más bajo o en un total general
+            # Calcular desde todos los registros que coinciden con el dominio
+            lines = self.search(domain)
+            if lines:
+                total_weight = sum(lines.mapped('weight_total_grams'))
+                total_eggs = sum(lines.mapped('eggs_with_weight'))
+                
+                if total_eggs and total_eggs > 0:
+                    calculated_avg = total_weight / total_eggs
+                    # Si hay un solo resultado (sin agrupación), actualizar su valor
+                    if len(result) == 1:
+                        result[0]['average_weight_elaborated_aggregated'] = calculated_avg
         
         return result
     
