@@ -281,13 +281,25 @@ class PoultryEggCollectionLine(models.Model):
         Sobrescribe read_group para calcular average_weight_elaborated_aggregated
         correctamente en las agrupaciones del pivot usando promedio ponderado.
         """
-        result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
+        # Si average_weight_elaborated_aggregated está en fields, necesitamos calcularlo manualmente
+        # porque el promedio ponderado no se puede hacer con group_operator="avg"
+        if fields and 'average_weight_elaborated_aggregated' in fields:
+            # Remover el campo de fields para que no se calcule automáticamente
+            fields_without_avg = [f for f in fields if f != 'average_weight_elaborated_aggregated']
+            if fields_without_avg:
+                result = super().read_group(domain, fields_without_avg, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
+            else:
+                result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
+        else:
+            result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
         
-        # Si se está agrupando y se necesita average_weight_elaborated_aggregated
-        if groupby and 'average_weight_elaborated_aggregated' in (fields or []):
+        # Calcular average_weight_elaborated_aggregated usando promedio ponderado
+        if groupby:
             for group in result:
                 # Obtener el dominio para este grupo
-                group_domain = domain + (group.get('__domain', []))
+                group_domain = list(domain)
+                if group.get('__domain'):
+                    group_domain.extend(group['__domain'])
                 
                 # Buscar los registros en este grupo
                 lines = self.search(group_domain)
@@ -578,9 +590,9 @@ class PoultryEggCollectionLine(models.Model):
                     line.produced_egg = ref_uom_val.produced_qty if ref_uom_val else 0.0
             else:
                 # Fallback a método legacy
-                line.produced_box = line.final_box - line.initial_box
-                line.produced_map = line.final_map - line.initial_map
-                line.produced_egg = line.final_egg - line.initial_egg
+            line.produced_box = line.final_box - line.initial_box
+            line.produced_map = line.final_map - line.initial_map
+            line.produced_egg = line.final_egg - line.initial_egg
                 line.total_produced_reference = 0.0
     
     _sql_constraints = [
