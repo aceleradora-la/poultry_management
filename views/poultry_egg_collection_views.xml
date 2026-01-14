@@ -30,6 +30,12 @@
         <field name="arch" type="xml">
             <form string="Recolección de Producción de Huevos">
                 <header>
+                    <button name="action_cancel_processed" type="object"
+                            string="Cancelar Parte"
+                            class="btn-danger"
+                            groups="poultry_management.poultry_cancel_processed_collection"
+                            confirm="Esto cancelará/desmantelará las Órdenes de Fabricación generadas. ¿Desea continuar?"
+                            invisible="state != 'done'"/>
                     <button name="action_count_initial" type="object" string="Registrar Cantidad Inicial" 
                             class="oe_highlight" 
                             invisible="state != 'draft'"/>
@@ -47,8 +53,8 @@
                         <button name="action_view_productions" type="object" 
                                 string="Ver Órdenes Generadas" 
                                 invisible="production_count == 0"/>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done" 
-                               clickable="state != 'done'"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done,cancel" 
+                               clickable="state not in ('done','cancel')"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -59,6 +65,8 @@
                     </div>
                     <widget name="web_ribbon" title="Procesada" bg_color="text-success" 
                             invisible="state != 'done'"/>
+                    <widget name="web_ribbon" title="Cancelada" bg_color="text-danger"
+                            invisible="state != 'cancel'"/>
                     <group>
                         <group>
                             <field name="name" placeholder="Se genera automáticamente" 
@@ -168,6 +176,7 @@
                         </page>
                     </notebook>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>

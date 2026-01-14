@@ -9,5 +9,10 @@
         <field name="name">Usuario Avícola</field>
         <field name="category_id" ref="base.module_category_manufacturing"/>
     </record>
+
+    <record id="poultry_cancel_processed_collection" model="res.groups">
+        <field name="name">Cancelar Partes Procesados</field>
+        <field name="category_id" ref="base.module_category_manufacturing"/>
+    </record>
 </odoo>
 

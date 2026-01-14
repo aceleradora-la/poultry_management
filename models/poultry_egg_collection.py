@@ -73,6 +73,7 @@ class PoultryEggCollection(models.Model):
         ('counted', 'Bruto'),
         ('completed', 'Completada'),
         ('done', 'Procesada'),
+        ('cancel', 'Cancelada'),
     ], string='Estado', default='draft', tracking=True)
     
     # Líneas de recolección
@@ -477,6 +478,113 @@ class PoultryEggCollection(models.Model):
                 record.state = 'counted'  # Volver a Bruto
             elif record.state == 'counted':
                 record.state = 'draft'  # Volver a Inicio
+
+    def action_cancel_processed(self):
+        """
+        Cancela un parte en estado Procesada:
+        - Cancela OFs no cerradas
+        - Desmantela (unbuild) OFs cerradas (done) por la cantidad total producida
+        Requiere pertenecer al grupo poultry_management.poultry_cancel_processed_collection.
+        """
+        self.ensure_one()
+
+        if not self.env.user.has_group('poultry_management.poultry_cancel_processed_collection'):
+            raise UserError('No tiene permisos para cancelar partes procesados.')
+
+        if self.state != 'done':
+            raise UserError('Solo se puede cancelar un parte en estado Procesada.')
+
+        if not self.production_ids:
+            raise UserError('No hay Órdenes de Fabricación asociadas para cancelar/desmantelar.')
+
+        cancelled = []
+        unbuilt = []
+        skipped = []
+
+        Unbuild = self.env['mrp.unbuild']
+
+        for production in self.production_ids:
+            # Si ya está cancelada, no hacer nada
+            if production.state == 'cancel':
+                skipped.append((production.name, 'ya cancelada'))
+                continue
+
+            # OF cerrada -> desmantelar
+            if production.state == 'done':
+                qty = 0.0
+                # qty_producing suele reflejar lo producido; fallback a product_qty
+                if hasattr(production, 'qty_producing') and production.qty_producing:
+                    qty = production.qty_producing
+                if not qty:
+                    qty = production.product_qty
+
+                if not qty:
+                    skipped.append((production.name, 'sin cantidad producida'))
+                    continue
+
+                # Ubicaciones: usar la ubicación de productos de la OF (lo que aparece como origen/destino en el wizard)
+                loc = False
+                if hasattr(production, 'location_dest_id') and production.location_dest_id:
+                    loc = production.location_dest_id
+
+                if not loc:
+                    skipped.append((production.name, 'sin ubicación de productos'))
+                    continue
+
+                unbuild_vals = {
+                    'mo_id': production.id,
+                    'product_id': production.product_id.id,
+                    'product_uom_id': production.product_uom_id.id,
+                    'product_qty': qty,
+                    'location_id': loc.id,
+                    'location_dest_id': loc.id,
+                }
+                # Opcionales comunes
+                if hasattr(production, 'company_id') and production.company_id:
+                    unbuild_vals['company_id'] = production.company_id.id
+                if hasattr(production, 'picking_type_id') and production.picking_type_id:
+                    unbuild_vals['picking_type_id'] = production.picking_type_id.id
+
+                unbuild_rec = Unbuild.create(unbuild_vals)
+                # Validar desmantelado
+                if hasattr(unbuild_rec, 'action_validate'):
+                    unbuild_rec.action_validate()
+                elif hasattr(unbuild_rec, 'button_validate'):
+                    unbuild_rec.button_validate()
+                else:
+                    raise UserError('No se encontró método para validar el Desmantelado (mrp.unbuild).')
+
+                unbuilt.append(f'{production.name} ({qty:g} {production.product_uom_id.name})')
+                continue
+
+            # OF no cerrada -> cancelar si se puede
+            try:
+                if hasattr(production, 'action_cancel'):
+                    production.action_cancel()
+                else:
+                    production.state = 'cancel'
+                cancelled.append(production.name)
+            except Exception as e:
+                skipped.append((production.name, f'no se pudo cancelar: {str(e)}'))
+
+        # Marcar el parte como cancelado
+        self.state = 'cancel'
+
+        # Registrar en chatter
+        body_lines = [
+            '<b>Parte cancelado</b>',
+            f'Usuario: {self.env.user.display_name}',
+        ]
+        if cancelled:
+            body_lines.append('<br/><b>OF canceladas:</b> ' + ', '.join(cancelled))
+        if unbuilt:
+            body_lines.append('<br/><b>OF desmanteladas:</b> ' + ', '.join(unbuilt))
+        if skipped:
+            body_lines.append('<br/><b>OF omitidas:</b> ' + ', '.join([f'{n} ({r})' for n, r in skipped]))
+
+        self.message_post(body='<br/>'.join(body_lines))
+
+        return True
     
     def action_generate_productions(self):
         """Genera automáticamente las Órdenes de Fabricación para todas las unidades producidas"""
