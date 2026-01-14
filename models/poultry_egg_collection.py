@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError, UserError
+from odoo.tools import Markup
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -568,19 +569,24 @@ class PoultryEggCollection(models.Model):
         # Marcar el parte como cancelado
         self.state = 'cancel'
 
-        # Registrar en chatter
-        body_lines = [
-            '<strong>Parte cancelado</strong>',
-            f'Usuario: {self.env.user.display_name}',
+        # Registrar en chatter usando Markup para renderizar HTML correctamente
+        user_name = self.env.user.display_name
+        
+        cancelled_txt = ', '.join(cancelled) if cancelled else ''
+        unbuilt_txt = ', '.join(unbuilt) if unbuilt else ''
+        skipped_txt = ', '.join([f'{n} ({r})' for n, r in skipped]) if skipped else ''
+        
+        parts = [
+            Markup("<strong>Parte cancelado</strong><br/>Usuario: %s") % user_name,
         ]
-        if cancelled:
-            body_lines.append('<br/><strong>OF canceladas:</strong> ' + ', '.join(cancelled))
-        if unbuilt:
-            body_lines.append('<br/><strong>OF desmanteladas:</strong> ' + ', '.join(unbuilt))
-        if skipped:
-            body_lines.append('<br/><strong>OF omitidas:</strong> ' + ', '.join([f'{n} ({r})' for n, r in skipped]))
-
-        self.message_post(body='<br/>'.join(body_lines), message_type='notification')
+        if cancelled_txt:
+            parts.append(Markup("<br/><br/><strong>OF canceladas:</strong> %s") % cancelled_txt)
+        if unbuilt_txt:
+            parts.append(Markup("<br/><br/><strong>OF desmanteladas:</strong> %s") % unbuilt_txt)
+        if skipped_txt:
+            parts.append(Markup("<br/><br/><strong>OF omitidas:</strong> %s") % skipped_txt)
+        
+        self.message_post(body=Markup("").join(parts))
 
         return True
     
