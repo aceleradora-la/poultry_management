@@ -108,11 +108,12 @@ class PoultryEggCollectionLine(models.Model):
                                     help='Total de huevos que tienen peso medio definido')
     
     # Peso medio elaborado agregado (para usar en pivot)
-    # No usar group_operator ni store porque necesitamos calcular promedio ponderado en read_group
-    # Si tiene group_operator, Odoo lo calcula en SQL ignorando read_group
+    # store=True y group_operator="avg" son necesarios para que Odoo permita agregaciones
+    # pero read_group sobrescribe el cálculo con el promedio ponderado correcto
     average_weight_elaborated_aggregated = fields.Float(string='Peso Medio Elaborado (g)', 
                                                          compute='_compute_average_weight_elaborated_aggregated',
-                                                         store=False, digits=(16, 3),
+                                                         store=True, digits=(16, 3),
+                                                         group_operator="avg",
                                                          help='Peso medio elaborado agregado: suma de (peso * huevos) / suma de huevos (solo variantes con peso medio)')
     
     @api.depends('product_variant_id')
@@ -283,9 +284,10 @@ class PoultryEggCollectionLine(models.Model):
         """
         # Si average_weight_elaborated_aggregated está en fields, necesitamos calcularlo manualmente
         # porque el promedio ponderado no se puede hacer con group_operator="avg"
-        if fields and 'average_weight_elaborated_aggregated' in fields:
-            # Remover el campo de fields para que no se calcule automáticamente
-            fields_without_avg = [f for f in fields if f != 'average_weight_elaborated_aggregated']
+        fields_list = fields or []
+        if 'average_weight_elaborated_aggregated' in fields_list:
+            # Remover el campo de fields para que no se calcule automáticamente con AVG()
+            fields_without_avg = [f for f in fields_list if f != 'average_weight_elaborated_aggregated']
             if fields_without_avg:
                 result = super().read_group(domain, fields_without_avg, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
             else:
@@ -294,7 +296,7 @@ class PoultryEggCollectionLine(models.Model):
             result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
         
         # Calcular average_weight_elaborated_aggregated usando promedio ponderado
-        if groupby:
+        if groupby and 'average_weight_elaborated_aggregated' in fields_list:
             for group in result:
                 # Obtener el dominio para este grupo
                 group_domain = list(domain)
