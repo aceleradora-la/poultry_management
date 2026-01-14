@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Reportes de Producción -->
-    <record id="action_poultry_production_report_wizard" model="ir.actions.act_window">
-        <field name="name">Reporte de Producción por Galpón</field>
-        <field name="res_model">poultry.production.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
     <!-- Reportes de Mortalidad -->
     <record id="action_poultry_mortality_report_wizard" model="ir.actions.act_window">
         <field name="name">Reporte de Mortalidad</field>
@@ -31,7 +23,11 @@
         <field name="res_model">poultry.egg.collection.line</field>
         <field name="view_mode">list,pivot,form</field>
         <field name="domain">[('collection_id.state', '=', 'done')]</field>
-        <field name="context">{'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight']}</field>
+        <field name="context">{
+            'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight_elaborated_aggregated'],
+            'pivot_row_groupby': ['collection_date:day'],
+            'pivot_column_groupby': ['collection_coop_id'],
+        }</field>
     </record>
 
     <!-- Menús de Reportes (el menú padre "Reportes" está definido en poultry_menus.xml) -->
@@ -40,12 +36,6 @@
               parent="menu_poultry_reports" 
               action="action_poultry_production_report_direct" 
               sequence="10"/>
-
-    <menuitem id="menu_poultry_production_report_wizard" 
-              name="Producción por Galpón (Wizard)" 
-              parent="menu_poultry_reports" 
-              action="action_poultry_production_report_wizard" 
-              sequence="11"/>
 
     <menuitem id="menu_poultry_mortality_report" 
               name="Mortalidad" 

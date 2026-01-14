@@ -5,13 +5,12 @@
         <field name="name">poultry.egg.collection.line.pivot</field>
         <field name="model">poultry.egg.collection.line</field>
         <field name="arch" type="xml">
-            <pivot string="Reporte de Producción por Variante">
-                <field name="collection_id" type="row"/>
-                <field name="product_variant_id" type="row" string="Variante"/>
-                <field name="collection_date" type="col" interval="day"/>
+            <pivot string="Reporte de Producción">
+                <field name="collection_date" type="row" interval="day"/>
+                <field name="collection_coop_id" type="col"/>
                 <field name="total_produced_reference" type="measure" string="Total Huevos"/>
                 <field name="total_boxes" type="measure" string="Total Cajones"/>
-                <field name="average_weight" type="measure" string="Peso Medio"/>
+                <field name="average_weight_elaborated_aggregated" type="measure" string="Peso Medio Elaborado (g)"/>
             </pivot>
         </field>
     </record>

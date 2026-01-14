@@ -4,59 +4,6 @@ from odoo import models, fields, api
 from datetime import datetime, timedelta
 
 
-class PoultryProductionReportWizard(models.TransientModel):
-    _name = 'poultry.production.report.wizard'
-    _description = 'Asistente de Reporte de Producción por Galpón'
-
-    coop_id = fields.Many2one('poultry.coop', string='Galpón', 
-                               domain="[('active', '=', True)]",
-                               help='Seleccione un galpón para generar el reporte. Deje vacío para todos los galpones.')
-    date_from = fields.Date(string='Fecha Desde', required=True, 
-                            default=lambda self: fields.Date.today() - timedelta(days=30))
-    date_to = fields.Date(string='Fecha Hasta', required=True, 
-                          default=fields.Date.today)
-    group_by_date = fields.Boolean(string='Agrupar por Fecha', default=True,
-                                   help='Si está marcado, agrupa los resultados por fecha')
-
-    def action_generate_report(self):
-        """Genera el reporte de producción"""
-        self.ensure_one()
-        domain = [
-            ('collection_id.date', '>=', self.date_from),
-            ('collection_id.date', '<=', self.date_to),
-            ('collection_id.state', '=', 'done'),
-        ]
-        
-        if self.coop_id:
-            domain.append(('collection_id.coop_id', '=', self.coop_id.id))
-        
-        # Buscar líneas de recolección en lugar de collections
-        lines = self.env['poultry.egg.collection.line'].search(domain, order='collection_id.date desc, collection_id.coop_id')
-        
-        # Preparar datos para el reporte
-        report_data = []
-        for line in lines:
-            report_data.append({
-                'date': line.collection_id.date,
-                'coop': line.collection_id.coop_id.name,
-                'variant': line.product_variant_id.name,
-                'total_eggs': line.total_produced_reference,
-                'total_boxes': line.total_boxes,
-                'average_weight': line.average_weight,
-            })
-        
-        return {
-            'name': 'Reporte de Producción de Huevos',
-            'type': 'ir.actions.act_window',
-            'res_model': 'poultry.egg.collection.line',
-            'view_mode': 'list,pivot,form',
-            'domain': domain,
-            'context': {
-                'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight'],
-            },
-        }
-
-
 class PoultryMortalityReportWizard(models.TransientModel):
     _name = 'poultry.mortality.report.wizard'
     _description = 'Asistente de Reporte de Mortalidad'

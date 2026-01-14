@@ -96,6 +96,23 @@ class PoultryEggCollectionLine(models.Model):
                                store=True, digits=(16, 2),
                                help='Total de cajones producidos (Total Huevos / 360)')
     
+    # Campos para calcular peso medio elaborado agregado
+    weight_total_grams = fields.Float(string='Peso Total (g)', 
+                                      compute='_compute_weight_total_grams',
+                                      store=True, digits=(16, 2),
+                                      help='Peso total en gramos: average_weight * total_produced_reference (solo si average_weight > 0)')
+    
+    eggs_with_weight = fields.Float(string='Huevos con Peso', 
+                                    compute='_compute_weight_total_grams',
+                                    store=True, digits=(16, 2),
+                                    help='Total de huevos que tienen peso medio definido')
+    
+    # Peso medio elaborado agregado (para usar en pivot)
+    average_weight_elaborated_aggregated = fields.Float(string='Peso Medio Elaborado (g)', 
+                                                         compute='_compute_average_weight_elaborated_aggregated',
+                                                         store=False, digits=(16, 3),
+                                                         help='Peso medio elaborado agregado: suma de (peso * huevos) / suma de huevos (solo variantes con peso medio)')
+    
     @api.depends('product_variant_id')
     def _compute_uom_ids(self):
         """Obtiene las unidades de medida (método legacy)"""
@@ -230,6 +247,62 @@ class PoultryEggCollectionLine(models.Model):
                 line.total_boxes = line.total_produced_reference / 360.0
             else:
                 line.total_boxes = 0.0
+    
+    @api.depends('average_weight', 'total_produced_reference')
+    def _compute_weight_total_grams(self):
+        """Calcula el peso total en gramos y huevos con peso para cálculo agregado"""
+        for line in self:
+            if line.average_weight and line.average_weight > 0 and line.total_produced_reference:
+                line.weight_total_grams = line.average_weight * line.total_produced_reference
+                line.eggs_with_weight = line.total_produced_reference
+            else:
+                line.weight_total_grams = 0.0
+                line.eggs_with_weight = 0.0
+    
+    @api.depends('weight_total_grams', 'eggs_with_weight')
+    def _compute_average_weight_elaborated_aggregated(self):
+        """
+        Calcula el peso medio elaborado agregado.
+        Para líneas individuales, retorna el average_weight si existe.
+        En el pivot, read_group calculará el promedio ponderado agregado correctamente.
+        """
+        for line in self:
+            if line.eggs_with_weight and line.eggs_with_weight > 0:
+                # Para una línea individual, el promedio es simplemente average_weight
+                line.average_weight_elaborated_aggregated = line.average_weight if line.average_weight > 0 else 0.0
+            else:
+                line.average_weight_elaborated_aggregated = 0.0
+    
+    @api.model
+    def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
+        """
+        Sobrescribe read_group para calcular average_weight_elaborated_aggregated
+        correctamente en las agrupaciones del pivot usando promedio ponderado.
+        """
+        result = super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
+        
+        # Si se está agrupando y se necesita average_weight_elaborated_aggregated
+        if groupby and 'average_weight_elaborated_aggregated' in (fields or []):
+            for group in result:
+                # Obtener el dominio para este grupo
+                group_domain = domain + (group.get('__domain', []))
+                
+                # Buscar los registros en este grupo
+                lines = self.search(group_domain)
+                
+                if lines:
+                    # Calcular promedio ponderado: suma(weight_total_grams) / suma(eggs_with_weight)
+                    total_weight = sum(lines.mapped('weight_total_grams'))
+                    total_eggs = sum(lines.mapped('eggs_with_weight'))
+                    
+                    if total_eggs and total_eggs > 0:
+                        group['average_weight_elaborated_aggregated'] = total_weight / total_eggs
+                    else:
+                        group['average_weight_elaborated_aggregated'] = 0.0
+                else:
+                    group['average_weight_elaborated_aggregated'] = 0.0
+        
+        return result
     
     def _sync_uom_values_to_legacy(self):
         """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""
