@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Reporte de Producción por Galpón (wizard) -->
-    <record id="action_poultry_production_report_wizard" model="ir.actions.act_window">
-        <field name="name">Reporte de Producción por Galpón</field>
-        <field name="res_model">poultry.production.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
     <!-- Reportes de Mortalidad -->
     <record id="action_poultry_mortality_report_wizard" model="ir.actions.act_window">
         <field name="name">Reporte de Mortalidad</field>
@@ -40,15 +32,10 @@
 
     <!-- Menús de Reportes (el menú padre "Reportes" está definido en poultry_menus.xml) -->
     <menuitem id="menu_poultry_production_report" 
-              name="Producción (Pivot)" 
+              name="Producción" 
               parent="menu_poultry_reports" 
               action="action_poultry_production_report_direct" 
               sequence="10"/>
-    <menuitem id="menu_poultry_production_report_wizard" 
-              name="Producción por Galpón (Wizard)" 
-              parent="menu_poultry_reports" 
-              action="action_poultry_production_report_wizard" 
-              sequence="11"/>
 
     <menuitem id="menu_poultry_mortality_report" 
               name="Mortalidad" 

@@ -15,6 +15,5 @@ from . import mrp_production
 from . import mrp_unbuild
 from . import poultry_coop_close
 from . import poultry_coop_close_wizard
-from . import poultry_production_report_wizard
 from . import poultry_config_settings
 
