@@ -19,6 +19,22 @@
               action="action_poultry_mortality" 
               sequence="20"/>
 
+    <!-- Menú: Cierres -->
+    <menuitem id="menu_poultry_closes" 
+              name="Cierres" 
+              parent="menu_poultry_management_root" 
+              sequence="25"/>
+    <menuitem id="menu_poultry_coop_close_wizard" 
+              name="Cierre Galpón" 
+              parent="menu_poultry_closes" 
+              action="action_poultry_coop_close_wizard" 
+              sequence="10"/>
+    <menuitem id="menu_poultry_coop_close" 
+              name="Cierres de Galpón" 
+              parent="menu_poultry_closes" 
+              action="action_poultry_coop_close" 
+              sequence="20"/>
+
     <!-- Menú: Reportes -->
     <menuitem id="menu_poultry_reports" 
               name="Reportes" 

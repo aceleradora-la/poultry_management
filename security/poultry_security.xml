@@ -14,5 +14,11 @@
         <field name="name">Cancelar Partes Procesados</field>
         <field name="category_id" ref="base.module_category_manufacturing"/>
     </record>
+
+    <record id="poultry_delete_coop_close" model="res.groups">
+        <field name="name">Eliminar Cierres de Galpón</field>
+        <field name="category_id" ref="base.module_category_manufacturing"/>
+        <field name="comment">Permite eliminar cierres de galpón en estado Borrador.</field>
+    </record>
 </odoo>
 

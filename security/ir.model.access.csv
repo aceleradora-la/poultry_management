@@ -19,4 +19,8 @@ access_poultry_mortality_report_wizard_manager,poultry.mortality.report.wizard.m
 access_poultry_mortality_report_wizard_user,poultry.mortality.report.wizard.user,model_poultry_mortality_report_wizard,poultry_management.poultry_user,1,1,1,0
 access_poultry_comparison_report_wizard_manager,poultry.comparison.report.wizard.manager,model_poultry_comparison_report_wizard,poultry_management.poultry_manager,1,1,1,1
 access_poultry_comparison_report_wizard_user,poultry.comparison.report.wizard.user,model_poultry_comparison_report_wizard,poultry_management.poultry_user,1,1,1,0
+access_poultry_coop_close_manager,poultry.coop.close.manager,model_poultry_coop_close,poultry_management.poultry_manager,1,1,1,1
+access_poultry_coop_close_user,poultry.coop.close.user,model_poultry_coop_close,poultry_management.poultry_user,1,0,0,0
+access_poultry_coop_close_wizard_manager,poultry.coop.close.wizard.manager,model_poultry_coop_close_wizard,poultry_management.poultry_manager,1,1,1,1
+access_poultry_coop_close_wizard_user,poultry.coop.close.wizard.user,model_poultry_coop_close_wizard,poultry_management.poultry_user,1,1,1,0
 

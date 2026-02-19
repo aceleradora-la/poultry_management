@@ -1,0 +1,201 @@
+# -*- coding: utf-8 -*-
+
+from odoo import models, fields, api
+from odoo.exceptions import UserError, ValidationError
+
+
+class PoultryCoopClose(models.Model):
+    _name = 'poultry.coop.close'
+    _description = 'Cierre de Galpón'
+    _order = 'date desc, coop_id'
+
+    coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True,
+                              domain="[('active', '=', True)]")
+    date = fields.Date(string='Fecha', required=True)
+    state = fields.Selection([
+        ('draft', 'Borrador'),
+        ('done', 'Confirmado'),
+        ('cancel', 'Cancelado'),
+    ], string='Estado', default='draft', required=True)
+
+    egg_collection_ids = fields.One2many(
+        'poultry.egg.collection', 'coop_close_id',
+        string='Partes de Producción',
+        help='Partes en estado Procesada incluidos en este cierre')
+    unclassified_production_id = fields.Many2one(
+        'mrp.production', string='OF Huevo sin Clasificar',
+        readonly=True, copy=False)
+
+    @api.constrains('coop_id', 'date', 'state')
+    def _check_unique_coop_date(self):
+        """Solo validar unicidad para cierres en draft o done"""
+        for record in self:
+            if record.state in ('draft', 'done'):
+                existing = self.search([
+                    ('coop_id', '=', record.coop_id.id),
+                    ('date', '=', record.date),
+                    ('state', 'in', ('draft', 'done')),
+                    ('id', '!=', record.id),
+                ], limit=1)
+                if existing:
+                    raise ValidationError(
+                        'Ya existe un cierre para el galpón %s en la fecha %s.'
+                        % (record.coop_id.name, record.date)
+                    )
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_only_draft_with_permission(self):
+        for record in self:
+            if record.state != 'draft':
+                raise UserError(
+                    'Solo se pueden eliminar cierres en estado Borrador.')
+            if not self.env.user.has_group(
+                    'poultry_management.poultry_delete_coop_close'):
+                raise UserError(
+                    'No tiene permisos para eliminar cierres de galpón.')
+
+    def action_confirm(self):
+        """Crea la OF de huevo sin clasificar y pasa a done"""
+        for record in self:
+            if record.state != 'draft':
+                raise UserError('Solo se puede confirmar un cierre en Borrador.')
+            if not record.egg_collection_ids:
+                raise UserError('No hay partes de producción vinculados.')
+
+            production = record._create_unclassified_production()
+            if production:
+                record.write({
+                    'unclassified_production_id': production.id,
+                    'state': 'done',
+                })
+                if hasattr(production, 'coop_close_id'):
+                    production.write({'coop_close_id': record.id})
+            else:
+                record.state = 'done'
+        return True
+
+    def _create_unclassified_production(self):
+        """Crea la OF de huevo sin clasificar sumando huevos de los partes"""
+        self.ensure_one()
+        coop = self.coop_id
+        if not coop.unclassified_egg_product_id or not coop.unclassified_egg_bom_id:
+            return False
+
+        total_eggs = 0.0
+        for collection in self.egg_collection_ids:
+            for line in collection.line_ids:
+                if hasattr(line, 'total_produced_reference'):
+                    total_eggs += line.total_produced_reference or 0.0
+
+        if total_eggs <= 0:
+            return False
+
+        unclassified_product = coop.unclassified_egg_product_id
+        unclassified_uom = unclassified_product.uom_id
+        if not unclassified_uom:
+            raise UserError(
+                'El producto de huevo sin clasificar no tiene unidad de medida.')
+
+        picking_type_id = coop.picking_type_id_unclassified.id if coop.picking_type_id_unclassified else False
+
+        vals = {
+            'product_id': unclassified_product.id,
+            'product_qty': total_eggs,
+            'product_uom_id': unclassified_uom.id,
+            'bom_id': coop.unclassified_egg_bom_id.id,
+            'coop_id': coop.id,
+            'egg_collection_id': False,
+            'origin': f'Cierre Galpón {coop.name} - {self.date}',
+        }
+        if picking_type_id:
+            vals['picking_type_id'] = picking_type_id
+
+        production = self.env['mrp.production'].create(vals)
+        production.action_confirm()
+        production.qty_producing = production.product_qty
+        return production
+
+    def action_cancel(self):
+        """Revierte el cierre: en draft elimina; en done desmantela OF y desvincula"""
+        for record in self:
+            if record.state == 'cancel':
+                continue
+
+            if record.state == 'draft':
+                record.egg_collection_ids.write({'coop_close_id': False})
+                record.unlink()
+                continue
+
+            if record.state == 'done' and record.unclassified_production_id:
+                prod = record.unclassified_production_id
+                if prod.state == 'done':
+                    record._unbuild_production(prod)
+                elif prod.state not in ('cancel',):
+                    try:
+                        if hasattr(prod, 'action_cancel'):
+                            prod.action_cancel()
+                        else:
+                            prod.state = 'cancel'
+                    except Exception:
+                        pass
+                if hasattr(prod, 'coop_close_id'):
+                    prod.write({'coop_close_id': False})
+                record.write({'unclassified_production_id': False})
+
+            record.egg_collection_ids.write({'coop_close_id': False})
+            record.state = 'cancel'
+        return True
+
+    def _unbuild_production(self, production):
+        """Desmantela una orden de producción"""
+        if not production.location_dest_id:
+            raise UserError('La orden no tiene ubicación de destino.')
+        qty = production.qty_producing or production.product_qty
+        if not qty:
+            return
+        loc = production.location_dest_id
+        vals = {
+            'mo_id': production.id,
+            'product_id': production.product_id.id,
+            'product_uom_id': production.product_uom_id.id,
+            'product_qty': qty,
+            'location_id': loc.id,
+            'location_dest_id': loc.id,
+        }
+        Unbuild = self.env['mrp.unbuild']
+        if 'company_id' in Unbuild._fields and getattr(production, 'company_id', False):
+            vals['company_id'] = production.company_id.id
+        unbuild = Unbuild.create(vals)
+        if hasattr(unbuild, 'action_validate'):
+            unbuild.action_validate()
+        elif hasattr(unbuild, 'button_validate'):
+            unbuild.button_validate()
+
+    def action_edit_wizard(self):
+        """Abre el wizard para editar el cierre (solo en draft)"""
+        self.ensure_one()
+        if self.state != 'draft':
+            raise UserError('Solo se puede editar un cierre en estado Borrador.')
+        return {
+            'name': 'Editar Cierre de Galpón',
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.coop.close.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_close_id': self.id,
+                'default_coop_ids': [(6, 0, self.coop_id.ids)],
+                'default_date': self.date,
+            },
+        }
+
+    def _revert_from_unbuild(self):
+        """Llamado cuando se desmantela manualmente la OF desde MRP"""
+        for record in self:
+            record.egg_collection_ids.write({'coop_close_id': False})
+            if record.unclassified_production_id:
+                record.unclassified_production_id.write({'coop_close_id': False})
+            record.write({
+                'unclassified_production_id': False,
+                'state': 'cancel',
+            })

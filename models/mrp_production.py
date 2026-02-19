@@ -11,6 +11,9 @@ class MrpProduction(models.Model):
                                help='Seleccione un galpón para cargar automáticamente el producto y la lista de materiales activa')
     egg_collection_id = fields.Many2one('poultry.egg.collection', string='Recolección de Huevos',
                                          readonly=True)
+    coop_close_id = fields.Many2one('poultry.coop.close', string='Cierre de Galpón',
+                                    readonly=True, copy=False,
+                                    help='Cierre de galpón que generó esta OF de huevo sin clasificar')
     
     @api.onchange('coop_id')
     def _onchange_coop_id(self):

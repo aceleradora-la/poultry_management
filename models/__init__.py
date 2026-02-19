@@ -12,5 +12,8 @@ from . import poultry_egg_collection
 from . import poultry_egg_collection_line
 from . import poultry_egg_collection_line_uom
 from . import mrp_production
+from . import mrp_unbuild
+from . import poultry_coop_close
+from . import poultry_coop_close_wizard
 from . import poultry_config_settings
 
