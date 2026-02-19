@@ -1,6 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Vistas de Wizard -->
+    <record id="view_poultry_production_report_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.production.report.wizard.form</field>
+        <field name="model">poultry.production.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte de Producción por Galpón">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_generate_report" string="Generar Reporte" type="object" class="oe_highlight"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
     <record id="view_poultry_mortality_report_wizard_form" model="ir.ui.view">
         <field name="name">poultry.mortality.report.wizard.form</field>
         <field name="model">poultry.mortality.report.wizard</field>

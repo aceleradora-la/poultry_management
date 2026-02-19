@@ -4,6 +4,40 @@ from odoo import models, fields, api
 from datetime import datetime, timedelta
 
 
+class PoultryProductionReportWizard(models.TransientModel):
+    """Modelo stub para compatibilidad con referencias antiguas.
+    El reporte de producción ahora usa action_poultry_production_report_direct
+    que abre directamente poultry.egg.collection.line con vista pivot."""
+    _name = 'poultry.production.report.wizard'
+    _description = 'Asistente de Reporte de Producción (compatibilidad)'
+
+    coop_id = fields.Many2one('poultry.coop', string='Galpón',
+                              domain="[('active', '=', True)]")
+    date_from = fields.Date(string='Fecha Desde', required=True,
+                            default=lambda self: fields.Date.today() - timedelta(days=30))
+    date_to = fields.Date(string='Fecha Hasta', required=True,
+                          default=fields.Date.today())
+
+    def action_generate_report(self):
+        """Redirige al reporte de producción directo (pivot en líneas)"""
+        return {
+            'name': 'Reporte de Producción',
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.egg.collection.line',
+            'view_mode': 'list,pivot,form',
+            'domain': [
+                ('collection_id.state', '=', 'done'),
+                ('collection_id.date', '>=', self.date_from),
+                ('collection_id.date', '<=', self.date_to),
+            ] + ([('collection_id.coop_id', '=', self.coop_id.id)] if self.coop_id else []),
+            'context': {
+                'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight_elaborated_aggregated'],
+                'pivot_row_groupby': ['collection_date:day'],
+                'pivot_column_groupby': ['collection_coop_id'],
+            },
+        }
+
+
 class PoultryMortalityReportWizard(models.TransientModel):
     _name = 'poultry.mortality.report.wizard'
     _description = 'Asistente de Reporte de Mortalidad'
