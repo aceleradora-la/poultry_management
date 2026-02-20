@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Vista de búsqueda para Reporte de Producción (filtros predefinidos) -->
+    <record id="view_poultry_egg_collection_line_search_report" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.search.report</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Líneas de Producción">
+                <field name="collection_date" string="Fecha"/>
+                <field name="collection_coop_id" string="Galpón"/>
+                <field name="product_variant_id" string="Variante"/>
+                <separator/>
+                <filter string="Hoy" name="filter_today"
+                        domain="[('collection_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Esta semana" name="filter_this_week"
+                        domain="[('collection_date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d')),
+                                ('collection_date', '&lt;=', (context_today() + datetime.timedelta(days=6-context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                <filter string="Este mes" name="filter_this_month"
+                        domain="[('collection_date', '&gt;=', context_today().strftime('%Y-%m-01')),
+                                ('collection_date', '&lt;=', ((context_today().replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+            </search>
+        </field>
+    </record>
+
     <!-- Vista Pivot para Líneas de Recolección -->
     <record id="view_poultry_egg_collection_line_pivot" model="ir.ui.view">
         <field name="name">poultry.egg.collection.line.pivot</field>
