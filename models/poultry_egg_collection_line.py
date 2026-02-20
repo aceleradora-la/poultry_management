@@ -653,6 +653,8 @@ class PoultryEggCollectionLine(models.Model):
         for fname in res:
             if fname not in self.PIVOT_GROUPABLE_FIELDS:
                 res[fname]['selectable'] = False
+                res[fname]['sortable'] = False
+                res[fname]['groupable'] = False
         return res
 
     _sql_constraints = [
