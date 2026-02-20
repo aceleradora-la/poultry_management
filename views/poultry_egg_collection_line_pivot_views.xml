@@ -10,6 +10,8 @@
                 <field name="collection_coop_id" string="Galpón"/>
                 <field name="product_variant_id" string="Variante"/>
                 <separator/>
+                <filter string="Hoy" name="filter_today"
+                        domain="[('collection_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
                 <filter string="Fecha" name="filter_date" date="collection_date"/>
             </search>
         </field>
