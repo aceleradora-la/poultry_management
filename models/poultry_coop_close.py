@@ -194,7 +194,7 @@ class PoultryCoopClose(models.Model):
         return True
 
     def _unbuild_production(self, production):
-        """Desmantela una orden de producción"""
+        """Desmantela una orden de producción y la deja en estado completado"""
         if not production.location_dest_id:
             raise UserError('La orden no tiene ubicación de destino.')
         qty = production.qty_producing or production.product_qty
@@ -213,8 +213,15 @@ class PoultryCoopClose(models.Model):
         if 'company_id' in Unbuild._fields and getattr(production, 'company_id', False):
             vals['company_id'] = production.company_id.id
         unbuild = Unbuild.create(vals)
-        if hasattr(unbuild, 'action_validate'):
-            unbuild.action_validate()
+        # action_unbuild completa el desmantelado directamente (state='done')
+        # action_validate verifica stock y puede abrir wizard si no hay suficiente
+        if hasattr(unbuild, 'action_unbuild'):
+            unbuild.action_unbuild()
+        elif hasattr(unbuild, 'action_validate'):
+            result = unbuild.action_validate()
+            # Si action_validate devuelve un dict (wizard), forzar action_unbuild
+            if isinstance(result, dict):
+                unbuild.action_unbuild()
         elif hasattr(unbuild, 'button_validate'):
             unbuild.button_validate()
 
