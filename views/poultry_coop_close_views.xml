@@ -8,6 +8,7 @@
                   decoration-info="state == 'draft'"
                   decoration-success="state == 'done'"
                   decoration-muted="state == 'cancel'">
+                <field name="name"/>
                 <field name="coop_id"/>
                 <field name="date"/>
                 <field name="state" widget="badge"
@@ -38,6 +39,8 @@
                 <sheet>
                     <group>
                         <group>
+                            <field name="name" placeholder="Se genera automáticamente"
+                                   readonly="state != 'draft'"/>
                             <field name="coop_id" readonly="state != 'draft'"/>
                             <field name="date" readonly="state != 'draft'"/>
                             <field name="state" widget="statusbar"

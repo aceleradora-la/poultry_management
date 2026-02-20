@@ -9,6 +9,9 @@ class PoultryCoopClose(models.Model):
     _description = 'Cierre de Galpón'
     _order = 'date desc, coop_id'
 
+    name = fields.Char(string='Referencia', required=True, copy=False, index=True,
+                       default='NUEVO', readonly=False,
+                       help='Se genera automáticamente al crear el cierre')
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True,
                               domain="[('active', '=', True)]")
     date = fields.Date(string='Fecha', required=True)
@@ -25,6 +28,50 @@ class PoultryCoopClose(models.Model):
     unclassified_production_id = fields.Many2one(
         'mrp.production', string='OF Huevo sin Clasificar',
         readonly=True, copy=False)
+
+    @api.model
+    def _get_sequence_for_coop_close(self, coop_id):
+        """Obtiene o crea una secuencia para cierres basada en el prefijo del galpón"""
+        if not coop_id:
+            return self.env['ir.sequence'].search(
+                [('code', '=', 'poultry.coop.close')], limit=1)
+        coop = self.env['poultry.coop'].browse(coop_id)
+        if not coop.exists():
+            return self.env['ir.sequence'].search(
+                [('code', '=', 'poultry.coop.close')], limit=1)
+        prefix = (coop.sequence_prefix or 'CLC').strip().upper() or 'CLC'
+        sequence_code = f'poultry.coop.close.{prefix}'
+        sequence = self.env['ir.sequence'].search(
+            [('code', '=', sequence_code)], limit=1)
+        if not sequence:
+            sequence = self.env['ir.sequence'].create({
+                'name': f'Secuencia de Cierre de Galpón - {prefix}',
+                'code': sequence_code,
+                'prefix': f'{prefix}-CLC-',
+                'padding': 4,
+                'number_increment': 1,
+                'number_next': 1,
+            })
+        return sequence
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Genera nombre automático usando secuencia basada en el galpón"""
+        if isinstance(vals_list, dict):
+            vals_list = [vals_list]
+        for vals in vals_list:
+            if not vals.get('name') or vals.get('name') == 'NUEVO':
+                coop_id = vals.get('coop_id')
+                sequence = self._get_sequence_for_coop_close(coop_id)
+                vals['name'] = (sequence.next_by_id() if sequence else None) or 'NUEVO'
+        records = super().create(vals_list)
+        for record in records:
+            if record.name == 'NUEVO' or not record.name:
+                sequence = self._get_sequence_for_coop_close(
+                    record.coop_id.id if record.coop_id else None)
+                if sequence:
+                    record.write({'name': sequence.next_by_id()})
+        return records
 
     @api.constrains('coop_id', 'date', 'state')
     def _check_unique_coop_date(self):
