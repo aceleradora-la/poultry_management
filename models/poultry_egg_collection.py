@@ -310,13 +310,14 @@ class PoultryEggCollection(models.Model):
             uoms = Line._get_poultry_uoms(variants[0])
             uom_names = [_strip_t_suffix((uom.poultry_display_name or uom.name) or '') for uom in uoms[:3]]
 
-        # Columnas: Variante | Inicial UoM1 | ... | Bruto UoM1 | ... | Peso medio
+        # Columnas: Variante | Inicial UoM1 | ... | Bruto UoM1 | ... | PESO MEDIO
+        # Inicial y Bruto en mixed case, nombres UoM y PESO MEDIO en mayúsculas
         columns = ['Variante']
         for name in uom_names:
-            columns.append('Inicial ' + name)
+            columns.append('Inicial ' + (name or '').upper())
         for name in uom_names:
-            columns.append('Bruto ' + name)
-        columns.append('Peso medio')
+            columns.append('Bruto ' + (name or '').upper())
+        columns.append('PESO MEDIO')
 
         # Filas: una por variante, celdas vacías (sin valores para anotación manual)
         lines = []
