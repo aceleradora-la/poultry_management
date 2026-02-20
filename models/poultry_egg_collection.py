@@ -705,13 +705,13 @@ class PoultryEggCollection(models.Model):
 
         if productions_created:
             self.state = 'done'
+            # Permanecer en el parte en lugar de abrir las órdenes
             return {
-                'name': 'Órdenes de Fabricación Generadas',
                 'type': 'ir.actions.act_window',
-                'res_model': 'mrp.production',
-                'view_mode': 'list,form',
-                'domain': [('id', 'in', productions_created)],
-                'context': {'create': False},
+                'res_model': 'poultry.egg.collection',
+                'res_id': self.id,
+                'view_mode': 'form',
+                'target': 'current',
             }
         else:
             raise UserError('No hay producción para generar órdenes de fabricación.')

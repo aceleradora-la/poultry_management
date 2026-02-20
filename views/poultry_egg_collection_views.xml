@@ -47,7 +47,7 @@
                     <button name="action_set_to_draft" type="object" string="Volver a Bruto" 
                             invisible="state != 'completed'"/>
                     <button name="action_generate_productions" type="object" 
-                            string="Generar Órdenes de Fabricación" 
+                            string="Procesar" 
                             class="oe_highlight" 
                             invisible="state != 'completed'"/>
                         <button name="action_view_productions" type="object" 
