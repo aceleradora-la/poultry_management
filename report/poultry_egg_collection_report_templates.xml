@@ -5,12 +5,10 @@
             <t t-call="web.html_container">
                 <t t-call="web.external_layout">
                     <div class="page">
-                        <!-- Cabecera: título, galpón y referencia -->
-                        <div class="row mb-3" style="padding: 10px;">
+                        <!-- Cabecera: título, galpón y referencia (tamaño intermedio) -->
+                        <div class="row mb-3" style="padding: 10px; font-size: 1.05rem;">
                             <div class="col-4 text-left">
-                                <h4 class="mb-0" style="font-weight: bold;">
-                                    Parte diario de Producción
-                                </h4>
+                                <span style="font-weight: bold; text-decoration: underline;">Parte diario de Producción</span>
                             </div>
                             <div class="col-4 text-left">
                                 <strong>Galpón:</strong>
@@ -18,7 +16,7 @@
                             </div>
                             <div class="col-4">
                                 <strong>Referencia:</strong>
-                                <span t-field="doc.name" style="border-bottom: 1px solid #000; display: inline-block; min-width: 100px;"/>
+                                <span t-field="doc.name"/>
                             </div>
                         </div>
 
