@@ -5,14 +5,9 @@
             <t t-call="web.html_container">
                 <t t-call="web.external_layout">
                     <div class="page">
-                        <!-- Cabecera según maqueta -->
-                        <div class="row mb-4" style="border: 2px solid #2c3e50; padding: 15px;">
-                            <div class="col-3 text-center">
-                                <img t-if="res_company and res_company.logo" t-att-src="image_data_uri(res_company.logo)"
-                                     alt="Logo" style="max-height: 80px;"/>
-                                <span t-else="" class="text-muted">LOGO</span>
-                            </div>
-                            <div class="col-6 text-center">
+                        <!-- Cabecera: título y referencia (sin logo) -->
+                        <div class="row mb-3" style="border: 2px solid #2c3e50; padding: 15px;">
+                            <div class="col-9 text-center">
                                 <h2 class="mb-0" style="text-transform: uppercase; font-weight: bold;">
                                     Parte diario de Producción
                                 </h2>
@@ -43,33 +38,23 @@
                             </div>
                         </div>
 
-                        <!-- Grilla dinámica -->
+                        <!-- Grilla: columnas como en pantalla, celdas vacías para anotar -->
                         <t t-set="grid_data" t-value="doc._get_report_grid_data()"/>
-                        <t t-if="grid_data['uom_columns']">
+                        <t t-if="grid_data['columns']">
                             <table class="table table-bordered table-sm">
                                 <thead>
                                     <tr>
-                                        <th>Variante</th>
-                                        <t t-foreach="grid_data['uom_columns']" t-as="col">
-                                            <th colspan="2">
-                                                <t t-esc="col['name']"/>
-                                            </th>
-                                        </t>
-                                    </tr>
-                                    <tr>
-                                        <th></th>
-                                        <t t-foreach="grid_data['uom_columns']" t-as="col">
-                                            <th>Etapa Inicio</th>
-                                            <th>Etapa Bruto</th>
+                                        <t t-foreach="grid_data['columns']" t-as="col">
+                                            <th><t t-esc="col"/></th>
                                         </t>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="grid_data['lines']" t-as="row">
                                         <td><t t-esc="row['variant_name']"/></td>
-                                        <t t-foreach="row['cells']" t-as="cell">
-                                            <td><t t-esc="cell['initial']"/></td>
-                                            <td><t t-esc="cell['final']"/></td>
+                                        <!-- Celdas vacías para anotación manual -->
+                                        <t t-foreach="grid_data.get('empty_cells', [0,1,2,3,4,5])" t-as="i">
+                                            <td style="min-width: 60px;">&#160;</td>
                                         </t>
                                     </tr>
                                 </tbody>

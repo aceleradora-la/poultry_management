@@ -268,73 +268,62 @@ class PoultryEggCollection(models.Model):
     def _get_report_grid_data(self):
         """
         Prepara los datos de la grilla para el reporte impreso (Parte diario de Producción).
-        Retorna columnas de UoM (Etapa Inicio y Etapa Bruto) y filas por variante.
+        Columnas como en pantalla: Variante | Inicial UoM1 | Inicial UoM2 | Inicial UoM3 | Bruto UoM1 | Bruto UoM2 | Bruto UoM3.
+        Celdas vacías para que el usuario anote manualmente.
         """
         self.ensure_one()
         Line = self.env['poultry.egg.collection.line']
 
         if not self.product_tmpl_id:
-            return {'uom_columns': [], 'lines': []}
+            return {'columns': [], 'lines': [], 'empty_cells': []}
 
-        # Obtener líneas (existentes o construir desde variantes)
+        # Obtener nombres de UoM (ordenados por ratio desc: PT, PI, Huevo)
+        uom_names = []
         if self.line_ids:
-            lines = self.line_ids
-            first_line = lines[0]
+            first_line = self.line_ids[0]
             if first_line.product_variant_id:
                 first_line._ensure_uom_value_ids()
-            uom_values = first_line.uom_value_ids
+            sorted_uoms = sorted(
+                first_line.uom_value_ids,
+                key=lambda x: x.uom_ratio or 0.0,
+                reverse=True
+            )[:3]
+            uom_names = [
+                (uom_val.uom_display_name or (uom_val.uom_id.name if uom_val.uom_id else ''))
+                for uom_val in sorted_uoms
+            ]
         else:
             variants = self.product_tmpl_id.product_variant_ids
             if not variants and self.product_tmpl_id.product_variant_id:
                 variants = self.product_tmpl_id.product_variant_id
             if not variants:
-                return {'uom_columns': [], 'lines': []}
-            first_variant = variants[0]
-            uoms = Line._get_poultry_uoms(first_variant)
-            uom_columns = [{'name': (uom.poultry_display_name or uom.name) or ''} for uom in uoms[:3]]
-            rows = []
+                return {'columns': [], 'lines': [], 'empty_cells': []}
+            uoms = Line._get_poultry_uoms(variants[0])
+            uom_names = [(uom.poultry_display_name or uom.name) or '' for uom in uoms[:3]]
+
+        # Columnas: Variante | Inicial UoM1 | Inicial UoM2 | Inicial UoM3 | Bruto UoM1 | Bruto UoM2 | Bruto UoM3
+        columns = ['Variante del Prod.']
+        for name in uom_names:
+            columns.append('Inicial ' + name)
+        for name in uom_names:
+            columns.append('Bruto ' + name)
+
+        # Filas: una por variante, celdas vacías (sin valores para anotación manual)
+        lines = []
+        if self.line_ids:
+            for line in self.line_ids:
+                variant_name = line.product_variant_id.display_name if line.product_variant_id else ''
+                lines.append({'variant_name': variant_name})
+        else:
+            variants = self.product_tmpl_id.product_variant_ids
+            if not variants and self.product_tmpl_id.product_variant_id:
+                variants = self.product_tmpl_id.product_variant_id
             for v in variants:
-                cells = [{'initial': 0.0, 'final': 0.0} for _ in uom_columns]
-                rows.append({
-                    'variant_name': v.display_name,
-                    'cells': cells,
-                })
-            return {'uom_columns': uom_columns, 'lines': rows}
+                lines.append({'variant_name': v.display_name})
 
-        # Construir columnas UoM (ordenadas por ratio desc)
-        sorted_uom_vals = sorted(
-            uom_values,
-            key=lambda x: x.uom_ratio if hasattr(x, 'uom_ratio') and x.uom_ratio else (x.uom_id.ratio if x.uom_id else 0),
-            reverse=True
-        )
-        uom_columns = []
-        for uom_val in sorted_uom_vals[:3]:
-            name = (uom_val.uom_display_name or (uom_val.uom_id.name if uom_val.uom_id else ''))
-            uom_columns.append({'name': name})
-
-        # Construir filas con celdas (initial, final) por cada UoM
-        rows = []
-        for line in lines:
-            line._ensure_uom_value_ids()
-            sorted_line_uoms = sorted(
-                line.uom_value_ids,
-                key=lambda x: x.uom_ratio or 0.0,
-                reverse=True
-            )[:3]
-            cells = []
-            for uom_val in sorted_line_uoms:
-                cells.append({
-                    'initial': uom_val.initial_qty or 0.0,
-                    'final': uom_val.final_qty or 0.0,
-                })
-            while len(cells) < len(uom_columns):
-                cells.append({'initial': 0.0, 'final': 0.0})
-            rows.append({
-                'variant_name': line.product_variant_id.display_name if line.product_variant_id else '',
-                'cells': cells[:len(uom_columns)],
-            })
-
-        return {'uom_columns': uom_columns, 'lines': rows}
+        # Lista para iterar celdas vacías (para anotación manual)
+        empty_cells = list(range(len(columns) - 1))  # Todas menos Variante
+        return {'columns': columns, 'lines': lines, 'empty_cells': empty_cells}
 
     @api.model
     def _get_sequence_for_coop(self, coop_id):
