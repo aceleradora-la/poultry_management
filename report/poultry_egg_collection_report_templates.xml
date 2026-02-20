@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_poultry_egg_collection_daily">
+        <t t-foreach="docs" t-as="doc">
+            <t t-call="web.html_container">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <!-- Cabecera según maqueta -->
+                        <div class="row mb-4" style="border: 2px solid #2c3e50; padding: 15px;">
+                            <div class="col-3 text-center">
+                                <img t-if="company.logo" t-att-src="image_data_uri(company.logo)"
+                                     alt="Logo" style="max-height: 80px;"/>
+                                <span t-else="" class="text-muted">LOGO</span>
+                            </div>
+                            <div class="col-6 text-center">
+                                <h2 class="mb-0" style="text-transform: uppercase; font-weight: bold;">
+                                    Parte diario de Producción
+                                </h2>
+                            </div>
+                            <div class="col-3">
+                                <strong>Referencia:</strong>
+                                <span t-field="doc.name" style="border-bottom: 1px solid #000; display: inline-block; min-width: 100px;"/>
+                            </div>
+                        </div>
+
+                        <!-- Datos del parte -->
+                        <div class="row mb-3" style="border: 1px solid #dee2e6; padding: 10px;">
+                            <div class="col-3">
+                                <strong>Galpón:</strong>
+                                <span t-field="doc.coop_id.name"/>
+                            </div>
+                            <div class="col-3">
+                                <strong>Producto Base:</strong>
+                                <span t-field="doc.product_tmpl_id.name"/>
+                            </div>
+                            <div class="col-3">
+                                <strong>Fecha recolección:</strong>
+                                <span t-field="doc.date"/>
+                            </div>
+                            <div class="col-3">
+                                <strong>Operador:</strong>
+                                <span t-field="doc.operator_id.name"/>
+                            </div>
+                        </div>
+
+                        <!-- Grilla dinámica -->
+                        <t t-set="grid_data" t-value="doc._get_report_grid_data()"/>
+                        <t t-if="grid_data['uom_columns']">
+                            <table class="table table-bordered table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Variante</th>
+                                        <t t-foreach="grid_data['uom_columns']" t-as="col">
+                                            <th colspan="2">
+                                                <t t-esc="col['name']"/>
+                                            </th>
+                                        </t>
+                                    </tr>
+                                    <tr>
+                                        <th></th>
+                                        <t t-foreach="grid_data['uom_columns']" t-as="col">
+                                            <th>Etapa Inicio</th>
+                                            <th>Etapa Bruto</th>
+                                        </t>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="grid_data['lines']" t-as="row">
+                                        <td><t t-esc="row['variant_name']"/></td>
+                                        <t t-foreach="row['cells']" t-as="cell">
+                                            <td><t t-esc="cell['initial']"/></td>
+                                            <td><t t-esc="cell['final']"/></td>
+                                        </t>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+                        <t t-else="">
+                            <p class="text-muted">Seleccione un Producto Base y guarde el parte para generar la grilla.</p>
+                        </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

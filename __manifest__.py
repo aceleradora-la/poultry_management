@@ -32,6 +32,8 @@
         'views/poultry_coop_views.xml',
         'views/poultry_batch_views.xml',
         'views/poultry_coop_bom_views.xml',
+        'report/poultry_egg_collection_report_templates.xml',
+        'report/poultry_egg_collection_report.xml',
         'views/poultry_egg_collection_views.xml',
         'views/poultry_egg_collection_line_views.xml',
         'views/poultry_egg_collection_line_pivot_views.xml',

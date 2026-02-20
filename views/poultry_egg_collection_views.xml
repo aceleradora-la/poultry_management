@@ -30,6 +30,11 @@
         <field name="arch" type="xml">
             <form string="Recolección de Producción de Huevos">
                 <header>
+                    <button name="%(poultry_management.action_report_poultry_egg_collection_daily)d"
+                            type="action"
+                            string="Imprimir Parte"
+                            class="btn-secondary"
+                            invisible="state != 'draft'"/>
                     <button name="action_cancel_processed" type="object"
                             string="Cancelar Parte"
                             class="btn-danger"
