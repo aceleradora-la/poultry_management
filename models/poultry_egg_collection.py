@@ -277,6 +277,15 @@ class PoultryEggCollection(models.Model):
         if not self.product_tmpl_id:
             return {'columns': [], 'lines': [], 'empty_cells': []}
 
+        def _strip_t_suffix(name):
+            """Quita el sufijo ' T' de los nombres de UoM en el reporte."""
+            if not name:
+                return name
+            s = (name or '').strip()
+            if s.endswith(' T'):
+                return s[:-2].strip()
+            return s
+
         # Obtener nombres de UoM (ordenados por ratio desc: PT, PI, Huevo)
         uom_names = []
         if self.line_ids:
@@ -289,7 +298,7 @@ class PoultryEggCollection(models.Model):
                 reverse=True
             )[:3]
             uom_names = [
-                (uom_val.uom_display_name or (uom_val.uom_id.name if uom_val.uom_id else ''))
+                _strip_t_suffix(uom_val.uom_display_name or (uom_val.uom_id.name if uom_val.uom_id else ''))
                 for uom_val in sorted_uoms
             ]
         else:
@@ -299,14 +308,15 @@ class PoultryEggCollection(models.Model):
             if not variants:
                 return {'columns': [], 'lines': [], 'empty_cells': []}
             uoms = Line._get_poultry_uoms(variants[0])
-            uom_names = [(uom.poultry_display_name or uom.name) or '' for uom in uoms[:3]]
+            uom_names = [_strip_t_suffix((uom.poultry_display_name or uom.name) or '') for uom in uoms[:3]]
 
-        # Columnas: Variante | Inicial UoM1 | Inicial UoM2 | Inicial UoM3 | Bruto UoM1 | Bruto UoM2 | Bruto UoM3
+        # Columnas: Variante | Inicial UoM1 | ... | Bruto UoM1 | ... | Peso medio
         columns = ['Variante del Prod.']
         for name in uom_names:
             columns.append('Inicial ' + name)
         for name in uom_names:
             columns.append('Bruto ' + name)
+        columns.append('Peso medio')
 
         # Filas: una por variante, celdas vacías (sin valores para anotación manual)
         lines = []

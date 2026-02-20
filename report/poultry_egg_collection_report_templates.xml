@@ -6,11 +6,11 @@
                 <t t-call="web.external_layout">
                     <div class="page">
                         <!-- Cabecera: título y referencia (sin logo) -->
-                        <div class="row mb-3" style="border: 2px solid #2c3e50; padding: 15px;">
+                        <div class="row mb-3" style="border: 2px solid #2c3e50; padding: 10px;">
                             <div class="col-9 text-center">
-                                <h2 class="mb-0" style="text-transform: uppercase; font-weight: bold;">
+                                <h4 class="mb-0" style="font-weight: bold;">
                                     Parte diario de Producción
-                                </h2>
+                                </h4>
                             </div>
                             <div class="col-3">
                                 <strong>Referencia:</strong>
@@ -25,7 +25,7 @@
                                 <span t-field="doc.coop_id.name"/>
                             </div>
                             <div class="col-3">
-                                <strong>Producto Base:</strong>
+                                <strong>Producto:</strong>
                                 <span t-field="doc.product_tmpl_id.name"/>
                             </div>
                             <div class="col-3">
@@ -41,7 +41,7 @@
                         <!-- Grilla: columnas como en pantalla, celdas vacías para anotar -->
                         <t t-set="grid_data" t-value="doc._get_report_grid_data()"/>
                         <t t-if="grid_data['columns']">
-                            <table class="table table-bordered table-sm">
+                            <table class="table table-bordered table-sm" style="table-layout: fixed;">
                                 <thead>
                                     <tr>
                                         <t t-foreach="grid_data['columns']" t-as="col">
@@ -51,18 +51,26 @@
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="grid_data['lines']" t-as="row">
-                                        <td><t t-esc="row['variant_name']"/></td>
+                                        <td style="height: 32px; min-height: 32px; max-height: 32px; vertical-align: middle; overflow: hidden;"><t t-esc="row['variant_name']"/></td>
                                         <!-- Celdas vacías para anotación manual -->
                                         <t t-foreach="grid_data.get('empty_cells', [0,1,2,3,4,5])" t-as="i">
-                                            <td style="min-width: 60px;">&#160;</td>
+                                            <td style="min-width: 60px; height: 32px; min-height: 32px; max-height: 32px; vertical-align: middle;">&#160;</td>
                                         </t>
                                     </tr>
                                 </tbody>
                             </table>
                         </t>
                         <t t-else="">
-                            <p class="text-muted">Seleccione un Producto Base y guarde el parte para generar la grilla.</p>
+                            <p class="text-muted">Seleccione un Producto y guarde el parte para generar la grilla.</p>
                         </t>
+
+                        <!-- Observaciones -->
+                        <div class="row mt-3" style="border: 1px solid #dee2e6; padding: 10px;">
+                            <div class="col-12">
+                                <strong>Observaciones:</strong>
+                                <div style="border-bottom: 1px solid #ccc; min-height: 60px; margin-top: 5px;">&#160;</div>
+                            </div>
+                        </div>
                     </div>
                 </t>
             </t>
