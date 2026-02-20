@@ -29,6 +29,12 @@ class PoultryEggCollectionLine(models.Model):
                                          related='collection_id.coop_id',
                                          store=True,
                                          readonly=True)
+
+    # Valor del atributo (ej. Calibre: 1, 2, 3, X, S) para agrupar en pivot
+    attribute_value_id = fields.Many2one('product.attribute.value', string='Valor Atributo',
+                                         compute='_compute_attribute_value_id',
+                                         store=True, readonly=True, index=True,
+                                         help='Valor del atributo principal (ej. Calibre) para agrupar por 1, 2, 3, X, S, etc.')
     
     # Relación con valores de unidades de medida (nuevo sistema dinámico)
     uom_value_ids = fields.One2many('poultry.egg.collection.line.uom', 'line_id',
@@ -143,6 +149,35 @@ class PoultryEggCollectionLine(models.Model):
             line.uom_box_id = box_uom.id if box_uom else False
             line.uom_map_id = map_uom.id if map_uom else False
             line.uom_egg_id = egg_uom.id if egg_uom else False
+
+    @api.depends('product_variant_id')
+    def _compute_attribute_value_id(self):
+        """
+        Obtiene el valor del atributo principal (ej. Calibre) de la variante.
+        Permite agrupar en el pivot por 1, 2, 3, X, S, C, D, etc.
+        """
+        for line in self:
+            if not line.product_variant_id:
+                line.attribute_value_id = False
+                continue
+            variant = line.product_variant_id
+            # product_template_attribute_value_ids contiene los valores que definen esta variante
+            ptavs = getattr(variant, 'product_template_attribute_value_ids', None)
+            if not ptavs:
+                line.attribute_value_id = False
+                continue
+            # Buscar atributo Calibre (o el primero si no existe)
+            calibre_attr = self.env['product.attribute'].search([('name', 'ilike', 'Calibre')], limit=1)
+            if calibre_attr:
+                ptav = ptavs.filtered(
+                    lambda p: p.product_attribute_value_id.attribute_id == calibre_attr
+                )
+                if ptav:
+                    line.attribute_value_id = ptav[0].product_attribute_value_id
+                else:
+                    line.attribute_value_id = ptavs[0].product_attribute_value_id
+            else:
+                line.attribute_value_id = ptavs[0].product_attribute_value_id
     
     @api.model
     def _get_poultry_uoms(self, product_variant):
