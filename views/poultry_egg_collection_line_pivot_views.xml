@@ -10,14 +10,7 @@
                 <field name="collection_coop_id" string="Galpón"/>
                 <field name="product_variant_id" string="Variante"/>
                 <separator/>
-                <filter string="Hoy" name="filter_today"
-                        domain="[('collection_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
-                <filter string="Esta semana" name="filter_this_week"
-                        domain="[('collection_date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d')),
-                                ('collection_date', '&lt;=', (context_today() + datetime.timedelta(days=6-context_today().weekday())).strftime('%Y-%m-%d'))]"/>
-                <filter string="Este mes" name="filter_this_month"
-                        domain="[('collection_date', '&gt;=', context_today().strftime('%Y-%m-01')),
-                                ('collection_date', '&lt;=', ((context_today().replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Fecha" name="filter_date" date="collection_date"/>
             </search>
         </field>
     </record>
