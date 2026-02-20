@@ -311,7 +311,7 @@ class PoultryEggCollection(models.Model):
             uom_names = [_strip_t_suffix((uom.poultry_display_name or uom.name) or '') for uom in uoms[:3]]
 
         # Columnas: Variante | Inicial UoM1 | ... | Bruto UoM1 | ... | Peso medio
-        columns = ['Variante del Prod.']
+        columns = ['Variante']
         for name in uom_names:
             columns.append('Inicial ' + name)
         for name in uom_names:

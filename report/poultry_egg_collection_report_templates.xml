@@ -7,7 +7,7 @@
                     <div class="page">
                         <!-- Cabecera: título y referencia (sin logo) -->
                         <div class="row mb-3" style="border: 2px solid #2c3e50; padding: 10px;">
-                            <div class="col-9 text-center">
+                            <div class="col-9 text-left">
                                 <h4 class="mb-0" style="font-weight: bold;">
                                     Parte diario de Producción
                                 </h4>
@@ -45,7 +45,7 @@
                                 <thead>
                                     <tr>
                                         <t t-foreach="grid_data['columns']" t-as="col">
-                                            <th><t t-esc="col"/></th>
+                                            <th style="font-size: 0.75rem; white-space: nowrap;"><t t-esc="col"/></th>
                                         </t>
                                     </tr>
                                 </thead>
