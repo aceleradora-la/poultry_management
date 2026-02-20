@@ -6,7 +6,7 @@
                 <t t-call="web.external_layout">
                     <div class="page">
                         <!-- Cabecera: título y referencia (sin logo) -->
-                        <div class="row mb-3" style="border: 2px solid #2c3e50; padding: 10px;">
+                        <div class="row mb-3" style="padding: 10px;">
                             <div class="col-9 text-left">
                                 <h4 class="mb-0" style="font-weight: bold;">
                                     Parte diario de Producción
@@ -19,7 +19,7 @@
                         </div>
 
                         <!-- Datos del parte -->
-                        <div class="row mb-3" style="border: 1px solid #dee2e6; padding: 10px;">
+                        <div class="row mb-3" style="padding: 10px;">
                             <div class="col-3">
                                 <strong>Galpón:</strong>
                                 <span t-field="doc.coop_id.name"/>
@@ -45,7 +45,7 @@
                                 <thead>
                                     <tr>
                                         <t t-foreach="grid_data['columns']" t-as="col">
-                                            <th style="font-size: 0.75rem; white-space: nowrap;"><t t-esc="col"/></th>
+                                            <th style="font-size: 0.85rem; font-weight: bold; text-align: center; white-space: nowrap; background: none !important;"><t t-esc="col"/></th>
                                         </t>
                                     </tr>
                                 </thead>
