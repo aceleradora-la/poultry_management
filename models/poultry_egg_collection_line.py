@@ -16,8 +16,8 @@ class PoultryEggCollectionLine(models.Model):
                                      required=True, ondelete='cascade', index=True)
     product_variant_id = fields.Many2one('product.product', string='Variante del Producto', 
                                           required=True, domain="[('type', '=', 'product')]")
-    product_variant_name = fields.Char(string='Variante', related='product_variant_id.name', 
-                                        readonly=True, store=False)
+    product_variant_name = fields.Char(string='Producto', related='product_variant_id.name', 
+                                        readonly=True, store=True)
     
     # Campos relacionados para usar en vistas pivot y reportes
     collection_date = fields.Date(string='Fecha de Recolección', 
@@ -636,6 +636,25 @@ class PoultryEggCollectionLine(models.Model):
         
         return result
     
+    # Campos permitidos para agrupar en la tabla dinámica (pivot)
+    PIVOT_GROUPABLE_FIELDS = {
+        'collection_date',      # Fecha de Recolección
+        'collection_coop_id',   # Galpón
+        'collection_id',        # Recolección
+        'attribute_value_id',   # Valor del Atributo
+        'product_variant_name', # Producto
+        'product_variant_id',   # Variante del Producto
+    }
+
+    @api.model
+    def fields_get(self, allfields=None, attributes=None):
+        res = super().fields_get(allfields=allfields, attributes=attributes)
+        # Ocultar del dropdown de la tabla dinámica los campos no deseados
+        for fname in res:
+            if fname not in self.PIVOT_GROUPABLE_FIELDS:
+                res[fname]['selectable'] = False
+        return res
+
     _sql_constraints = [
         ('unique_collection_variant', 'unique(collection_id, product_variant_id)',
          'Ya existe una línea para esta variante en esta recolección.'),

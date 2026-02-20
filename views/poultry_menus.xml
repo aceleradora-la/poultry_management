@@ -12,18 +12,11 @@
               action="action_poultry_egg_collection" 
               sequence="10"/>
 
-    <!-- Menú: Registro Aves Muertas -->
-    <menuitem id="menu_poultry_mortality" 
-              name="Registro Aves Muertas" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_mortality" 
-              sequence="20"/>
-
     <!-- Menú: Cierres -->
     <menuitem id="menu_poultry_closes" 
               name="Cierres" 
               parent="menu_poultry_management_root" 
-              sequence="25"/>
+              sequence="20"/>
     <menuitem id="menu_poultry_coop_close_wizard" 
               name="Cierre Galpón" 
               parent="menu_poultry_closes" 
@@ -35,17 +28,24 @@
               action="action_poultry_coop_close" 
               sequence="20"/>
 
+    <!-- Menú: Registro Aves Muertas -->
+    <menuitem id="menu_poultry_mortality" 
+              name="Registro de Aves Muertas" 
+              parent="menu_poultry_management_root" 
+              action="action_poultry_mortality" 
+              sequence="30"/>
+
     <!-- Menú: Reportes -->
     <menuitem id="menu_poultry_reports" 
               name="Reportes" 
               parent="menu_poultry_management_root" 
-              sequence="30"/>
+              sequence="40"/>
 
     <!-- Menú: Configuración -->
     <menuitem id="menu_poultry_configuration" 
               name="Configuración" 
               parent="menu_poultry_management_root" 
-              sequence="40"/>
+              sequence="50"/>
 
     <!-- Submenús de Configuración -->
     <menuitem id="menu_poultry_coop" 
