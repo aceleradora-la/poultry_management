@@ -65,10 +65,9 @@
                         </t>
 
                         <!-- Observaciones -->
-                        <div class="row mt-3" style="border: 1px solid #dee2e6; padding: 10px;">
+                        <div class="row mt-3">
                             <div class="col-12">
                                 <strong>Observaciones:</strong>
-                                <div style="border-bottom: 1px solid #ccc; min-height: 60px; margin-top: 5px;">&#160;</div>
                             </div>
                         </div>
                     </div>

@@ -4,6 +4,7 @@ from odoo import models, fields, api
 from odoo.exceptions import ValidationError, UserError
 from markupsafe import Markup
 import logging
+import re
 
 _logger = logging.getLogger(__name__)
 
@@ -282,9 +283,8 @@ class PoultryEggCollection(models.Model):
             if not name:
                 return name
             s = (name or '').strip()
-            if s.endswith(' T'):
-                return s[:-2].strip()
-            return s
+            # Quitar espacio(s) + T al final (ej: "Cajón T", "Maple 30 T")
+            return re.sub(r'\s+T\s*$', '', s, flags=re.IGNORECASE)
 
         # Obtener nombres de UoM (ordenados por ratio desc: PT, PI, Huevo)
         uom_names = []
