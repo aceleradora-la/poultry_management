@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.1.0',
+    'version': '18.0.1.3.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -13,7 +13,7 @@
     """,
     'author': 'aceleradora.la',
     'website': 'https://www.tuempresa.com',
-    'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web'],
+    'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web', 'stock'],
     'assets': {
         # JavaScript dinámico desactivado - usando nombres fijos ahora
         # 'web.assets_backend': [
@@ -37,6 +37,7 @@
         'views/poultry_egg_collection_views.xml',
         'views/poultry_egg_collection_line_views.xml',
         'views/poultry_egg_collection_line_pivot_views.xml',
+        'views/poultry_stock_move_views.xml',
         'views/poultry_coop_close_views.xml',
         'views/poultry_coop_close_wizard_views.xml',
         'views/poultry_mortality_views.xml',

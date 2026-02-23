@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de búsqueda para Movimientos de Productos Avícolas -->
+    <record id="view_poultry_stock_move_search" model="ir.ui.view">
+        <field name="name">poultry.stock.move.search</field>
+        <field name="model">stock.move</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Movimientos">
+                <field name="product_id" string="Producto"/>
+                <field name="reference" string="Referencia"/>
+                <field name="picking_id" string="Transferencia"/>
+                <separator/>
+                <filter string="Productos Avícolas" name="filter_poultry_products"
+                        domain="[('product_id.product_tmpl_id.is_egg_production', '=', True)]"/>
+                <separator/>
+                <filter string="Realizados" name="filter_done" domain="[('state', '=', 'done')]"/>
+                <filter string="Cancelados" name="filter_cancel" domain="[('state', '=', 'cancel')]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Producto" name="group_by_product" context="{'group_by': 'product_id'}"/>
+                    <filter string="Fecha" name="group_by_date" context="{'group_by': 'date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Vista lista para Movimientos de Productos Avícolas -->
+    <record id="view_poultry_stock_move_tree" model="ir.ui.view">
+        <field name="name">poultry.stock.move.tree</field>
+        <field name="model">stock.move</field>
+        <field name="arch" type="xml">
+            <list string="Movimientos de Productos" decoration-muted="state == 'cancel'" decoration-success="quantity_huevos &gt; 0" decoration-danger="quantity_huevos &lt; 0">
+                <field name="date"/>
+                <field name="product_id" string="Producto"/>
+                <field name="product_uom_qty" string="Cantidad"/>
+                <field name="product_uom" string="UdM"/>
+                <field name="quantity_huevos" string="Huevos" sum="Total Huevos"/>
+                <field name="quantity_cajones" string="Cajones" sum="Total Cajones"/>
+                <field name="location_id" string="Origen"/>
+                <field name="location_dest_id" string="Destino"/>
+                <field name="reference" string="Referencia"/>
+                <field name="state" optional="hide"/>
+                <field name="picking_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Vista pivot para Movimientos de Productos Avícolas -->
+    <record id="view_poultry_stock_move_pivot" model="ir.ui.view">
+        <field name="name">poultry.stock.move.pivot</field>
+        <field name="model">stock.move</field>
+        <field name="arch" type="xml">
+            <pivot string="Movimientos de Productos">
+                <field name="date" type="row" interval="day"/>
+                <field name="product_id" type="row"/>
+                <field name="location_id" type="col"/>
+                <field name="quantity_huevos" type="measure" string="Total Huevos"/>
+                <field name="quantity_cajones" type="measure" string="Total Cajones"/>
+            </pivot>
+        </field>
+    </record>
+</odoo>
