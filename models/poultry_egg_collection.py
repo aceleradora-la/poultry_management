@@ -93,13 +93,14 @@ class PoultryEggCollection(models.Model):
 
     # Totales Finales (nuevos)
     total_eggs = fields.Float(string='Total Huevos', compute='_compute_final_totals', store=True,
-                              help='Suma de huevos producidos de todas las variantes')
+                              digits=(16, 2), help='Suma de huevos producidos de todas las variantes')
     total_weight = fields.Float(string='Total Peso (kg)', compute='_compute_final_totals', store=True,
-                                help='Suma del Peso de todas las variantes que contengan Peso Medio')
+                                digits=(16, 2), help='Suma del Peso de todas las variantes que contengan Peso Medio')
     total_boxes = fields.Float(string='Total Cajones', compute='_compute_final_totals', store=True,
-                               help='Total Huevos / 360')
+                               digits=(16, 2), help='Total Huevos / 360')
     average_weight_elaborated = fields.Float(string='Peso Medio Elaborado (g)', 
                                               compute='_compute_final_totals', store=True,
+                                              digits=(16, 2),
                                               help='Peso medio elaborado en gramos: Total de Gramos / Total de Huevos Finales (solo variantes con Peso Medio)')
     
     notes = fields.Text(string='Notas')

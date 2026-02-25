@@ -17,7 +17,7 @@ class PoultryEggCollectionLine(models.Model):
     product_variant_id = fields.Many2one('product.product', string='Variante del Producto', 
                                           required=True, domain="[('type', '=', 'product')]")
     product_variant_name = fields.Char(string='Producto', related='product_variant_id.name', 
-                                        readonly=True, store=True)
+                                        readonly=True)
     
     # Campos relacionados para usar en vistas pivot y reportes
     collection_date = fields.Date(string='Fecha de Recolección', 
@@ -642,8 +642,7 @@ class PoultryEggCollectionLine(models.Model):
         'collection_coop_id',   # Galpón
         'collection_id',        # Recolección
         'attribute_value_id',   # Valor del Atributo
-        'product_variant_name', # Producto
-        'product_variant_id',   # Variante del Producto
+        'product_variant_id',   # Producto (variante)
     }
 
     @api.model
