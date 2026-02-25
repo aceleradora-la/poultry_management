@@ -29,6 +29,7 @@
             'pivot_column_groupby': ['collection_coop_id'],
             'graph_measure': 'total_produced_reference',
             'graph_groupbys': ['collection_date:month', 'collection_coop_id'],
+            'search_default_order': 'collection_date desc',
         }</field>
     </record>
 
