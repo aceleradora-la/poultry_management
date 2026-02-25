@@ -316,7 +316,13 @@ class PoultryEggCollectionLine(models.Model):
         Sobrescribe read_group para calcular average_weight_elaborated_aggregated
         correctamente en las agrupaciones del pivot usando promedio ponderado.
         Siempre calcula desde los registros base para evitar promedios de promedios.
+        Fuerza orden decreciente por collection_date cuando es el primer groupby (pivot).
         """
+        # Pivot: cuando el primer groupby es collection_date, forzar orden desc
+        if groupby and not orderby:
+            first_group = groupby[0] if isinstance(groupby, (list, tuple)) else groupby
+            if isinstance(first_group, str) and first_group.startswith('collection_date'):
+                orderby = 'collection_date desc'
         fields_list = fields or []
         # Remover average_weight_elaborated_aggregated de fields para calcularlo manualmente
         # Esto evita que Odoo use el valor almacenado (que es un promedio simple) y lo agregue incorrectamente
