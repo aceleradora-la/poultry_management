@@ -10,7 +10,7 @@ _logger = logging.getLogger(__name__)
 class PoultryEggCollectionLine(models.Model):
     _name = 'poultry.egg.collection.line'
     _description = 'Línea de Recolección de Producción de Huevos'
-    _order = 'collection_id, product_variant_id'
+    _order = 'collection_date desc, collection_id, product_variant_id'
 
     collection_id = fields.Many2one('poultry.egg.collection', string='Recolección', 
                                      required=True, ondelete='cascade', index=True)

@@ -34,7 +34,7 @@
         <field name="name">poultry.egg.collection.line.pivot</field>
         <field name="model">poultry.egg.collection.line</field>
         <field name="arch" type="xml">
-            <pivot string="Reporte de Producción">
+            <pivot string="Reporte de Producción" default_order="collection_date desc">
                 <field name="collection_date" type="row" interval="day"/>
                 <field name="collection_coop_id" type="col"/>
                 <field name="attribute_value_id" type="row" string="Valor del Atributo"/>
