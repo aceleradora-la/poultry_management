@@ -287,6 +287,14 @@ class PoultryEggCollection(models.Model):
             # Quitar espacio(s) + T al final (ej: "Cajón T", "Maple 30 T")
             return re.sub(r'\s+T\s*$', '', s, flags=re.IGNORECASE)
 
+        def _clean_variant_for_report(name):
+            """
+            Quita la referencia interna al inicio (ej: "[01010100] ")
+            para evitar que la variante se corte en dos líneas en el PDF.
+            """
+            s = (name or '').strip()
+            return re.sub(r'^\[[^\]]+\]\s*', '', s)
+
         # Obtener nombres de UoM (ordenados por ratio desc: PT, PI, Huevo)
         uom_names = []
         if self.line_ids:
@@ -324,14 +332,16 @@ class PoultryEggCollection(models.Model):
         lines = []
         if self.line_ids:
             for line in self.line_ids:
-                variant_name = line.product_variant_id.display_name if line.product_variant_id else ''
+                variant_name = _clean_variant_for_report(
+                    line.product_variant_id.display_name if line.product_variant_id else ''
+                )
                 lines.append({'variant_name': variant_name})
         else:
             variants = self.product_tmpl_id.product_variant_ids
             if not variants and self.product_tmpl_id.product_variant_id:
                 variants = self.product_tmpl_id.product_variant_id
             for v in variants:
-                lines.append({'variant_name': v.display_name})
+                lines.append({'variant_name': _clean_variant_for_report(v.display_name)})
 
         # Lista para iterar celdas vacías (para anotación manual)
         empty_cells = list(range(len(columns) - 1))  # Todas menos Variante

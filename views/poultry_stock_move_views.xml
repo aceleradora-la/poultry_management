@@ -28,10 +28,10 @@
         <field name="name">poultry.stock.move.tree</field>
         <field name="model">stock.move</field>
         <field name="arch" type="xml">
-            <list string="Movimientos de Productos" decoration-muted="state == 'cancel'" decoration-success="quantity_huevos &gt; 0" decoration-danger="quantity_huevos &lt; 0">
+            <list string="Movimientos de Productos" default_order="date desc" decoration-muted="state == 'cancel'" decoration-success="quantity_huevos &gt; 0" decoration-danger="quantity_huevos &lt; 0">
                 <field name="date"/>
                 <field name="product_id" string="Producto"/>
-                <field name="product_uom_qty" string="Cantidad"/>
+                <field name="quantity" string="Cantidad"/>
                 <field name="product_uom" string="UdM"/>
                 <field name="quantity_huevos" string="Huevos" sum="Total Huevos"/>
                 <field name="quantity_cajones" string="Cajones" sum="Total Cajones"/>
