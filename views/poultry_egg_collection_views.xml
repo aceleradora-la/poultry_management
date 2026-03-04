@@ -111,6 +111,7 @@
                                     <!-- Mantener variante interna oculta para preservar lógica y unicidad -->
                                     <field name="product_variant_id" 
                                            invisible="1"
+                                           column_invisible="1"
                                            readonly="1"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
                                     <!-- Mostrar solo el valor del atributo (ej. 1, 2, 3, X, S) -->

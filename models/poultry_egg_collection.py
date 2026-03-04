@@ -288,23 +288,8 @@ class PoultryEggCollection(models.Model):
             return re.sub(r'\s+T\s*$', '', s, flags=re.IGNORECASE)
 
         def _get_attribute_value_label(variant):
-            """
-            Obtiene el valor del atributo principal (ej. Calibre) para mostrar
-            en el parte impreso, alineado con la grilla de carga.
-            """
-            if not variant:
-                return ''
-
-            ptavs = getattr(variant, 'product_template_attribute_value_ids', None)
-            if not ptavs:
-                return ''
-
-            calibre_attr = self.env['product.attribute'].search([('name', 'ilike', 'Calibre')], limit=1)
-            if calibre_attr:
-                ptav = ptavs.filtered(lambda p: p.product_attribute_value_id.attribute_id == calibre_attr)
-                if ptav:
-                    return (ptav[0].product_attribute_value_id.name or '').strip()
-            return (ptavs[0].product_attribute_value_id.name or '').strip()
+            attr_value = Line._get_main_attribute_value_from_variant(variant)
+            return (attr_value.name or '').strip() if attr_value else ''
 
         # Obtener nombres de UoM (ordenados por ratio desc: PT, PI, Huevo)
         uom_names = []
@@ -332,7 +317,7 @@ class PoultryEggCollection(models.Model):
 
         # Columnas: Variante | Inicial UoM1 | ... | Bruto UoM1 | ... | PESO MEDIO
         # Inicial y Bruto en mixed case, nombres UoM y PESO MEDIO en mayúsculas
-        columns = ['Valor del Atributo']
+        columns = [Line._get_attribute_column_label(collection_id=self.id)]
         for name in uom_names:
             columns.append('Inicial ' + (name or '').upper())
         for name in uom_names:

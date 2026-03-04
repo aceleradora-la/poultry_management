@@ -38,7 +38,6 @@ class PoultryEggCollectionLine(models.Model):
     attribute_value_name = fields.Char(
         string='Valor del Atributo',
         compute='_compute_attribute_value_name',
-        store=True,
         readonly=True,
         help='Texto corto del valor del atributo para mostrar en líneas del parte.'
     )
@@ -167,24 +166,7 @@ class PoultryEggCollectionLine(models.Model):
             if not line.product_variant_id:
                 line.attribute_value_id = False
                 continue
-            variant = line.product_variant_id
-            # product_template_attribute_value_ids contiene los valores que definen esta variante
-            ptavs = getattr(variant, 'product_template_attribute_value_ids', None)
-            if not ptavs:
-                line.attribute_value_id = False
-                continue
-            # Buscar atributo Calibre (o el primero si no existe)
-            calibre_attr = self.env['product.attribute'].search([('name', 'ilike', 'Calibre')], limit=1)
-            if calibre_attr:
-                ptav = ptavs.filtered(
-                    lambda p: p.product_attribute_value_id.attribute_id == calibre_attr
-                )
-                if ptav:
-                    line.attribute_value_id = ptav[0].product_attribute_value_id
-                else:
-                    line.attribute_value_id = ptavs[0].product_attribute_value_id
-            else:
-                line.attribute_value_id = ptavs[0].product_attribute_value_id
+            line.attribute_value_id = self._get_main_attribute_value_from_variant(line.product_variant_id)
 
     @api.depends('attribute_value_id')
     def _compute_attribute_value_name(self):
@@ -194,6 +176,40 @@ class PoultryEggCollectionLine(models.Model):
         """
         for line in self:
             line.attribute_value_name = line.attribute_value_id.name if line.attribute_value_id else False
+
+    @api.model
+    def _get_main_attribute_value_from_variant(self, variant):
+        """
+        Retorna el valor principal del atributo para una variante.
+        Prioriza atributo 'Calibre' y, si no existe, usa el primer atributo disponible.
+        """
+        if not variant:
+            return False
+        ptavs = getattr(variant, 'product_template_attribute_value_ids', None)
+        if not ptavs:
+            return False
+
+        calibre_attr = self.env['product.attribute'].search([('name', 'ilike', 'Calibre')], limit=1)
+        if calibre_attr:
+            ptav = ptavs.filtered(lambda p: p.product_attribute_value_id.attribute_id == calibre_attr)
+            if ptav:
+                return ptav[0].product_attribute_value_id
+        return ptavs[0].product_attribute_value_id
+
+    @api.model
+    def _get_attribute_column_label(self, collection_id=False):
+        """
+        Retorna el nombre del atributo usado para la columna (ej. 'Calibre').
+        """
+        collection = self.env['poultry.egg.collection'].browse(collection_id) if collection_id else self.env['poultry.egg.collection']
+        variant = False
+        if collection_id and collection.exists():
+            variant = (collection.line_ids[:1].product_variant_id or collection.product_tmpl_id.product_variant_ids[:1])
+        if variant:
+            attr_value = self._get_main_attribute_value_from_variant(variant)
+            if attr_value and attr_value.attribute_id:
+                return attr_value.attribute_id.name
+        return 'Valor del Atributo'
     
     @api.model
     def _get_poultry_uoms(self, product_variant):
@@ -670,6 +686,12 @@ class PoultryEggCollectionLine(models.Model):
     @api.model
     def fields_get(self, allfields=None, attributes=None):
         res = super().fields_get(allfields=allfields, attributes=attributes)
+        if 'attribute_value_name' in res:
+            ctx = self.env.context or {}
+            collection_id = ctx.get('default_collection_id')
+            if not collection_id and ctx.get('active_model') == 'poultry.egg.collection':
+                collection_id = ctx.get('active_id')
+            res['attribute_value_name']['string'] = self._get_attribute_column_label(collection_id=collection_id)
         # Ocultar del dropdown de la tabla dinámica los campos no deseados
         for fname in res:
             if fname not in self.PIVOT_GROUPABLE_FIELDS:
