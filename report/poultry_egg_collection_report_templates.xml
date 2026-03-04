@@ -49,7 +49,7 @@
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="grid_data['lines']" t-as="row">
-                                        <td style="height: 32px; min-height: 32px; max-height: 32px; vertical-align: middle; overflow: hidden; border-color: #dee2e6 !important;"><t t-esc="row['variant_name']"/></td>
+                                        <td style="height: 32px; min-height: 32px; max-height: 32px; vertical-align: middle; text-align: center; overflow: hidden; border-color: #dee2e6 !important;"><t t-esc="row['variant_name']"/></td>
                                         <!-- Celdas vacías para anotación manual -->
                                         <t t-foreach="grid_data.get('empty_cells', [0,1,2,3,4,5])" t-as="i">
                                             <td style="min-width: 60px; height: 32px; min-height: 32px; max-height: 32px; vertical-align: middle; border-color: #dee2e6 !important;">&#160;</td>

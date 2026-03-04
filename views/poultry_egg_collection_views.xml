@@ -117,6 +117,7 @@
                                     <!-- Mostrar solo el valor del atributo (ej. 1, 2, 3, X, S) -->
                                     <field name="attribute_value_name"
                                            string="Valor del Atributo"
+                                           width="160"
                                            readonly="1"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
 
