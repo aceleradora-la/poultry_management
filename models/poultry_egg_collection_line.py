@@ -35,6 +35,13 @@ class PoultryEggCollectionLine(models.Model):
                                          compute='_compute_attribute_value_id',
                                          store=True, readonly=True, index=True,
                                          help='Valor del atributo principal (ej. Calibre) para agrupar por 1, 2, 3, X, S, etc.')
+    attribute_value_name = fields.Char(
+        string='Valor del Atributo',
+        compute='_compute_attribute_value_name',
+        store=True,
+        readonly=True,
+        help='Texto corto del valor del atributo para mostrar en líneas del parte.'
+    )
     
     # Relación con valores de unidades de medida (nuevo sistema dinámico)
     uom_value_ids = fields.One2many('poultry.egg.collection.line.uom', 'line_id',
@@ -178,6 +185,15 @@ class PoultryEggCollectionLine(models.Model):
                     line.attribute_value_id = ptavs[0].product_attribute_value_id
             else:
                 line.attribute_value_id = ptavs[0].product_attribute_value_id
+
+    @api.depends('attribute_value_id')
+    def _compute_attribute_value_name(self):
+        """
+        Campo de presentación para mostrar solo el valor del atributo
+        (ej. 1, 2, 3, X, S) en las líneas del parte.
+        """
+        for line in self:
+            line.attribute_value_name = line.attribute_value_id.name if line.attribute_value_id else False
     
     @api.model
     def _get_poultry_uoms(self, product_variant):

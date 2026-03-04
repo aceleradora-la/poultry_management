@@ -287,13 +287,24 @@ class PoultryEggCollection(models.Model):
             # Quitar espacio(s) + T al final (ej: "Cajón T", "Maple 30 T")
             return re.sub(r'\s+T\s*$', '', s, flags=re.IGNORECASE)
 
-        def _clean_variant_for_report(name):
+        def _get_attribute_value_label(variant):
             """
-            Quita la referencia interna al inicio (ej: "[01010100] ")
-            para evitar que la variante se corte en dos líneas en el PDF.
+            Obtiene el valor del atributo principal (ej. Calibre) para mostrar
+            en el parte impreso, alineado con la grilla de carga.
             """
-            s = (name or '').strip()
-            return re.sub(r'^\[[^\]]+\]\s*', '', s)
+            if not variant:
+                return ''
+
+            ptavs = getattr(variant, 'product_template_attribute_value_ids', None)
+            if not ptavs:
+                return ''
+
+            calibre_attr = self.env['product.attribute'].search([('name', 'ilike', 'Calibre')], limit=1)
+            if calibre_attr:
+                ptav = ptavs.filtered(lambda p: p.product_attribute_value_id.attribute_id == calibre_attr)
+                if ptav:
+                    return (ptav[0].product_attribute_value_id.name or '').strip()
+            return (ptavs[0].product_attribute_value_id.name or '').strip()
 
         # Obtener nombres de UoM (ordenados por ratio desc: PT, PI, Huevo)
         uom_names = []
@@ -321,7 +332,7 @@ class PoultryEggCollection(models.Model):
 
         # Columnas: Variante | Inicial UoM1 | ... | Bruto UoM1 | ... | PESO MEDIO
         # Inicial y Bruto en mixed case, nombres UoM y PESO MEDIO en mayúsculas
-        columns = ['Variante']
+        columns = ['Valor del Atributo']
         for name in uom_names:
             columns.append('Inicial ' + (name or '').upper())
         for name in uom_names:
@@ -332,16 +343,13 @@ class PoultryEggCollection(models.Model):
         lines = []
         if self.line_ids:
             for line in self.line_ids:
-                variant_name = _clean_variant_for_report(
-                    line.product_variant_id.display_name if line.product_variant_id else ''
-                )
-                lines.append({'variant_name': variant_name})
+                lines.append({'variant_name': (line.attribute_value_name or '').strip()})
         else:
             variants = self.product_tmpl_id.product_variant_ids
             if not variants and self.product_tmpl_id.product_variant_id:
                 variants = self.product_tmpl_id.product_variant_id
             for v in variants:
-                lines.append({'variant_name': _clean_variant_for_report(v.display_name)})
+                lines.append({'variant_name': _get_attribute_value_label(v)})
 
         # Lista para iterar celdas vacías (para anotación manual)
         empty_cells = list(range(len(columns) - 1))  # Todas menos Variante

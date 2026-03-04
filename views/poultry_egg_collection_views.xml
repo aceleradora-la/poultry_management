@@ -108,11 +108,17 @@
                                    context="{'default_collection_id': id}">
                                 <list string="Líneas de Recolección" editable="bottom" 
                                       column_invisible="parent.state == 'draft'">
-                                    <!-- Variante de producto: editable solo al crear (cuando id es False) -->
+                                    <!-- Mantener variante interna oculta para preservar lógica y unicidad -->
                                     <field name="product_variant_id" 
-                                           readonly="id"
+                                           invisible="1"
+                                           readonly="1"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
-                                    
+                                    <!-- Mostrar solo el valor del atributo (ej. 1, 2, 3, X, S) -->
+                                    <field name="attribute_value_name"
+                                           string="Valor del Atributo"
+                                           readonly="1"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+
                     <!-- Columnas Iniciales: editables solo en Inicio (draft), ocultas en Bruto, visibles en Completada/Procesada -->
                     <field name="initial_box" 
                                            readonly="parent.state != 'draft'"
