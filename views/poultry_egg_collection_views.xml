@@ -106,13 +106,14 @@
                         <page string="Líneas de Recolección" name="lines">
                             <field name="line_ids" nolabel="1" readonly="state == 'done'" 
                                    context="{'default_collection_id': id}">
-                                <list string="Líneas de Recolección" editable="bottom" 
+                                <list string="Líneas de Recolección" editable="bottom"
                                       column_invisible="parent.state == 'draft'">
                                     <!-- Mantener variante interna oculta para preservar lógica y unicidad -->
                                     <field name="product_variant_id" 
                                            invisible="1"
                                            column_invisible="1"
                                            readonly="1"
+                                           force_save="1"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
                                     <!-- Mostrar solo el valor del atributo (ej. 1, 2, 3, X, S) -->
                                     <field name="attribute_value_name"
