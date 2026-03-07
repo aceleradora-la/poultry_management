@@ -129,7 +129,7 @@ class PoultryCoopClose(models.Model):
             return False
 
         total_eggs = 0.0
-        for collection in self.egg_collection_ids:
+        for collection in self.egg_collection_ids.filtered(lambda c: c.state == 'done'):
             for line in collection.line_ids:
                 if hasattr(line, 'total_produced_reference'):
                     total_eggs += line.total_produced_reference or 0.0
