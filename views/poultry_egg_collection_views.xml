@@ -240,6 +240,7 @@
                 <field name="coop_id" type="col"/>
                 <field name="total_eggs" type="measure"/>
                 <field name="total_weight" type="measure"/>
+                <field name="total_weight_estimated" type="measure"/>
                 <field name="total_boxes" type="measure"/>
             </pivot>
         </field>
