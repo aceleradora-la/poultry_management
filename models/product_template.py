@@ -12,3 +12,13 @@ class ProductTemplate(models.Model):
         help='Marque este campo si este producto se utiliza en el proceso de producción de huevos.'
     )
 
+    poultry_validate_kit_consumption = fields.Boolean(
+        string='Validar consumo KIT = producción',
+        default=False,
+        help=(
+            'Si está activo, al finalizar una Orden de Fabricación se valida que la suma de las '
+            'cantidades consumidas de sus componentes (convertidas a la UdM del producto final) '
+            'sea igual a la cantidad producida.'
+        ),
+    )
+

@@ -15,6 +15,12 @@
                            help="Marque este campo si este producto se utiliza en el proceso de producción de huevos."/>
                     <label for="is_egg_production"/>
                 </div>
+                <div class="o_row">
+                    <field name="poultry_validate_kit_consumption"
+                           string="Validar consumo KIT = producción"
+                           help="Al finalizar una OF, valida que la suma consumida de componentes sea igual a la cantidad producida (en la misma UdM)."/>
+                    <label for="poultry_validate_kit_consumption"/>
+                </div>
             </xpath>
         </field>
     </record>
