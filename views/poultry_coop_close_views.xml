@@ -58,7 +58,7 @@
                                     <field name="name"/>
                                     <field name="date"/>
                                     <field name="product_tmpl_id"/>
-                                    <field name="total_eggs"/>
+                                    <field name="total_eggs" sum="Total Huevos"/>
                                     <field name="state" widget="badge"/>
                                 </list>
                             </field>

@@ -94,8 +94,15 @@ class PoultryEggCollection(models.Model):
     # Totales Finales (nuevos)
     total_eggs = fields.Float(string='Total Huevos', compute='_compute_final_totals', store=True,
                               digits=(16, 2), help='Suma de huevos producidos de todas las variantes')
-    total_weight = fields.Float(string='Total Peso (kg)', compute='_compute_final_totals', store=True,
+    total_weight = fields.Float(string='Total Peso Medido (Kg)', compute='_compute_final_totals', store=True,
                                 digits=(16, 2), help='Suma del Peso de todas las variantes que contengan Peso Medio')
+    total_weight_estimated = fields.Float(
+        string='Total Peso Estimado (Kg)',
+        compute='_compute_final_totals',
+        store=True,
+        digits=(16, 2),
+        help='Total Huevos * Peso Medio Elaborado (g) / 1000'
+    )
     total_boxes = fields.Float(string='Total Cajones', compute='_compute_final_totals', store=True,
                                digits=(16, 2), help='Total Huevos / 360')
     average_weight_elaborated = fields.Float(string='Peso Medio Elaborado (g)', 
@@ -232,7 +239,7 @@ class PoultryEggCollection(models.Model):
     @api.depends('line_ids', 'line_ids.total_produced_reference',
                  'line_ids.average_weight')
     def _compute_final_totals(self):
-        """Calcula los totales finales: Total Huevos, Total Peso, Total Cajones, Peso Medio Elaborado"""
+        """Calcula los totales finales: Total Huevos, Total Peso Medido/Estimado, Total Cajones, Peso Medio Elaborado"""
         for collection in self:
             # Total Huevos: suma de total_produced_reference de todas las variantes
             collection.total_eggs = sum(collection.line_ids.mapped('total_produced_reference') or [0.0])
@@ -254,6 +261,12 @@ class PoultryEggCollection(models.Model):
                 collection.average_weight_elaborated = total_weight_grams / total_eggs_with_weight
             else:
                 collection.average_weight_elaborated = 0.0
+
+            # Total Peso Estimado (kg): Total Huevos * Peso Medio Elaborado (g) / 1000
+            if collection.total_eggs and collection.average_weight_elaborated:
+                collection.total_weight_estimated = (collection.total_eggs * collection.average_weight_elaborated) / 1000.0
+            else:
+                collection.total_weight_estimated = 0.0
             
             # Total Cajones: Total Huevos / 360
             if collection.total_eggs > 0:

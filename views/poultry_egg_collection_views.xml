@@ -101,8 +101,10 @@
                             <group string="Totales Finales" invisible="state == 'draft' or state == 'counted'">
                                 <label for="total_eggs" string="Total Huevos"/>
                                 <field name="total_eggs" readonly="1" nolabel="1"/>
-                                <label for="total_weight" string="Total Peso (kg)"/>
+                                <label for="total_weight" string="Total Peso Medido (Kg)"/>
                                 <field name="total_weight" readonly="1" nolabel="1"/>
+                                <label for="total_weight_estimated" string="Total Peso Estimado (Kg)"/>
+                                <field name="total_weight_estimated" readonly="1" nolabel="1"/>
                                 <label for="average_weight_elaborated" string="Peso Medio Elaborado (g)"/>
                                 <field name="average_weight_elaborated" readonly="1" nolabel="1"/>
                                 <label for="total_boxes" string="Total Cajones"/>

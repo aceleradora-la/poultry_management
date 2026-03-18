@@ -17,7 +17,7 @@
                 </div>
                 <div class="o_row">
                     <field name="poultry_validate_kit_consumption"
-                           string="Validar consumo KIT = producción"
+                           string="Mix Producto Avicola"
                            help="Al finalizar una OF, valida que la suma consumida de componentes sea igual a la cantidad producida (en la misma UdM)."/>
                     <label for="poultry_validate_kit_consumption"/>
                 </div>

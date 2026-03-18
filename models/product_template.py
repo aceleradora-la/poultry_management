@@ -13,7 +13,7 @@ class ProductTemplate(models.Model):
     )
 
     poultry_validate_kit_consumption = fields.Boolean(
-        string='Validar consumo KIT = producción',
+        string='Mix Producto Avicola',
         default=False,
         help=(
             'Si está activo, al finalizar una Orden de Fabricación se valida que la suma de las '
