@@ -467,6 +467,14 @@ class PoultryEggCollection(models.Model):
     
     def write(self, vals):
         """Actualiza product_variant_name cuando cambia product_tmpl_id"""
+        if vals.get('state') == 'cancel':
+            blocked = self.filtered(lambda r: r.coop_close_id and r.coop_close_id.state != 'cancel')
+            if blocked:
+                close = blocked[0].coop_close_id
+                raise UserError(
+                    f'No se puede cancelar un parte incluido en el cierre {close.name}. '
+                    'Primero cancele el cierre para desvincular los partes.'
+                )
         result = super().write(vals)
         if 'product_tmpl_id' in vals:
             self._compute_product_variant_name()
@@ -584,6 +592,12 @@ class PoultryEggCollection(models.Model):
         if self.state != 'done':
             raise UserError('Solo se puede cancelar un parte en estado Procesada.')
 
+        if self.coop_close_id and self.coop_close_id.state != 'cancel':
+            raise UserError(
+                f'No se puede cancelar un parte incluido en el cierre {self.coop_close_id.name}. '
+                'Primero cancele el cierre para desvincular los partes.'
+            )
+
         if not self.production_ids:
             raise UserError('No hay Órdenes de Fabricación asociadas para cancelar/desmantelar.')
 
@@ -678,6 +692,20 @@ class PoultryEggCollection(models.Model):
         self.message_post(body=Markup("").join(parts))
 
         return True
+
+    def action_view_coop_close(self):
+        """Abre el cierre de galpón vinculado (si existe)"""
+        self.ensure_one()
+        if not self.coop_close_id:
+            raise UserError('Este parte no tiene un cierre vinculado.')
+        return {
+            'name': 'Cierre de Galpón',
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.coop.close',
+            'res_id': self.coop_close_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
     
     def action_generate_productions(self):
         """Genera automáticamente las Órdenes de Fabricación para todas las unidades producidas"""

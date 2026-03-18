@@ -10,6 +10,7 @@
                   default_order="date desc">
                 <field name="name"/>
                 <field name="coop_id"/>
+                <field name="coop_close_id" string="Cierre"/>
                 <field name="product_id"/>
                 <field name="date"/>
                 <field name="total_eggs"/>
@@ -63,6 +64,12 @@
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
+                        <button name="action_view_coop_close" type="object" class="oe_stat_button"
+                                icon="fa-lock" invisible="not coop_close_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Cierre</span>
+                            </div>
+                        </button>
                         <button name="action_view_productions" type="object" class="oe_stat_button" 
                                 icon="fa-industry" invisible="production_count == 0">
                             <field name="production_count" widget="statinfo" string="Órdenes de Fabricación"/>
@@ -85,6 +92,7 @@
                                    context="{'default_type': 'product', 'default_is_egg_production': True, 'search_default_active': 1}"
                                    readonly="state != 'draft'"
                                    placeholder="Seleccione un producto base. Se cargarán todas sus variantes en las líneas"/>
+                            <field name="coop_close_id" readonly="1" invisible="not coop_close_id"/>
                             <field name="date" readonly="state != 'draft'"/>
                             <field name="operator_id" options="{'no_create': True}" 
                                    readonly="state == 'done'"/>
