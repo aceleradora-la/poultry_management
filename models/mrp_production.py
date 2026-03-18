@@ -36,6 +36,12 @@ class MrpProduction(models.Model):
                                 self._onchange_bom_id()
                             except:
                                 pass
+                        # Alternativamente, actualizar manualmente los componentes
+                        elif hasattr(self, '_onchange_product_id') and self.bom_id:
+                            try:
+                                self._onchange_product_id()
+                            except:
+                                pass
 
     def _poultry_get_finished_qty_for_validation(self):
         """
@@ -84,10 +90,4 @@ class MrpProduction(models.Model):
             if tmpl and getattr(tmpl, 'poultry_validate_kit_consumption', False):
                 mo._poultry_validate_kit_consumption_equals_finished()
         return super().button_mark_done()
-                        # Alternativamente, actualizar manualmente los componentes
-                        elif hasattr(self, '_onchange_product_id') and self.bom_id:
-                            try:
-                                self._onchange_product_id()
-                            except:
-                                pass
 
