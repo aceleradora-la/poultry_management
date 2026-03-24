@@ -659,9 +659,16 @@ class PoultryEggCollection(models.Model):
                     unbuild_vals['company_id'] = production.company_id.id
 
                 unbuild_rec = Unbuild.create(unbuild_vals)
-                # Validar desmantelado
-                if hasattr(unbuild_rec, 'action_validate'):
-                    unbuild_rec.action_validate()
+                # action_unbuild ejecuta el desmantelado y pasa a hecho.
+                # action_validate solo comprueba stock y puede devolver un wizard sin validar;
+                # al cancelar el parte desde aquí forzamos el mismo flujo que Cierre de Galpón
+                # (permite consumir sin stock previo del terminado según reglas de stock de la compañía).
+                if hasattr(unbuild_rec, 'action_unbuild'):
+                    unbuild_rec.action_unbuild()
+                elif hasattr(unbuild_rec, 'action_validate'):
+                    res = unbuild_rec.action_validate()
+                    if isinstance(res, dict):
+                        unbuild_rec.action_unbuild()
                 elif hasattr(unbuild_rec, 'button_validate'):
                     unbuild_rec.button_validate()
                 else:
