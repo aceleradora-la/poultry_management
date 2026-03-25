@@ -13,6 +13,16 @@
                 <filter string="Hoy" name="filter_today"
                         domain="[('collection_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
                 <filter string="Fecha" name="filter_date" date="collection_date"/>
+                <separator/>
+                <!-- Estado del parte: el dominio de la acción ya limita a completada/procesada; estos filtros acotan más. -->
+                <group string="Estado del parte" expand="0">
+                    <filter string="Solo Procesada" name="part_state_done"
+                            domain="[('collection_id.state', '=', 'done')]"/>
+                    <filter string="Solo Completada" name="part_state_completed"
+                            domain="[('collection_id.state', '=', 'completed')]"/>
+                    <filter string="Procesada y Completada" name="part_state_both"
+                            domain="[('collection_id.state', 'in', ['completed', 'done'])]"/>
+                </group>
             </search>
         </field>
     </record>
