@@ -30,7 +30,9 @@ class PoultryCoop(models.Model):
     # Relación con listas de materiales (BOM)
     coop_bom_ids = fields.One2many('poultry.coop.bom', 'coop_id', string='Historial de Listas de Materiales')
     active_bom_id = fields.Many2one('poultry.coop.bom', string='Lista de Materiales Activa', 
-                                     compute='_compute_active_bom', store=True)
+                                     compute='_compute_active_bom', search='_search_active_bom_id')
+    active_bom_name = fields.Char(string='Lista de Materiales Activa',
+                                  compute='_compute_active_bom')
     active_bom_start_date = fields.Date(string='Fecha Inicio Lista Activa', 
                                          related='active_bom_id.start_date', readonly=True)
     
@@ -105,10 +107,36 @@ class PoultryCoop(models.Model):
         """Obtiene la lista activa del galpón válida para hoy."""
         today = fields.Date.context_today(self)
         for coop in self:
-            active_bom = coop.coop_bom_ids.filtered(
-                lambda b: b.active and b.start_date and b.start_date <= today and (not b.end_date or b.end_date >= today)
-            ).sorted(key=lambda b: (b.start_date, b._origin.id or 0), reverse=True)
-            coop.active_bom_id = active_bom[0] if active_bom else False
+            active_bom = self.env['poultry.coop.bom'].get_active_bom_for_coop_date(coop.id, today)
+            coop.active_bom_id = active_bom
+            coop.active_bom_name = active_bom.bom_id.display_name if active_bom and active_bom.bom_id else False
+
+    def _search_active_bom_id(self, operator, value):
+        """Permite filtrar por existencia de lista activa vigente a la fecha de hoy."""
+        if operator not in ('=', '!='):
+            return [('id', '!=', 0)]
+
+        today = fields.Date.context_today(self)
+        active_coop_ids = self.env['poultry.coop.bom'].search([
+            ('active', '=', True),
+            ('start_date', '<=', today),
+            '|',
+            ('end_date', '=', False),
+            ('end_date', '>=', today),
+        ]).mapped('coop_id').ids
+
+        if value in (False, None):
+            if operator == '=':
+                return [('id', 'not in', active_coop_ids)]
+            return [('id', 'in', active_coop_ids)]
+
+        bom = self.env['poultry.coop.bom'].browse(value)
+        coop_ids = bom.filtered(
+            lambda b: b.active and b.start_date and b.start_date <= today and (not b.end_date or b.end_date >= today)
+        ).mapped('coop_id').ids
+        if operator == '=':
+            return [('id', 'in', coop_ids)]
+        return [('id', 'not in', coop_ids)]
     
     @api.constrains('capacity', 'current_birds_count')
     def _check_capacity(self):

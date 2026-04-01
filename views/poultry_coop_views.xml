@@ -14,7 +14,7 @@
                 <field name="current_birds_count"/>
                 <field name="occupancy_percentage" widget="percentage"/>
                 <field name="batch_count"/>
-                <field name="active_bom_id" invisible="1"/>
+                <field name="active_bom_name"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
@@ -52,8 +52,9 @@
                         <group>
                             <field name="current_birds_count" readonly="1"/>
                             <field name="occupancy_percentage" widget="percentage" readonly="1"/>
-                            <field name="active_bom_id" readonly="1" 
-                                   invisible="not active_bom_id"/>
+                            <field name="active_bom_id" invisible="1"/>
+                            <field name="active_bom_name" readonly="1" 
+                                   invisible="not active_bom_name"/>
                             <field name="active_bom_start_date" readonly="1"
                                    invisible="not active_bom_id"/>
                             <field name="sequence_prefix" 
