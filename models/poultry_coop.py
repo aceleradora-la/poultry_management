@@ -107,7 +107,7 @@ class PoultryCoop(models.Model):
         for coop in self:
             active_bom = coop.coop_bom_ids.filtered(
                 lambda b: b.active and b.start_date and b.start_date <= today and (not b.end_date or b.end_date >= today)
-            ).sorted(key=lambda b: (b.start_date, b.id), reverse=True)
+            ).sorted(key=lambda b: (b.start_date, b._origin.id or 0), reverse=True)
             coop.active_bom_id = active_bom[0] if active_bom else False
     
     @api.constrains('capacity', 'current_birds_count')

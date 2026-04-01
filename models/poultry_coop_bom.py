@@ -28,6 +28,42 @@ class PoultryCoopBom(models.Model):
     
     # Notas
     notes = fields.Text(string='Notas')
+
+    def _get_overlap_record(self, records):
+        """Retorna un registro activo que se solape con self, si existe."""
+        self.ensure_one()
+        this_end = self.end_date or pydate.max
+        for other in records:
+            if other == self:
+                continue
+            if not other.active or not other.start_date:
+                continue
+            if other.coop_id != self.coop_id:
+                continue
+            other_end = other.end_date or pydate.max
+            if self.start_date <= other_end and other.start_date <= this_end:
+                return other
+        return self.browse()
+
+    def _range_label(self):
+        """Texto legible del rango de vigencia para mensajes de validación."""
+        self.ensure_one()
+        end_date = self.end_date or 'sin fin'
+        return f'{self.start_date} -> {end_date}'
+
+    @api.onchange('coop_id', 'active', 'start_date', 'end_date')
+    def _onchange_validate_active_bom_overlap(self):
+        """Valida en edición que no exista solapamiento activo para el galpón."""
+        for coop_bom in self:
+            if not (coop_bom.active and coop_bom.coop_id and coop_bom.start_date):
+                continue
+            overlap = coop_bom._get_overlap_record(coop_bom.coop_id.coop_bom_ids)
+            if overlap:
+                raise ValidationError(
+                    'Ya existe una lista activa superpuesta para este galpón.\n'
+                    f'Rango existente: {overlap._range_label()}\n'
+                    f'Rango ingresado: {coop_bom._range_label()}'
+                )
     
     @api.constrains('coop_id', 'active', 'start_date', 'end_date')
     def _check_active_bom_date_overlap(self):
@@ -38,15 +74,13 @@ class PoultryCoopBom(models.Model):
                 ('active', '=', True),
                 ('id', '!=', coop_bom.id),
             ])
-            for other in other_active:
-                this_end = coop_bom.end_date or pydate.max
-                other_end = other.end_date or pydate.max
-                # Hay intersección si ambos intervalos se pisan al menos un día.
-                if coop_bom.start_date <= other_end and other.start_date <= this_end:
-                    raise ValidationError(
-                        'No se puede tener dos listas activas con rangos de fechas superpuestos '
-                        f'para el galpón {coop_bom.coop_id.display_name}.'
-                    )
+            overlap = coop_bom._get_overlap_record(other_active)
+            if overlap:
+                raise ValidationError(
+                    'No se puede tener dos listas activas con rangos de fechas superpuestos '
+                    f'para el galpón {coop_bom.coop_id.display_name}. '
+                    f'Rango existente: {overlap._range_label()}.'
+                )
     
     @api.constrains('start_date', 'end_date')
     def _check_dates(self):
