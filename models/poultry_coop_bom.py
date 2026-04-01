@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from datetime import date as pydate
+from datetime import date as pydate, timedelta
 
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
@@ -28,6 +28,37 @@ class PoultryCoopBom(models.Model):
     
     # Notas
     notes = fields.Text(string='Notas')
+
+    def _is_overlap_auto_closable(self, other):
+        """Indica si el solapamiento puede resolverse cerrando la lista abierta previa."""
+        self.ensure_one()
+        return bool(
+            other
+            and other.active
+            and not other.end_date
+            and other.start_date
+            and self.start_date
+            and other.start_date < self.start_date
+        )
+
+    @api.model
+    def _auto_close_previous_open_active(self, coop_id, start_date, exclude_id=False):
+        """Cierra (fecha fin) la lista activa abierta previa del galpón."""
+        if not coop_id or not start_date:
+            return
+        if isinstance(start_date, str):
+            start_date = fields.Date.to_date(start_date)
+
+        previous_open = self.search([
+            ('coop_id', '=', coop_id),
+            ('active', '=', True),
+            ('end_date', '=', False),
+            ('start_date', '<', start_date),
+            ('id', '!=', exclude_id or 0),
+        ], order='start_date desc, id desc', limit=1)
+
+        if previous_open:
+            previous_open.write({'end_date': start_date - timedelta(days=1)})
 
     def _get_overlap_record(self, records):
         """Retorna un registro activo que se solape con self, si existe."""
@@ -58,7 +89,7 @@ class PoultryCoopBom(models.Model):
             if not (coop_bom.active and coop_bom.coop_id and coop_bom.start_date):
                 continue
             overlap = coop_bom._get_overlap_record(coop_bom.coop_id.coop_bom_ids)
-            if overlap:
+            if overlap and not coop_bom._is_overlap_auto_closable(overlap):
                 raise ValidationError(
                     'Ya existe una lista activa superpuesta para este galpón.\n'
                     f'Rango existente: {overlap._range_label()}\n'
@@ -91,6 +122,29 @@ class PoultryCoopBom(models.Model):
                     raise ValidationError(
                         'La fecha de fin no puede ser anterior a la fecha de inicio.'
                     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Al crear una lista activa nueva, cierra la activa abierta anterior."""
+        records = self.browse()
+        for vals in vals_list:
+            is_active = vals.get('active', True)
+            coop_id = vals.get('coop_id')
+            start_date = vals.get('start_date')
+            if is_active and coop_id and start_date:
+                self._auto_close_previous_open_active(coop_id, start_date)
+            records |= super(PoultryCoopBom, self).create(vals)
+        return records
+
+    def write(self, vals):
+        """Al mover vigencia activa, cierra la activa abierta anterior del galpón."""
+        for record in self:
+            is_active = vals.get('active', record.active)
+            coop_id = vals.get('coop_id', record.coop_id.id)
+            start_date = vals.get('start_date', record.start_date)
+            if is_active and coop_id and start_date:
+                self._auto_close_previous_open_active(coop_id, start_date, exclude_id=record.id)
+        return super().write(vals)
     
     def action_set_active(self):
         """Acción para activar esta lista de materiales"""
