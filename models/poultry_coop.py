@@ -133,6 +133,31 @@ class PoultryCoop(models.Model):
         if not vals.get('code'):
             vals['code'] = self.env['ir.sequence'].next_by_code('poultry.coop') or 'NUEVO'
         return super().create(vals)
+
+    @staticmethod
+    def _sort_coop_bom_commands(commands):
+        """Ordena comandos one2many para aplicar primero bajas y evitar falsos solapes."""
+        priority = {
+            5: 0,  # clear
+            2: 1,  # delete
+            3: 2,  # unlink
+            1: 3,  # update
+            0: 4,  # create
+            4: 5,  # link
+            6: 6,  # set
+        }
+        normalized = []
+        for command in commands or []:
+            if isinstance(command, (list, tuple)) and command:
+                normalized.append(command)
+        return sorted(normalized, key=lambda cmd: priority.get(cmd[0], 99))
+
+    def write(self, vals):
+        """Aplica comandos de listas de materiales en orden seguro."""
+        if vals.get('coop_bom_ids') and isinstance(vals.get('coop_bom_ids'), list):
+            vals = dict(vals)
+            vals['coop_bom_ids'] = self._sort_coop_bom_commands(vals['coop_bom_ids'])
+        return super().write(vals)
     
     def action_view_batches(self):
         """Abre la vista de lotes asignados a este galpón"""
