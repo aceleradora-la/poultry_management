@@ -87,6 +87,8 @@ class PoultryCoopBom(models.Model):
     @api.onchange('coop_id', 'active', 'start_date', 'end_date')
     def _onchange_validate_active_bom_overlap(self):
         """Valida en edición que no exista solapamiento activo para el galpón."""
+        if self.env.context.get('skip_coop_bom_overlap_check'):
+            return
         for coop_bom in self:
             if not (coop_bom.active and coop_bom.coop_id and coop_bom.start_date):
                 continue
@@ -101,6 +103,8 @@ class PoultryCoopBom(models.Model):
     @api.constrains('coop_id', 'active', 'start_date', 'end_date')
     def _check_active_bom_date_overlap(self):
         """Evita solapamientos entre listas activas de un mismo galpón."""
+        if self.env.context.get('skip_coop_bom_overlap_check'):
+            return
         for coop_bom in self.filtered(lambda b: b.active and b.coop_id and b.start_date):
             self_real_id = coop_bom._origin.id or (coop_bom.id if isinstance(coop_bom.id, int) else 0)
             other_active = self.search([

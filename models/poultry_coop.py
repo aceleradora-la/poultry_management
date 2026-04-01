@@ -152,12 +152,33 @@ class PoultryCoop(models.Model):
                 normalized.append(command)
         return sorted(normalized, key=lambda cmd: priority.get(cmd[0], 99))
 
+    def _validate_final_coop_bom_ranges(self):
+        """Valida solapamientos usando el estado final persistido del galpón."""
+        for coop in self:
+            active_boms = coop.coop_bom_ids.filtered(lambda b: b.active and b.start_date).sorted(
+                key=lambda b: (b.start_date, b.id or 0)
+            )
+            for index, bom in enumerate(active_boms):
+                bom_end = bom.end_date or fields.Date.to_date('9999-12-31')
+                for other in active_boms[index + 1:]:
+                    other_end = other.end_date or fields.Date.to_date('9999-12-31')
+                    if bom.start_date <= other_end and other.start_date <= bom_end:
+                        raise ValidationError(
+                            'No se puede tener dos listas activas con rangos de fechas superpuestos '
+                            f'para el galpón {coop.display_name}. '
+                            f'Rango existente: {bom.start_date} -> {bom.end_date or "sin fin"}.'
+                        )
+
     def write(self, vals):
         """Aplica comandos de listas de materiales en orden seguro."""
+        has_bom_commands = bool(vals.get('coop_bom_ids') and isinstance(vals.get('coop_bom_ids'), list))
         if vals.get('coop_bom_ids') and isinstance(vals.get('coop_bom_ids'), list):
             vals = dict(vals)
             vals['coop_bom_ids'] = self._sort_coop_bom_commands(vals['coop_bom_ids'])
-        return super().write(vals)
+        result = super(PoultryCoop, self.with_context(skip_coop_bom_overlap_check=True)).write(vals)
+        if has_bom_commands:
+            self._validate_final_coop_bom_ranges()
+        return result
     
     def action_view_batches(self):
         """Abre la vista de lotes asignados a este galpón"""

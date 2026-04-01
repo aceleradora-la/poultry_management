@@ -88,7 +88,7 @@
                             </field>
                         </page>
                         <page string="Listas de Materiales" name="boms">
-                            <field name="coop_bom_ids" nolabel="1">
+                            <field name="coop_bom_ids" nolabel="1" context="{'skip_coop_bom_overlap_check': True}">
                                 <list string="Historial de Listas de Materiales">
                                     <field name="bom_id"/>
                                     <field name="bom_product_id"/>
