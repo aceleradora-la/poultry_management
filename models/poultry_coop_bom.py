@@ -63,9 +63,11 @@ class PoultryCoopBom(models.Model):
     def _get_overlap_record(self, records):
         """Retorna un registro activo que se solape con self, si existe."""
         self.ensure_one()
+        self_real_id = self._origin.id or (self.id if isinstance(self.id, int) else False)
         this_end = self.end_date or pydate.max
         for other in records:
-            if other == self:
+            other_real_id = other._origin.id or (other.id if isinstance(other.id, int) else False)
+            if other == self or (self_real_id and other_real_id and self_real_id == other_real_id):
                 continue
             if not other.active or not other.start_date:
                 continue
@@ -100,10 +102,11 @@ class PoultryCoopBom(models.Model):
     def _check_active_bom_date_overlap(self):
         """Evita solapamientos entre listas activas de un mismo galpón."""
         for coop_bom in self.filtered(lambda b: b.active and b.coop_id and b.start_date):
+            self_real_id = coop_bom._origin.id or (coop_bom.id if isinstance(coop_bom.id, int) else 0)
             other_active = self.search([
                 ('coop_id', '=', coop_bom.coop_id.id),
                 ('active', '=', True),
-                ('id', '!=', coop_bom.id),
+                ('id', '!=', self_real_id),
             ])
             overlap = coop_bom._get_overlap_record(other_active)
             if overlap:
