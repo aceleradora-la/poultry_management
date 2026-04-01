@@ -90,7 +90,6 @@
                         <page string="Listas de Materiales" name="boms">
                             <field name="coop_bom_ids" nolabel="1">
                                 <list string="Historial de Listas de Materiales">
-                                    <field name="name"/>
                                     <field name="bom_id"/>
                                     <field name="bom_product_id"/>
                                     <field name="start_date"/>
@@ -101,7 +100,6 @@
                                     <sheet>
                                         <group>
                                             <group>
-                                                <field name="name"/>
                                                 <field name="coop_id" readonly="1"/>
                                                 <field name="bom_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                                 <field name="bom_product_id" readonly="1"/>

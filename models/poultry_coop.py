@@ -100,11 +100,14 @@ class PoultryCoop(models.Model):
         for coop in self:
             coop.mortality_count = len(coop.mortality_ids)
     
-    @api.depends('coop_bom_ids', 'coop_bom_ids.active')
+    @api.depends('coop_bom_ids', 'coop_bom_ids.active', 'coop_bom_ids.start_date', 'coop_bom_ids.end_date')
     def _compute_active_bom(self):
-        """Obtiene la lista de materiales activa para el galpón"""
+        """Obtiene la lista activa del galpón válida para hoy."""
+        today = fields.Date.context_today(self)
         for coop in self:
-            active_bom = coop.coop_bom_ids.filtered(lambda b: b.active)
+            active_bom = coop.coop_bom_ids.filtered(
+                lambda b: b.active and b.start_date and b.start_date <= today and (not b.end_date or b.end_date >= today)
+            ).sorted(key=lambda b: (b.start_date, b.id), reverse=True)
             coop.active_bom_id = active_bom[0] if active_bom else False
     
     @api.constrains('capacity', 'current_birds_count')

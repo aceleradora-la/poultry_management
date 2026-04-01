@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from datetime import date as pydate
+
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 
@@ -9,7 +11,7 @@ class PoultryCoopBom(models.Model):
     _description = 'Lista de Materiales de Alimento por Galpón'
     _order = 'start_date desc'
 
-    name = fields.Char(string='Descripción', required=True, default='Nueva Lista de Materiales')
+    name = fields.Char(string='Descripción', default='Nueva Lista de Materiales')
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]")
     bom_id = fields.Many2one('mrp.bom', string='Lista de Materiales', required=True,
@@ -27,20 +29,24 @@ class PoultryCoopBom(models.Model):
     # Notas
     notes = fields.Text(string='Notas')
     
-    @api.constrains('coop_id', 'active', 'start_date')
-    def _check_single_active_bom(self):
-        """Valida que solo haya una lista de materiales activa por galpón"""
-        for coop_bom in self:
-            if coop_bom.active:
-                other_active = self.search([
-                    ('coop_id', '=', coop_bom.coop_id.id),
-                    ('active', '=', True),
-                    ('id', '!=', coop_bom.id),
-                    ('start_date', '<=', coop_bom.start_date or fields.Date.today()),
-                ])
-                if other_active:
-                    # Desactivar las otras listas de materiales activas para este galpón
-                    other_active.write({'active': False, 'end_date': coop_bom.start_date})
+    @api.constrains('coop_id', 'active', 'start_date', 'end_date')
+    def _check_active_bom_date_overlap(self):
+        """Evita solapamientos entre listas activas de un mismo galpón."""
+        for coop_bom in self.filtered(lambda b: b.active and b.coop_id and b.start_date):
+            other_active = self.search([
+                ('coop_id', '=', coop_bom.coop_id.id),
+                ('active', '=', True),
+                ('id', '!=', coop_bom.id),
+            ])
+            for other in other_active:
+                this_end = coop_bom.end_date or pydate.max
+                other_end = other.end_date or pydate.max
+                # Hay intersección si ambos intervalos se pisan al menos un día.
+                if coop_bom.start_date <= other_end and other.start_date <= this_end:
+                    raise ValidationError(
+                        'No se puede tener dos listas activas con rangos de fechas superpuestos '
+                        f'para el galpón {coop_bom.coop_id.display_name}.'
+                    )
     
     @api.constrains('start_date', 'end_date')
     def _check_dates(self):
@@ -52,39 +58,9 @@ class PoultryCoopBom(models.Model):
                         'La fecha de fin no puede ser anterior a la fecha de inicio.'
                     )
     
-    @api.model
-    def create(self, vals):
-        """Al crear una nueva lista activa, desactiva las anteriores"""
-        new_bom = super().create(vals)
-        if new_bom.active:
-            new_bom._check_single_active_bom()
-        return new_bom
-    
-    def write(self, vals):
-        """Al activar una lista, desactiva las demás del mismo galpón"""
-        if vals.get('active'):
-            for coop_bom in self:
-                other_active = self.search([
-                    ('coop_id', '=', coop_bom.coop_id.id),
-                    ('active', '=', True),
-                    ('id', '!=', coop_bom.id),
-                ])
-                if other_active:
-                    end_date = vals.get('start_date') or coop_bom.start_date or fields.Date.today()
-                    other_active.write({'active': False, 'end_date': end_date})
-        return super().write(vals)
-    
     def action_set_active(self):
         """Acción para activar esta lista de materiales"""
         self.ensure_one()
-        # Desactivar otras listas activas del mismo galpón
-        other_active = self.search([
-            ('coop_id', '=', self.coop_id.id),
-            ('active', '=', True),
-            ('id', '!=', self.id),
-        ])
-        if other_active:
-            other_active.write({'active': False, 'end_date': fields.Date.today()})
         self.write({'active': True, 'end_date': False})
     
     def action_set_inactive(self):
@@ -101,4 +77,23 @@ class PoultryCoopBom(models.Model):
                 name += ' [ACTIVA]'
             result.append((coop_bom.id, name))
         return result
+
+    @api.model
+    def get_active_bom_for_coop_date(self, coop_id, target_date=False):
+        """Devuelve la lista activa del galpón que cubre la fecha indicada."""
+        if not coop_id:
+            return self.browse()
+
+        target_date = target_date or fields.Date.context_today(self)
+        if isinstance(target_date, str):
+            target_date = fields.Date.to_date(target_date)
+
+        return self.search([
+            ('coop_id', '=', coop_id),
+            ('active', '=', True),
+            ('start_date', '<=', target_date),
+            '|',
+            ('end_date', '=', False),
+            ('end_date', '>=', target_date),
+        ], order='start_date desc, id desc', limit=1)
 

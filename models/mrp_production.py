@@ -17,31 +17,57 @@ class MrpProduction(models.Model):
                                     readonly=True, copy=False,
                                     help='Cierre de galpón que generó esta OF de huevo sin clasificar')
     
-    @api.onchange('coop_id')
-    def _onchange_coop_id(self):
-        """Al seleccionar un galpón, carga el producto y la lista de materiales activa"""
-        if self.coop_id:
-            # Solo cargar si el galpón tiene una lista de materiales activa
-            if self.coop_id.active_bom_id:
-                active_bom = self.coop_id.active_bom_id
-                # Cargar el producto de la BOM activa
-                if active_bom.bom_product_id:
-                    self.product_id = active_bom.bom_product_id
-                    # Cargar la lista de materiales (BOM)
-                    if active_bom.bom_id:
-                        self.bom_id = active_bom.bom_id
-                        # Actualizar los componentes basándose en la BOM si el método existe
-                        if hasattr(self, '_onchange_bom_id'):
-                            try:
-                                self._onchange_bom_id()
-                            except:
-                                pass
-                        # Alternativamente, actualizar manualmente los componentes
-                        elif hasattr(self, '_onchange_product_id') and self.bom_id:
-                            try:
-                                self._onchange_product_id()
-                            except:
-                                pass
+    def _get_scheduled_date(self):
+        """Obtiene la fecha programada de la OF con tolerancia entre versiones."""
+        self.ensure_one()
+        for field_name in ('date_start', 'date_planned_start'):
+            value = getattr(self, field_name, False)
+            if value:
+                return fields.Datetime.to_datetime(value).date()
+        return fields.Date.context_today(self)
+
+    def _apply_coop_active_bom(self):
+        """Carga producto y BOM del galpón para la fecha programada."""
+        self.ensure_one()
+        if not self.coop_id:
+            self.product_id = False
+            self.bom_id = False
+            return
+
+        scheduled_date = self._get_scheduled_date()
+        active_bom = self.env['poultry.coop.bom'].get_active_bom_for_coop_date(
+            self.coop_id.id, scheduled_date
+        )
+        if not active_bom:
+            self.product_id = False
+            self.bom_id = False
+            return {
+                'warning': {
+                    'title': 'Sin lista activa para la fecha',
+                    'message': (
+                        f'No existe una lista de materiales activa para el galpón '
+                        f'{self.coop_id.display_name} en la fecha {scheduled_date}.'
+                    ),
+                }
+            }
+
+        self.product_id = active_bom.bom_product_id or False
+        self.bom_id = active_bom.bom_id or False
+        if self.bom_id and hasattr(self, '_onchange_bom_id'):
+            self._onchange_bom_id()
+        elif hasattr(self, '_onchange_product_id'):
+            self._onchange_product_id()
+        return {}
+
+    @api.onchange('coop_id', 'date_start')
+    def _onchange_coop_or_date(self):
+        """Refresca BOM/producto al cambiar galpón o fecha programada."""
+        warning = {}
+        for production in self:
+            result = production._apply_coop_active_bom()
+            if result and result.get('warning'):
+                warning = result
+        return warning
 
     def _poultry_get_finished_qty_for_validation(self):
         """
