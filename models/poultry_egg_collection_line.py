@@ -319,7 +319,7 @@ class PoultryEggCollectionLine(models.Model):
                 else:
                     line.weight_distribution_percent = 0.0
     
-    @api.depends('id')
+    @api.depends('total_produced_reference')
     def _compute_pivot_row_distribution_percent(self):
         """El valor real se calcula en read_group para el pivot; en listado/form queda 0."""
         for line in self:
