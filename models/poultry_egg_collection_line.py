@@ -381,6 +381,41 @@ class PoultryEggCollectionLine(models.Model):
             return leaves
         return expression.AND([[leaf] for leaf in leaves])
     
+    @api.model
+    def _read_group_requests_field(self, fields_list, field_name):
+        """Odoo 18 pasa medidas como 'pivot_row_distribution_percent:avg', no solo el nombre."""
+        if not fields_list:
+            return False
+        for spec in fields_list:
+            if spec == '__count':
+                continue
+            if not isinstance(spec, str):
+                continue
+            if spec == field_name or spec.startswith(field_name + ':'):
+                return True
+        if field_name in (self.env.context.get('pivot_measures') or []):
+            return True
+        return False
+    
+    @api.model
+    def _read_group_strip_field_specs(self, fields_list, field_names):
+        """Quita especificaciones 'field' o 'field:agg' del listado pasado a super().read_group."""
+        if not fields_list:
+            return fields_list
+        out = []
+        for spec in fields_list:
+            skip = False
+            if not isinstance(spec, str):
+                out.append(spec)
+                continue
+            for name in field_names:
+                if spec == name or spec.startswith(name + ':'):
+                    skip = True
+                    break
+            if not skip:
+                out.append(spec)
+        return out
+    
     @api.depends('total_produced_reference')
     def _compute_total_boxes(self):
         """Calcula el total de cajones producidos (Total Huevos / 360)"""
@@ -431,10 +466,14 @@ class PoultryEggCollectionLine(models.Model):
         fields_list = list(fields or [])
         original_fields = list(fields or [])
         _special_measures = ('average_weight_elaborated_aggregated', 'pivot_row_distribution_percent')
-        fields_for_super = [f for f in fields_list if f not in _special_measures]
-        need_row_distrib_pct = 'pivot_row_distribution_percent' in original_fields
-        # Remover medidas especiales de fields para calcularlas manualmente
-        if any(f in fields_list for f in _special_measures):
+        need_row_distrib_pct = self._read_group_requests_field(original_fields, 'pivot_row_distribution_percent')
+        has_special_measure = (
+            self._read_group_requests_field(original_fields, 'average_weight_elaborated_aggregated')
+            or need_row_distrib_pct
+        )
+        fields_for_super = self._read_group_strip_field_specs(fields_list, _special_measures)
+        # Remover medidas especiales de fields para calcularlas manualmente (evitar SQL agregando 0)
+        if has_special_measure:
             if fields_for_super:
                 result = super().read_group(domain, fields_for_super, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
             else:
