@@ -95,8 +95,7 @@ class PoultryEggCollectionLine(models.Model):
         store=True,
         digits=(16, 4),
         aggregator='avg',
-        help='Solo tabla dinámica: huevos de la celda / huevos totales de la misma fila (según columnas del pivot). '
-             'Valor entre 0 y 1; la fila suma 1 por construcción. En listado queda 0.',
+        help='Tabla dinámica (0..1): celda/total de fila; en totales de fila o columna, celda/total del informe.',
     )
     
     @api.model
@@ -361,6 +360,38 @@ class PoultryEggCollectionLine(models.Model):
         return {b for b in (self._groupby_spec_base_field(s) for s in tail) if b}
     
     @api.model
+    def _pivot_row_base_fields(self, groupby):
+        """Campos de filas del pivot (desde contexto o restando columnas del groupby)."""
+        ctx = self.env.context or {}
+        row_specs = ctx.get('pivot_row_groupby')
+        if row_specs:
+            return {b for b in (self._groupby_spec_base_field(s) for s in row_specs) if b}
+        col_fs = self._pivot_column_base_fields(groupby)
+        gb = [groupby] if isinstance(groupby, str) else list(groupby or [])
+        if not gb:
+            return set()
+        if not col_fs:
+            return {b for b in (self._groupby_spec_base_field(s) for s in gb) if b}
+        return {
+            b for b in (self._groupby_spec_base_field(s) for s in gb)
+            if b and b not in col_fs
+        }
+    
+    @api.model
+    def _domain_touches_field(self, domain, field_name):
+        """True si el dominio acota el campo (incl. collection_date con rangos)."""
+        if not domain or not field_name:
+            return False
+        try:
+            norm = expression.normalize_domain(domain)
+        except Exception:
+            return False
+        for item in norm:
+            if isinstance(item, tuple) and len(item) >= 3 and item[0] == field_name:
+                return True
+        return False
+    
+    @api.model
     def _domain_without_fields(self, domain, field_names):
         """AND sin condiciones sobre los campos dados (p. ej. dimensiones de columna del pivot)."""
         if not domain:
@@ -486,6 +517,14 @@ class PoultryEggCollectionLine(models.Model):
         # Esto evita el problema de "promedio de promedios" en el Total general
         # Calculamos siempre, incluso si el campo no está en fields_list, porque Odoo puede necesitarlo para el Total
         if groupby:
+            grand_eggs_holder = [None]
+
+            def get_grand_total_eggs():
+                if grand_eggs_holder[0] is None:
+                    glines = self.search(list(domain or []))
+                    grand_eggs_holder[0] = sum(glines.mapped('total_produced_reference')) or 0.0
+                return grand_eggs_holder[0]
+
             for group in result:
                 # Dominio del grupo: informe + slice del pivot (fecha, galpón, atributo, etc.)
                 if group.get('__domain'):
@@ -514,22 +553,36 @@ class PoultryEggCollectionLine(models.Model):
                 else:
                     group['average_weight_elaborated_aggregated'] = 0.0
                 
-                # % Distrib.: huevos celda / huevos total de fila (quitar solo dimensiones columna del pivot)
+                # % Distrib.: interior = celda/fila; total fila = columna/gran total; total columna = fila/gran total
                 if need_row_distrib_pct:
-                    if lines:
-                        eggs_cell = sum(lines.mapped('total_produced_reference'))
-                        col_fields = self._pivot_column_base_fields(groupby)
-                        denom_domain = self._domain_without_fields(group_domain, col_fields)
-                        if not denom_domain:
-                            eggs_row = eggs_cell
-                        else:
-                            row_lines = self.search(denom_domain)
-                            eggs_row = sum(row_lines.mapped('total_produced_reference'))
-                        ratio = (eggs_cell / eggs_row) if eggs_row else 0.0
-                        # Fracción 0..1 (el cliente muestra %; evitar desvíos numéricos > 1)
-                        group['pivot_row_distribution_percent'] = min(max(ratio, 0.0), 1.0)
-                    else:
+                    if not lines:
                         group['pivot_row_distribution_percent'] = 0.0
+                    else:
+                        eggs_cell = sum(lines.mapped('total_produced_reference'))
+                        row_fs = self._pivot_row_base_fields(groupby)
+                        col_fs = self._pivot_column_base_fields(groupby)
+                        has_r = bool(row_fs) and any(
+                            self._domain_touches_field(group_domain, f) for f in row_fs
+                        )
+                        has_c = bool(col_fs) and any(
+                            self._domain_touches_field(group_domain, f) for f in col_fs
+                        )
+                        eggs_grand = get_grand_total_eggs()
+                        if has_r and has_c:
+                            denom_domain = self._domain_without_fields(group_domain, col_fs)
+                            if not denom_domain:
+                                denom_domain = list(domain or [])
+                            eggs_denom = sum(
+                                self.search(denom_domain).mapped('total_produced_reference')
+                            ) or 0.0
+                            ratio = (eggs_cell / eggs_denom) if eggs_denom else 0.0
+                        elif has_r and not has_c:
+                            ratio = (eggs_cell / eggs_grand) if eggs_grand else 0.0
+                        elif not has_r and has_c:
+                            ratio = (eggs_cell / eggs_grand) if eggs_grand else 0.0
+                        else:
+                            ratio = (eggs_cell / eggs_grand) if eggs_grand else (1.0 if eggs_cell else 0.0)
+                        group['pivot_row_distribution_percent'] = min(max(ratio, 0.0), 1.0)
         
         return result
     
