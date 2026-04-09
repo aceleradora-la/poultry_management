@@ -83,12 +83,13 @@ class PoultryEggCollectionLine(models.Model):
                                                 store=True, digits=(16, 2),
                                                 help='Porcentaje de distribución según el peso total')
     
-    # Solo tiene valor en tabla dinámica (read_group): celda / total de la fila según agrupadores columna del pivot
+    # Valor mostrado en pivot viene de read_group; almacenado para exponer aggregator al cliente (Odoo 18).
     pivot_row_distribution_percent = fields.Float(
         string='% Distrib.',
         compute='_compute_pivot_row_distribution_percent',
+        store=True,
         digits=(16, 4),
-        group_operator='avg',
+        aggregator='avg',
         help='Tabla dinámica: Total Huevos de la celda respecto al total de huevos de la misma fila '
              '(se quitan del denominador las dimensiones definidas como columnas del pivot). En listado no aplica (0).',
     )
