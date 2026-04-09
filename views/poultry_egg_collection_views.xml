@@ -170,8 +170,9 @@
                                            readonly="parent.state != 'counted'"
                                            column_invisible="parent.state == 'draft'"/>
                                     
-                                    <!-- % Distribución: siempre readonly, visible solo en Completada y Procesada -->
+                                    <!-- % del Parte: siempre readonly, visible solo en Completada y Procesada -->
                                     <field name="weight_distribution_percent" 
+                                           string="% del Parte"
                                            readonly="1"
                                            column_invisible="parent.state == 'draft' or parent.state == 'counted'"
                                            widget="percentage"/>

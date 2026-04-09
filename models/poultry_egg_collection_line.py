@@ -77,21 +77,26 @@ class PoultryEggCollectionLine(models.Model):
                                      store=True, digits=(16, 2),
                                      help='Total de huevos brutos convertidos a unidad de referencia')
     
-    # % de distribución basado en peso
-    weight_distribution_percent = fields.Float(string='% Distribución', 
-                                                compute='_compute_weight_distribution',
-                                                store=True, digits=(16, 2),
-                                                help='Porcentaje de distribución según el peso total')
+    # % de cada línea respecto al total del mismo parte (no usar como medida en pivot: suma de % no es 100%).
+    weight_distribution_percent = fields.Float(
+        string='% del Parte',
+        compute='_compute_weight_distribution',
+        store=True,
+        digits=(16, 4),
+        aggregator=None,
+        help='Participación de la línea en el total de huevos de ese parte/recolección. '
+             'Solo tiene sentido en vista lista/detalle; no agregar en tabla dinámica.',
+    )
     
-    # Valor mostrado en pivot viene de read_group; almacenado para exponer aggregator al cliente (Odoo 18).
+    # Medida única de % en pivot: celda / total de fila (read_group). Fracción 0..1 (mostrar como % en cliente).
     pivot_row_distribution_percent = fields.Float(
-        string='% Distrib.',
+        string='% Distribución',
         compute='_compute_pivot_row_distribution_percent',
         store=True,
         digits=(16, 4),
         aggregator='avg',
-        help='Tabla dinámica: Total Huevos de la celda respecto al total de huevos de la misma fila '
-             '(se quitan del denominador las dimensiones definidas como columnas del pivot). En listado no aplica (0).',
+        help='Solo tabla dinámica: huevos de la celda / huevos totales de la misma fila (según columnas del pivot). '
+             'Valor entre 0 y 1; la fila suma 1 por construcción. En listado queda 0.',
     )
     
     @api.model
@@ -481,9 +486,9 @@ class PoultryEggCollectionLine(models.Model):
                         else:
                             row_lines = self.search(denom_domain)
                             eggs_row = sum(row_lines.mapped('total_produced_reference'))
-                        group['pivot_row_distribution_percent'] = (
-                            (eggs_cell / eggs_row) if eggs_row else 0.0
-                        )
+                        ratio = (eggs_cell / eggs_row) if eggs_row else 0.0
+                        # Fracción 0..1 (el cliente muestra %; evitar desvíos numéricos > 1)
+                        group['pivot_row_distribution_percent'] = min(max(ratio, 0.0), 1.0)
                     else:
                         group['pivot_row_distribution_percent'] = 0.0
         
