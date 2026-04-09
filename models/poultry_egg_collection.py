@@ -486,17 +486,9 @@ class PoultryEggCollection(models.Model):
                     f'No se puede cancelar un parte incluido en el cierre {close.name}. '
                     'Primero cancele el cierre para desvincular los partes.'
                 )
-        dates_before = set(self.mapped('date'))
         result = super().write(vals)
         if 'product_tmpl_id' in vals:
             self._compute_product_variant_name()
-        # El total granja por día depende de qué partes entran en completada/procesada: recalcular % atributo
-        if 'state' in vals or 'date' in vals:
-            affected_dates = dates_before | set(self.mapped('date'))
-            if affected_dates:
-                self.env['poultry.egg.collection.line']._recompute_attribute_farm_distribution_for_dates(
-                    affected_dates
-                )
         return result
     
     @api.onchange('product_tmpl_id')

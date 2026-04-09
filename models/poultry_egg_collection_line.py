@@ -83,16 +83,14 @@ class PoultryEggCollectionLine(models.Model):
                                                 store=True, digits=(16, 2),
                                                 help='Porcentaje de distribución según el peso total')
     
-    # Participación del valor de atributo (ej. Calibre) respecto al total del ámbito (ver compute y read_group)
-    attribute_farm_distribution_percent = fields.Float(
-        string='% Distrib. por Atributo',
-        compute='_compute_attribute_farm_distribution_percent',
-        store=True,
+    # Solo tiene valor en tabla dinámica (read_group): celda / total de la fila según agrupadores columna del pivot
+    pivot_row_distribution_percent = fields.Float(
+        string='% Distrib.',
+        compute='_compute_pivot_row_distribution_percent',
         digits=(16, 4),
         group_operator='avg',
-        help='Fracción 0–1: participación del valor de atributo respecto al total de huevos en el mismo '
-             'ámbito. En tabla dinámica el denominador sigue la apertura (filas/columnas): se excluye solo '
-             'la dimensión «valor de atributo». En vista lista: total del mismo galpón y día.',
+        help='Tabla dinámica: Total Huevos de la celda respecto al total de huevos de la misma fila '
+             '(se quitan del denominador las dimensiones definidas como columnas del pivot). En listado no aplica (0).',
     )
     
     @api.model
@@ -321,80 +319,61 @@ class PoultryEggCollectionLine(models.Model):
                 else:
                     line.weight_distribution_percent = 0.0
     
-    @api.depends(
-        'collection_date',
-        'collection_coop_id',
-        'attribute_value_id',
-        'total_produced_reference',
-        'collection_id.state',
-    )
-    def _compute_attribute_farm_distribution_percent(self):
-        """
-        Vista lista: % del valor de atributo sobre el total de huevos del mismo galpón y día.
-        (La tabla dinámica usa read_group y respeta cualquier apertura; solo quita el filtro por atributo.)
-        """
-        if not self:
-            return
-        coop_days = set()
+    @api.depends('id')
+    def _compute_pivot_row_distribution_percent(self):
+        """El valor real se calcula en read_group para el pivot; en listado/form queda 0."""
         for line in self:
-            if line.collection_date and line.collection_coop_id:
-                coop_days.add((line.collection_date, line.collection_coop_id.id))
-        Line = self.env['poultry.egg.collection.line'].sudo()
-        coop_day_totals = {}
-        coop_day_attr = {}
-        for d, cid in coop_days:
-            day_domain = [
-                ('collection_date', '=', d),
-                ('collection_coop_id', '=', cid),
-                ('collection_id.state', 'in', ['completed', 'done']),
-            ]
-            day_lines = Line.search(day_domain)
-            coop_day_totals[(d, cid)] = sum(day_lines.mapped('total_produced_reference')) or 0.0
-            for bl in day_lines:
-                aid = bl.attribute_value_id.id if bl.attribute_value_id else False
-                key = (d, cid, aid)
-                coop_day_attr[key] = coop_day_attr.get(key, 0.0) + (bl.total_produced_reference or 0.0)
-        for line in self:
-            if not line.collection_date or not line.collection_coop_id:
-                line.attribute_farm_distribution_percent = 0.0
-                continue
-            aid = line.attribute_value_id.id if line.attribute_value_id else False
-            key = (line.collection_date, line.collection_coop_id.id, aid)
-            num = coop_day_attr.get(key, 0.0)
-            den = coop_day_totals.get((line.collection_date, line.collection_coop_id.id), 0.0)
-            line.attribute_farm_distribution_percent = (num / den) if den else 0.0
+            line.pivot_row_distribution_percent = 0.0
     
     @api.model
-    def _domain_without_field(self, domain, field_name):
+    def _groupby_spec_base_field(self, spec):
+        """Convierte p.ej. collection_date:day -> collection_date (nombre de campo en dominio)."""
+        if not spec or not isinstance(spec, str):
+            return None
+        base = spec.split(':', 1)[0].strip()
+        return base or None
+    
+    @api.model
+    def _pivot_column_base_fields(self, groupby):
         """
-        Reconstruye un dominio AND sin condiciones sobre field_name (p. ej. quitar valor de atributo
-        del slice del pivot para calcular el denominador en el mismo ámbito que el resto de dimensiones).
+        Campos que actúan como columnas en el pivot: van al denominador del % de fila
+        (se eliminan del dominio de la celda para obtener el total de la fila).
         """
+        ctx = self.env.context or {}
+        col_specs = ctx.get('pivot_column_groupby')
+        if col_specs:
+            return {b for b in (self._groupby_spec_base_field(s) for s in col_specs) if b}
+        # Respaldo: sufijos de groupby tras las filas definidas en contexto
+        row_specs = ctx.get('pivot_row_groupby') or []
+        if isinstance(groupby, str):
+            gb = [groupby]
+        else:
+            gb = list(groupby or [])
+        if len(gb) <= len(row_specs):
+            return set()
+        tail = gb[len(row_specs):]
+        return {b for b in (self._groupby_spec_base_field(s) for s in tail) if b}
+    
+    @api.model
+    def _domain_without_fields(self, domain, field_names):
+        """AND sin condiciones sobre los campos dados (p. ej. dimensiones de columna del pivot)."""
         if not domain:
             return []
+        if not field_names:
+            return domain
         try:
             norm = expression.normalize_domain(domain)
         except Exception:
             return domain
         leaves = [
             item for item in norm
-            if isinstance(item, tuple) and len(item) >= 3 and item[0] != field_name
+            if isinstance(item, tuple) and len(item) >= 3 and item[0] not in field_names
         ]
         if not leaves:
             return []
         if len(leaves) == 1:
             return leaves
         return expression.AND([[leaf] for leaf in leaves])
-    
-    @api.model
-    def _recompute_attribute_farm_distribution_for_dates(self, dates):
-        """Recalcula el % por atributo para todas las líneas de esas fechas."""
-        if not dates:
-            return
-        lines = self.sudo().search([('collection_date', 'in', list(dates))])
-        if lines:
-            lines.invalidate_recordset(['attribute_farm_distribution_percent'])
-            lines._compute_attribute_farm_distribution_percent()
     
     @api.depends('total_produced_reference')
     def _compute_total_boxes(self):
@@ -445,9 +424,9 @@ class PoultryEggCollectionLine(models.Model):
                 orderby = 'collection_date desc'
         fields_list = list(fields or [])
         original_fields = list(fields or [])
-        _special_measures = ('average_weight_elaborated_aggregated', 'attribute_farm_distribution_percent')
+        _special_measures = ('average_weight_elaborated_aggregated', 'pivot_row_distribution_percent')
         fields_for_super = [f for f in fields_list if f not in _special_measures]
-        need_attr_farm_pct = 'attribute_farm_distribution_percent' in original_fields
+        need_row_distrib_pct = 'pivot_row_distribution_percent' in original_fields
         # Remover medidas especiales de fields para calcularlas manualmente
         if any(f in fields_list for f in _special_measures):
             if fields_for_super:
@@ -490,21 +469,22 @@ class PoultryEggCollectionLine(models.Model):
                 else:
                     group['average_weight_elaborated_aggregated'] = 0.0
                 
-                # % atributo: numerador = celda actual; denominador = mismo ámbito del pivot sin filtrar por atributo
-                if need_attr_farm_pct:
+                # % Distrib.: huevos celda / huevos total de fila (quitar solo dimensiones columna del pivot)
+                if need_row_distrib_pct:
                     if lines:
-                        eggs_group = sum(lines.mapped('total_produced_reference'))
-                        denom_domain = self._domain_without_field(group_domain, 'attribute_value_id')
+                        eggs_cell = sum(lines.mapped('total_produced_reference'))
+                        col_fields = self._pivot_column_base_fields(groupby)
+                        denom_domain = self._domain_without_fields(group_domain, col_fields)
                         if not denom_domain:
-                            eggs_denom = eggs_group
+                            eggs_row = eggs_cell
                         else:
-                            denom_lines = self.search(denom_domain)
-                            eggs_denom = sum(denom_lines.mapped('total_produced_reference'))
-                        group['attribute_farm_distribution_percent'] = (
-                            (eggs_group / eggs_denom) if eggs_denom else 0.0
+                            row_lines = self.search(denom_domain)
+                            eggs_row = sum(row_lines.mapped('total_produced_reference'))
+                        group['pivot_row_distribution_percent'] = (
+                            (eggs_cell / eggs_row) if eggs_row else 0.0
                         )
                     else:
-                        group['attribute_farm_distribution_percent'] = 0.0
+                        group['pivot_row_distribution_percent'] = 0.0
         
         return result
     
@@ -759,19 +739,10 @@ class PoultryEggCollectionLine(models.Model):
         for line in lines:
             if line.product_variant_id:
                 line._ensure_uom_value_ids()
-        dates = set(lines.mapped('collection_date'))
-        if dates:
-            self._recompute_attribute_farm_distribution_for_dates(dates)
         return lines
     
     def write(self, vals):
         """Actualiza las líneas y asegura que existan los uom_value_ids si cambió el producto o los valores legacy"""
-        if self.env.context.get('skip_farm_attr_recompute'):
-            return super().write(vals)
-        # Solo actualizar este campo no debe disparar recálculo masivo (evita bucles)
-        if set(vals.keys()) <= {'attribute_farm_distribution_percent'}:
-            return super().write(vals)
-        dates_before = set(self.mapped('collection_date'))
         result = super().write(vals)
         
         # Campos legacy que requieren sincronización
@@ -787,19 +758,7 @@ class PoultryEggCollectionLine(models.Model):
                     # Sincronizar valores legacy a uom_value_ids
                     line._sync_legacy_to_uom_values()
         
-        dates_after = set(self.mapped('collection_date'))
-        affected = dates_before | dates_after
-        if affected:
-            self.with_context(skip_farm_attr_recompute=True)._recompute_attribute_farm_distribution_for_dates(affected)
         return result
-    
-    def unlink(self):
-        Line = self.env['poultry.egg.collection.line']
-        dates = set(self.mapped('collection_date'))
-        res = super().unlink()
-        if dates:
-            Line._recompute_attribute_farm_distribution_for_dates(dates)
-        return res
     
     # Campos permitidos para agrupar en la tabla dinámica (pivot)
     PIVOT_GROUPABLE_FIELDS = {
