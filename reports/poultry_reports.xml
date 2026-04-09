@@ -25,7 +25,7 @@
         <field name="search_view_id" ref="view_poultry_egg_collection_line_search_report"/>
         <field name="domain">[('collection_id.state', 'in', ['completed', 'done'])]</field>
         <field name="context">{
-            'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight_elaborated_aggregated'],
+            'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight_elaborated_aggregated', 'attribute_farm_distribution_percent'],
             'pivot_row_groupby': ['collection_date:day'],
             'pivot_column_groupby': ['collection_coop_id'],
             'graph_measure': 'total_produced_reference',

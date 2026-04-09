@@ -51,6 +51,8 @@
                 <field name="total_produced_reference" type="measure" string="Total Huevos"/>
                 <field name="total_boxes" type="measure" string="Total Cajones"/>
                 <field name="average_weight_elaborated_aggregated" type="measure" string="Peso Medio Elaborado (g)"/>
+                <!-- Misma lógica que read_group: total del ámbito del pivot sin dimensión atributo -->
+                <field name="attribute_farm_distribution_percent" type="measure" string="% Distrib. por Atributo"/>
             </pivot>
         </field>
     </record>
@@ -72,6 +74,7 @@
                 <field name="produced_map" string="Final PI"/>
                 <field name="produced_egg" string="Final Huevo"/>
                 <field name="weight_distribution_percent" string="% Distribución" widget="percentage"/>
+                <field name="attribute_farm_distribution_percent" string="% Distrib. por Atributo" widget="percentage"/>
             </list>
         </field>
     </record>
