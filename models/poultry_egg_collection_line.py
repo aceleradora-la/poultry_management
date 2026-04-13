@@ -525,6 +525,10 @@ class PoultryEggCollectionLine(models.Model):
                     grand_eggs_holder[0] = sum(glines.mapped('total_produced_reference')) or 0.0
                 return grand_eggs_holder[0]
 
+            # En modo lazy, el pivot hace llamadas jerárquicas y __domain puede no incluir
+            # todas las dimensiones visuales a la vez. Preferimos usar el set configurado
+            # en el contexto (pivot_row_groupby / pivot_column_groupby) para decidir qué
+            # quitar del denominador, y usamos el dominio base del informe como “gran total”.
             for group in result:
                 # Dominio del grupo: informe + slice del pivot (fecha, galpón, atributo, etc.)
                 if group.get('__domain'):
@@ -561,27 +565,19 @@ class PoultryEggCollectionLine(models.Model):
                         eggs_cell = sum(lines.mapped('total_produced_reference'))
                         row_fs = self._pivot_row_base_fields(groupby)
                         col_fs = self._pivot_column_base_fields(groupby)
-                        has_r = bool(row_fs) and any(
-                            self._domain_touches_field(group_domain, f) for f in row_fs
-                        )
-                        has_c = bool(col_fs) and any(
-                            self._domain_touches_field(group_domain, f) for f in col_fs
-                        )
+                        # Detectar si este grupo está acotado por filas/columnas según el dominio real
+                        # (en totales/subtotales, una de las dimensiones puede faltar).
+                        has_r = bool(row_fs) and any(self._domain_touches_field(group_domain, f) for f in row_fs)
+                        has_c = bool(col_fs) and any(self._domain_touches_field(group_domain, f) for f in col_fs)
                         eggs_grand = get_grand_total_eggs()
                         if has_r and has_c:
+                            # Celda interior: dividir por el total de la fila (mismo slice sin columnas)
                             denom_domain = self._domain_without_fields(group_domain, col_fs)
-                            if not denom_domain:
-                                denom_domain = list(domain or [])
-                            eggs_denom = sum(
-                                self.search(denom_domain).mapped('total_produced_reference')
-                            ) or 0.0
-                            ratio = (eggs_cell / eggs_denom) if eggs_denom else 0.0
-                        elif has_r and not has_c:
-                            ratio = (eggs_cell / eggs_grand) if eggs_grand else 0.0
-                        elif not has_r and has_c:
-                            ratio = (eggs_cell / eggs_grand) if eggs_grand else 0.0
+                            eggs_row = sum(self.search(denom_domain).mapped('total_produced_reference')) if denom_domain else 0.0
+                            ratio = (eggs_cell / eggs_row) if eggs_row else 0.0
                         else:
-                            ratio = (eggs_cell / eggs_grand) if eggs_grand else (1.0 if eggs_cell else 0.0)
+                            # Totales/subtotales: celda / gran total del informe (mismo dominio global)
+                            ratio = (eggs_cell / eggs_grand) if eggs_grand else 0.0
                         group['pivot_row_distribution_percent'] = min(max(ratio, 0.0), 1.0)
         
         return result
