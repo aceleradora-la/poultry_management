@@ -376,6 +376,39 @@ class PoultryEggCollectionLine(models.Model):
             b for b in (self._groupby_spec_base_field(s) for s in gb)
             if b and b not in col_fs
         }
+
+    @api.model
+    def _choose_distribution_dimension(self, groupby):
+        """
+        Decide sobre qué dimensión calcular el % distribución.
+
+        Regla (auto):
+        - Si hay 2+ niveles de filas, distribuir por el ÚLTIMO nivel de filas (p.ej. Calibre dentro de Fecha),
+          manteniendo fijas las columnas.
+        - Si no, y hay columnas, distribuir por el ÚLTIMO nivel de columnas (p.ej. Galpón dentro de Fecha),
+          manteniendo fijas las filas.
+        - Si no hay columnas, distribuir por el último nivel de filas.
+        """
+        ctx = self.env.context or {}
+        row_specs = ctx.get('pivot_row_groupby') or []
+        col_specs = ctx.get('pivot_column_groupby') or []
+        row_bases = [self._groupby_spec_base_field(s) for s in row_specs]
+        col_bases = [self._groupby_spec_base_field(s) for s in col_specs]
+        row_bases = [b for b in row_bases if b]
+        col_bases = [b for b in col_bases if b]
+
+        if len(row_bases) >= 2:
+            return ('row', row_bases[-1])
+        if col_bases:
+            return ('col', col_bases[-1])
+        if row_bases:
+            return ('row', row_bases[-1])
+
+        # Fallback si el contexto no trae row/col groupby (raro): inferir desde groupby
+        gb = [groupby] if isinstance(groupby, str) else list(groupby or [])
+        bases = [self._groupby_spec_base_field(s) for s in gb]
+        bases = [b for b in bases if b]
+        return ('row', bases[-1]) if bases else (None, None)
     
     @api.model
     def _domain_touches_field(self, domain, field_name):
@@ -563,21 +596,14 @@ class PoultryEggCollectionLine(models.Model):
                         group['pivot_row_distribution_percent'] = 0.0
                     else:
                         eggs_cell = sum(lines.mapped('total_produced_reference'))
-                        row_fs = self._pivot_row_base_fields(groupby)
-                        col_fs = self._pivot_column_base_fields(groupby)
-                        # Detectar si este grupo está acotado por filas/columnas según el dominio real
-                        # (en totales/subtotales, una de las dimensiones puede faltar).
-                        has_r = bool(row_fs) and any(self._domain_touches_field(group_domain, f) for f in row_fs)
-                        has_c = bool(col_fs) and any(self._domain_touches_field(group_domain, f) for f in col_fs)
-                        eggs_grand = get_grand_total_eggs()
-                        if has_r and has_c:
-                            # Celda interior: dividir por el total de la fila (mismo slice sin columnas)
-                            denom_domain = self._domain_without_fields(group_domain, col_fs)
-                            eggs_row = sum(self.search(denom_domain).mapped('total_produced_reference')) if denom_domain else 0.0
-                            ratio = (eggs_cell / eggs_row) if eggs_row else 0.0
+                        axis, dim_field = self._choose_distribution_dimension(groupby)
+                        # Si este grupo NO está acotado por la dimensión elegida, es un total sobre esa dimensión -> 100%
+                        if dim_field and not self._domain_touches_field(group_domain, dim_field):
+                            ratio = 1.0 if eggs_cell else 0.0
                         else:
-                            # Totales/subtotales: celda / gran total del informe (mismo dominio global)
-                            ratio = (eggs_cell / eggs_grand) if eggs_grand else 0.0
+                            denom_domain = self._domain_without_fields(group_domain, {dim_field} if dim_field else set())
+                            eggs_denom = sum(self.search(denom_domain).mapped('total_produced_reference')) if denom_domain else 0.0
+                            ratio = (eggs_cell / eggs_denom) if eggs_denom else 0.0
                         group['pivot_row_distribution_percent'] = min(max(ratio, 0.0), 1.0)
         
         return result
