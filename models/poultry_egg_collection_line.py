@@ -415,6 +415,25 @@ class PoultryEggCollectionLine(models.Model):
             if self._domain_touches_field(group_domain, f):
                 deepest = f
         return deepest
+
+    @api.model
+    def _infer_column_base_fields_from_groupby(self, groupby):
+        """
+        Intenta inferir qué dimensiones son columnas.
+        - Si el contexto trae pivot_column_groupby y coincide con groupby, se usa.
+        - Si no, fallback: asumir 1er groupby como fila y el resto como columnas.
+        """
+        ctx = self.env.context or {}
+        gb = [groupby] if isinstance(groupby, str) else list(groupby or [])
+        gb_bases = [b for b in (self._groupby_spec_base_field(s) for s in gb) if b]
+
+        col_specs = ctx.get('pivot_column_groupby') or []
+        col_bases = [b for b in (self._groupby_spec_base_field(s) for s in col_specs) if b]
+        if col_bases and all(b in gb_bases for b in col_bases):
+            return set(col_bases)
+
+        # fallback simple
+        return set(gb_bases[1:]) if len(gb_bases) > 1 else set()
     
     @api.model
     def _domain_touches_field(self, domain, field_name):
@@ -602,6 +621,12 @@ class PoultryEggCollectionLine(models.Model):
                         group['pivot_row_distribution_percent'] = 0.0
                     else:
                         eggs_cell = sum(lines.mapped('total_produced_reference'))
+                        # Si hay columnas y esta celda es el "Total" de columnas (no acota ninguna columna),
+                        # el % de distribución no aplica y debe ser 100%.
+                        col_bases = self._infer_column_base_fields_from_groupby(groupby)
+                        if col_bases and not any(self._domain_touches_field(group_domain, f) for f in col_bases):
+                            group['pivot_row_distribution_percent'] = 1.0 if eggs_cell else 0.0
+                            continue
                         # % = celda / total del “padre” inmediato (quitar solo la dimensión más profunda presente)
                         dim_field = self._pivot_deepest_domain_dimension(group_domain, groupby)
                         if not dim_field:
