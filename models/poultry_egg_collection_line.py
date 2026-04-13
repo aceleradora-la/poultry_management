@@ -381,20 +381,25 @@ class PoultryEggCollectionLine(models.Model):
     def _ordered_pivot_base_fields(self, groupby):
         """
         Devuelve las dimensiones del pivot en orden estable:
-        primero filas (en el orden configurado) y luego columnas.
+        en el orden real solicitado por el pivot.
+
+        Nota: cuando el usuario reordena/añade dimensiones en la UI, el contexto
+        pivot_row_groupby/pivot_column_groupby puede quedar desactualizado. El
+        parámetro `groupby` que llega a read_group es la fuente de verdad.
         """
+        gb = [groupby] if isinstance(groupby, str) else list(groupby or [])
+        if gb:
+            bases = [self._groupby_spec_base_field(s) for s in gb]
+            bases = [b for b in bases if b]
+            if bases:
+                return bases
+
         ctx = self.env.context or {}
         row_specs = ctx.get('pivot_row_groupby') or []
         col_specs = ctx.get('pivot_column_groupby') or []
-        row_bases = [self._groupby_spec_base_field(s) for s in row_specs]
-        col_bases = [self._groupby_spec_base_field(s) for s in col_specs]
-        row_bases = [b for b in row_bases if b]
-        col_bases = [b for b in col_bases if b]
-        if row_bases or col_bases:
-            return row_bases + col_bases
-        gb = [groupby] if isinstance(groupby, str) else list(groupby or [])
-        bases = [self._groupby_spec_base_field(s) for s in gb]
-        return [b for b in bases if b]
+        row_bases = [b for b in (self._groupby_spec_base_field(s) for s in row_specs) if b]
+        col_bases = [b for b in (self._groupby_spec_base_field(s) for s in col_specs) if b]
+        return row_bases + col_bases
 
     @api.model
     def _pivot_deepest_domain_dimension(self, group_domain, groupby):
@@ -604,7 +609,11 @@ class PoultryEggCollectionLine(models.Model):
                             ratio = 1.0 if eggs_cell else 0.0
                         else:
                             denom_domain = self._domain_without_fields(group_domain, {dim_field})
-                            eggs_parent = sum(self.search(denom_domain).mapped('total_produced_reference')) if denom_domain else 0.0
+                            if denom_domain:
+                                eggs_parent = sum(self.search(denom_domain).mapped('total_produced_reference')) or 0.0
+                            else:
+                                # Si al quitar la dimensión “hija” no queda ninguna otra, el padre es el total general del informe
+                                eggs_parent = get_grand_total_eggs()
                             ratio = (eggs_cell / eggs_parent) if eggs_parent else 0.0
                         group['pivot_row_distribution_percent'] = min(max(ratio, 0.0), 1.0)
         
