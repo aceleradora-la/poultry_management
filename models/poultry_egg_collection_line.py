@@ -378,16 +378,10 @@ class PoultryEggCollectionLine(models.Model):
         }
 
     @api.model
-    def _choose_distribution_dimension(self, groupby):
+    def _ordered_pivot_base_fields(self, groupby):
         """
-        Decide sobre qué dimensión calcular el % distribución.
-
-        Regla (auto):
-        - Si hay 2+ niveles de filas, distribuir por el ÚLTIMO nivel de filas (p.ej. Calibre dentro de Fecha),
-          manteniendo fijas las columnas.
-        - Si no, y hay columnas, distribuir por el ÚLTIMO nivel de columnas (p.ej. Galpón dentro de Fecha),
-          manteniendo fijas las filas.
-        - Si no hay columnas, distribuir por el último nivel de filas.
+        Devuelve las dimensiones del pivot en orden estable:
+        primero filas (en el orden configurado) y luego columnas.
         """
         ctx = self.env.context or {}
         row_specs = ctx.get('pivot_row_groupby') or []
@@ -396,19 +390,26 @@ class PoultryEggCollectionLine(models.Model):
         col_bases = [self._groupby_spec_base_field(s) for s in col_specs]
         row_bases = [b for b in row_bases if b]
         col_bases = [b for b in col_bases if b]
-
-        if len(row_bases) >= 2:
-            return ('row', row_bases[-1])
-        if col_bases:
-            return ('col', col_bases[-1])
-        if row_bases:
-            return ('row', row_bases[-1])
-
-        # Fallback si el contexto no trae row/col groupby (raro): inferir desde groupby
+        if row_bases or col_bases:
+            return row_bases + col_bases
         gb = [groupby] if isinstance(groupby, str) else list(groupby or [])
         bases = [self._groupby_spec_base_field(s) for s in gb]
-        bases = [b for b in bases if b]
-        return ('row', bases[-1]) if bases else (None, None)
+        return [b for b in bases if b]
+
+    @api.model
+    def _pivot_deepest_domain_dimension(self, group_domain, groupby):
+        """
+        Encuentra la dimensión más profunda (última en orden) que esté presente
+        en el dominio real del grupo. Esa es la dimensión “hija” que se está
+        subdividiendo en esa celda (row/col anidado), y es la que debe salir
+        del denominador para obtener el total del “padre”.
+        """
+        ordered = self._ordered_pivot_base_fields(groupby)
+        deepest = None
+        for f in ordered:
+            if self._domain_touches_field(group_domain, f):
+                deepest = f
+        return deepest
     
     @api.model
     def _domain_touches_field(self, domain, field_name):
@@ -596,14 +597,15 @@ class PoultryEggCollectionLine(models.Model):
                         group['pivot_row_distribution_percent'] = 0.0
                     else:
                         eggs_cell = sum(lines.mapped('total_produced_reference'))
-                        axis, dim_field = self._choose_distribution_dimension(groupby)
-                        # Si este grupo NO está acotado por la dimensión elegida, es un total sobre esa dimensión -> 100%
-                        if dim_field and not self._domain_touches_field(group_domain, dim_field):
+                        # % = celda / total del “padre” inmediato (quitar solo la dimensión más profunda presente)
+                        dim_field = self._pivot_deepest_domain_dimension(group_domain, groupby)
+                        if not dim_field:
+                            # No hay dimensiones: es el gran total
                             ratio = 1.0 if eggs_cell else 0.0
                         else:
-                            denom_domain = self._domain_without_fields(group_domain, {dim_field} if dim_field else set())
-                            eggs_denom = sum(self.search(denom_domain).mapped('total_produced_reference')) if denom_domain else 0.0
-                            ratio = (eggs_cell / eggs_denom) if eggs_denom else 0.0
+                            denom_domain = self._domain_without_fields(group_domain, {dim_field})
+                            eggs_parent = sum(self.search(denom_domain).mapped('total_produced_reference')) if denom_domain else 0.0
+                            ratio = (eggs_cell / eggs_parent) if eggs_parent else 0.0
                         group['pivot_row_distribution_percent'] = min(max(ratio, 0.0), 1.0)
         
         return result
