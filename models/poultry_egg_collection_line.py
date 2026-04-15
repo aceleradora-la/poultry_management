@@ -93,7 +93,7 @@ class PoultryEggCollectionLine(models.Model):
         string='% Distribución',
         compute='_compute_pivot_row_distribution_percent',
         store=True,
-        digits=(16, 4),
+        digits=(16, 2),
         aggregator='avg',
         help='Tabla dinámica (0..1): celda/total de fila; en totales de fila o columna, celda/total del informe.',
     )
