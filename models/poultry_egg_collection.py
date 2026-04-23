@@ -749,18 +749,10 @@ class PoultryEggCollection(models.Model):
                 return False
             if product.id in bom_cache:
                 return bom_cache[product.id]
-            bom = False
             Bom = self.env['mrp.bom']
-            # _bom_find retorna un dict {product: bom} (o recordset según versión); normalizamos
-            try:
-                found = Bom._bom_find(product=product, company_id=self.env.company.id, bom_type='normal')
-                if isinstance(found, dict):
-                    bom = found.get(product) or False
-                else:
-                    # Algunas variantes devuelven directamente un recordset
-                    bom = found or False
-            except Exception:
-                bom = False
+            # Odoo 18: _bom_find(products, picking_type=None, company_id=False, bom_type=False)
+            found = Bom._bom_find(products=product, company_id=self.env.company.id, bom_type='normal')
+            bom = found[product] if found else False
             bom_cache[product.id] = bom
             return bom
         
