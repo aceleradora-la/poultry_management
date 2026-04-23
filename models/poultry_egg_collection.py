@@ -738,31 +738,31 @@ class PoultryEggCollection(models.Model):
         
         # Usar el nuevo sistema dinámico si hay uom_value_ids, sino usar legacy
         use_dynamic = any(line.uom_value_ids for line in self.line_ids)
-        
-        # Buscar la BOM una vez para todas las líneas (usar el producto base)
-        base_product = self.product_tmpl_id
-        if not base_product:
-            raise UserError('No se ha seleccionado un producto base para esta recolección.')
-        
-        # Buscar la BOM del producto base (puede ser por plantilla o por variante)
-        bom = self.env['mrp.bom'].search([
-            ('product_tmpl_id', '=', base_product.id),
-            ('product_id', '=', False),
-            ('type', '=', 'normal'),
-        ], limit=1)
-        
-        if not bom:
-            # Intentar con la primera variante del producto base
-            first_variant = base_product.product_variant_ids[:1]
-            if first_variant:
-                bom = self.env['mrp.bom'].search([
-                    ('product_id', '=', first_variant.id),
-                    ('type', '=', 'normal'),
-                ], limit=1)
-        
-        if not bom:
-            raise UserError(f'No se encontró una Lista de Materiales (BOM) para el producto base {base_product.name}. '
-                          'Debe crear una BOM antes de generar las órdenes.')
+
+        # Selección de BOM por VARIANTE (igual que Odoo al crear una OF):
+        # usar mrp.bom._bom_find para elegir la BOM correcta según producto, compañía y tipo.
+        # Cachear por variante para evitar búsquedas repetidas.
+        bom_cache = {}
+
+        def _get_bom_for_product(product):
+            if not product:
+                return False
+            if product.id in bom_cache:
+                return bom_cache[product.id]
+            bom = False
+            Bom = self.env['mrp.bom']
+            # _bom_find retorna un dict {product: bom} (o recordset según versión); normalizamos
+            try:
+                found = Bom._bom_find(product=product, company_id=self.env.company.id, bom_type='normal')
+                if isinstance(found, dict):
+                    bom = found.get(product) or False
+                else:
+                    # Algunas variantes devuelven directamente un recordset
+                    bom = found or False
+            except Exception:
+                bom = False
+            bom_cache[product.id] = bom
+            return bom
         
         # Preparar picking_type_id para productos terminados
         picking_type_id_finished = self.coop_id.picking_type_id_finished.id if self.coop_id.picking_type_id_finished else False
@@ -771,12 +771,18 @@ class PoultryEggCollection(models.Model):
             product = line.product_variant_id
             if not product:
                 continue
+
+            bom = _get_bom_for_product(product)
+            if not bom:
+                raise UserError(
+                    f'No se encontró una Lista de Materiales (BOM) para la variante {product.display_name}. '
+                    'Debe crear una BOM (por variante o por producto base) antes de generar las órdenes.'
+                )
             
             if use_dynamic and line.uom_value_ids:
                 # Usar el nuevo sistema: generar órdenes para cada unidad con produced_qty > 0
                 for uom_val in line.uom_value_ids:
                     if uom_val.produced_qty > 0:
-                        # Usar la BOM del producto base (ya encontrada arriba)
                         production_vals = {
                             'product_id': product.id,
                             'product_qty': uom_val.produced_qty,
