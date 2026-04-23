@@ -764,17 +764,17 @@ class PoultryEggCollection(models.Model):
             if not product:
                 continue
 
-            bom = _get_bom_for_product(product)
-            if not bom:
-                raise UserError(
-                    f'No se encontró una Lista de Materiales (BOM) para la variante {product.display_name}. '
-                    'Debe crear una BOM (por variante o por producto base) antes de generar las órdenes.'
-                )
-            
+            # Solo validar BOM si efectivamente se van a crear OF para esta variante
             if use_dynamic and line.uom_value_ids:
                 # Usar el nuevo sistema: generar órdenes para cada unidad con produced_qty > 0
                 for uom_val in line.uom_value_ids:
                     if uom_val.produced_qty > 0:
+                        bom = _get_bom_for_product(product)
+                        if not bom:
+                            raise UserError(
+                                f'No se encontró una Lista de Materiales (BOM) para la variante {product.display_name}. '
+                                'Debe crear una BOM (por variante o por producto base) antes de generar las órdenes.'
+                            )
                         production_vals = {
                             'product_id': product.id,
                             'product_qty': uom_val.produced_qty,
@@ -802,6 +802,12 @@ class PoultryEggCollection(models.Model):
                                   'Debe crear esta unidad de medida antes de generar las órdenes.')
                 
                 if line.produced_box > 0:
+                    bom = _get_bom_for_product(product)
+                    if not bom:
+                        raise UserError(
+                            f'No se encontró una Lista de Materiales (BOM) para la variante {product.display_name}. '
+                            'Debe crear una BOM (por variante o por producto base) antes de generar las órdenes.'
+                        )
                     production_vals = {
                         'product_id': product.id,
                         'product_qty': line.produced_box,
