@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Vista de formulario completa para unidades de medida con campos de Poultry Management -->
+    <!-- Odoo 19: uom.uom jerárquico (relative_uom_id, relative_factor, factor); sin category_id/ratio/uom_type. -->
     <record id="view_uom_form_poultry" model="ir.ui.view">
         <field name="name">uom.uom.form.poultry</field>
         <field name="model">uom.uom</field>
@@ -10,15 +10,18 @@
                     <group>
                         <group>
                             <field name="name"/>
-                            <field name="category_id"/>
-                            <field name="uom_type"/>
-                            <field name="ratio"/>
+                            <label for="relative_factor" string="Cantidad"/>
+                            <div class="o_row oe_inline">
+                                <field name="relative_factor" class="oe_inline" style="max-width: 80px;" digits="[12, 5]"/>
+                                <field name="relative_uom_id" placeholder="Unidad de referencia" class="oe_inline" style="max-width: 150px;"/>
+                            </div>
+                            <field name="factor" readonly="1"/>
                             <field name="rounding"/>
                             <field name="active"/>
                         </group>
                         <group string="Configuración para Gestión Avícola">
                             <field name="use_in_poultry"/>
-                            <field name="display_name_poultry" 
+                            <field name="display_name_poultry"
                                    invisible="not use_in_poultry"
                                    placeholder="Si está vacío, se usará el nombre de la unidad de medida"/>
                         </group>
@@ -27,24 +30,24 @@
             </form>
         </field>
     </record>
-    
-    <!-- Vista de lista para unidades de medida -->
+
     <record id="view_uom_list_poultry" model="ir.ui.view">
         <field name="name">uom.uom.list.poultry</field>
         <field name="model">uom.uom</field>
         <field name="arch" type="xml">
             <list string="Unidades de Medida">
+                <field name="sequence" widget="handle"/>
                 <field name="name"/>
-                <field name="category_id"/>
-                <field name="ratio"/>
+                <field name="relative_factor" invisible="relative_factor == 1 and not relative_uom_id" digits="[12, 3]"/>
+                <field name="relative_uom_id"/>
+                <field name="factor" optional="hide"/>
                 <field name="use_in_poultry" optional="hide"/>
                 <field name="display_name_poultry" optional="hide"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
     </record>
-    
-    <!-- Acción para configurar unidades de medida -->
+
     <record id="action_uom_poultry" model="ir.actions.act_window">
         <field name="name">Unidades de Medida</field>
         <field name="res_model">uom.uom</field>
@@ -65,4 +68,3 @@
         </field>
     </record>
 </odoo>
-

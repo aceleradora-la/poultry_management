@@ -1,24 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Odoo 19: res.groups usa privilege_id (res.groups.privilege); la categoría vive en el privilegio. -->
     <record id="poultry_manager" model="res.groups">
         <field name="name">Gestor Avícola</field>
-        <field name="category_id" ref="base.module_category_manufacturing"/>
+        <field name="sequence">30</field>
+        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
     </record>
 
     <record id="poultry_user" model="res.groups">
         <field name="name">Usuario Avícola</field>
-        <field name="category_id" ref="base.module_category_manufacturing"/>
+        <field name="sequence">40</field>
+        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
     </record>
 
     <record id="poultry_cancel_processed_collection" model="res.groups">
         <field name="name">Cancelar Partes Procesados</field>
-        <field name="category_id" ref="base.module_category_manufacturing"/>
+        <field name="sequence">50</field>
+        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
     </record>
 
     <record id="poultry_delete_coop_close" model="res.groups">
         <field name="name">Eliminar Cierres de Galpón</field>
-        <field name="category_id" ref="base.module_category_manufacturing"/>
+        <field name="sequence">60</field>
+        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
         <field name="comment">Permite eliminar cierres de galpón en estado Borrador.</field>
     </record>
 </odoo>
-

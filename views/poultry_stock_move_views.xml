@@ -15,7 +15,7 @@
                 <separator/>
                 <filter string="Realizados" name="filter_done" domain="[('state', '=', 'done')]"/>
                 <filter string="Cancelados" name="filter_cancel" domain="[('state', '=', 'cancel')]"/>
-                <group expand="0" string="Agrupar por">
+                <group string="Agrupar por">
                     <filter string="Producto" name="group_by_product" context="{'group_by': 'product_id'}"/>
                     <filter string="Fecha" name="group_by_date" context="{'group_by': 'date:day'}"/>
                 </group>

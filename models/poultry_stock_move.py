@@ -59,8 +59,8 @@ class PoultryStockMove(models.Model):
             else:
                 sign = 0.0   # Transferencia interna u otro caso
 
-            # Usar ratio del UoM para convertir a unidad de referencia (Huevos)
-            ratio = getattr(move.product_uom, 'ratio', None) or getattr(move.product_uom, 'factor', 1.0)
+            # Odoo 19: uom.uom usa factor (antes ratio en versiones antiguas).
+            ratio = getattr(move.product_uom, 'factor', None) or 1.0
             qty_huevos = sign * (move.product_uom_qty or 0.0) * ratio
             qty_cajones = qty_huevos / 360.0 if qty_huevos else 0.0
 

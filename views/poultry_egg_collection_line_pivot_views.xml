@@ -15,7 +15,7 @@
                 <filter string="Fecha" name="filter_date" date="collection_date"/>
                 <separator/>
                 <!-- Estado del parte: el dominio de la acción ya limita a completada/procesada; estos filtros acotan más. -->
-                <group string="Estado del parte" expand="0">
+                <group string="Estado del parte">
                     <filter string="Solo Procesada" name="part_state_done"
                             domain="[('collection_id.state', '=', 'done')]"/>
                     <filter string="Solo Completada" name="part_state_completed"

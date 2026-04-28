@@ -11,7 +11,8 @@ class PoultryEggCollectionLineUom(models.Model):
     line_id = fields.Many2one('poultry.egg.collection.line', string='Línea de Recolección',
                               required=True, ondelete='cascade', index=True)
     uom_id = fields.Many2one('uom.uom', string='Unidad de Medida', required=True, index=True)
-    uom_ratio = fields.Float(string='Proporción', related='uom_id.ratio', readonly=True, store=True)
+    # Odoo 19: factor sustituye al antiguo ratio en uom.uom (cantidad absoluta respecto a la raíz de la familia).
+    uom_ratio = fields.Float(string='Proporción', related='uom_id.factor', readonly=True, store=True)
     uom_display_name = fields.Char(string='Nombre Mostrar', related='uom_id.poultry_display_name', readonly=True, store=True)
     
     # Valores iniciales, finales y producidos

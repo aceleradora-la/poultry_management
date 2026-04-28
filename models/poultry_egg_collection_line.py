@@ -229,44 +229,26 @@ class PoultryEggCollectionLine(models.Model):
     
     @api.model
     def _get_poultry_uoms(self, product_variant):
-        """Obtiene las unidades de medida configuradas para Poultry Management del producto"""
-        if not product_variant:
+        """UdM marcadas para avicultura en la misma familia que la UdM del producto (Odoo 19: sin category_id)."""
+        if not product_variant or not product_variant.uom_id:
             return self.env['uom.uom']
-        
-        # Obtener la categoría de unidad de medida del producto
-        uom_category = product_variant.uom_id.category_id
-        
-        # Buscar todas las unidades de medida de esa categoría que estén marcadas para usar en poultry
-        # No podemos usar order='ratio desc' porque ratio es computed no almacenado
+        base = product_variant.uom_id
         uoms = self.env['uom.uom'].search([
-            ('category_id', '=', uom_category.id),
             ('use_in_poultry', '=', True),
             ('active', '=', True),
         ])
-        
-        # Ordenar en Python por ratio descendente (mayor a menor)
-        uoms = uoms.sorted(key=lambda u: u.ratio or 0.0, reverse=True)
-        
-        return uoms
-    
+        uoms = uoms.filtered(lambda u: base._has_common_reference(u))
+        return uoms.sorted(key=lambda u: u.factor or 0.0, reverse=True)
+
     @api.model
     def _get_reference_uom(self, product_variant):
-        """Obtiene la unidad de medida de referencia (ratio = 1.0)"""
-        if not product_variant:
+        """Raíz de la jerarquía relative_uom_id (sustituye categoría + ratio==1 en Odoo 18)."""
+        if not product_variant or not product_variant.uom_id:
             return False
-        
-        uom_category = product_variant.uom_id.category_id
-        # No podemos filtrar por ratio directamente porque es computed no almacenado
-        # Buscar todas las unidades de la categoría y filtrar en Python
-        uoms = self.env['uom.uom'].search([
-            ('category_id', '=', uom_category.id),
-            ('active', '=', True),
-        ])
-        
-        # Buscar la unidad con ratio = 1.0
-        reference_uom = uoms.filtered(lambda u: u.ratio == 1.0)
-        
-        return reference_uom[0] if reference_uom else False
+        uom = product_variant.uom_id
+        while uom.relative_uom_id:
+            uom = uom.relative_uom_id
+        return uom
     
     @api.depends('final_box', 'final_map', 'final_egg',
                  'uom_value_ids.final_qty', 'uom_value_ids.uom_ratio',
@@ -285,9 +267,9 @@ class PoultryEggCollectionLine(models.Model):
                     total_reference += qty * ratio
             else:
                 # Método legacy: convertir PT/PI/Huevo a huevos usando sus ratios
-                box_ratio = line.uom_box_id.ratio if line.uom_box_id else 0.0
-                map_ratio = line.uom_map_id.ratio if line.uom_map_id else 0.0
-                egg_ratio = line.uom_egg_id.ratio if line.uom_egg_id else 0.0
+                box_ratio = line.uom_box_id.factor if line.uom_box_id else 0.0
+                map_ratio = line.uom_map_id.factor if line.uom_map_id else 0.0
+                egg_ratio = line.uom_egg_id.factor if line.uom_egg_id else 0.0
 
                 total_reference += (line.final_box or 0.0) * box_ratio
                 total_reference += (line.final_map or 0.0) * map_ratio
@@ -877,9 +859,9 @@ class PoultryEggCollectionLine(models.Model):
                 line.total_produced_reference = total_ref
             else:
                 # Método legacy
-                box_ratio = line.uom_box_id.ratio if line.uom_box_id else 0.0
-                map_ratio = line.uom_map_id.ratio if line.uom_map_id else 0.0
-                egg_ratio = line.uom_egg_id.ratio if line.uom_egg_id else 0.0
+                box_ratio = line.uom_box_id.factor if line.uom_box_id else 0.0
+                map_ratio = line.uom_map_id.factor if line.uom_map_id else 0.0
+                egg_ratio = line.uom_egg_id.factor if line.uom_egg_id else 0.0
                 
                 line.total_produced_reference = (
                     (line.produced_box or 0.0) * box_ratio +

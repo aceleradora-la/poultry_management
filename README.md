@@ -1,8 +1,8 @@
-# Módulo de Gestión Avícola (Poultry Management) para Odoo 18
+# Módulo de Gestión Avícola (Poultry Management) para Odoo 19
 
 ## Descripción
 
-Módulo completo para la gestión de granjas avícolas (huevos y pollos) en Odoo 18. Permite administrar galpones, lotes de aves, genéticas y listas de materiales de alimento balanceado, con integración al módulo de producción.
+Módulo completo para la gestión de granjas avícolas (huevos y pollos) en Odoo 19. Permite administrar galpones, lotes de aves, genéticas y listas de materiales de alimento balanceado, con integración al módulo de producción.
 
 ## Características Principales
 
@@ -39,7 +39,7 @@ Módulo completo para la gestión de granjas avícolas (huevos y pollos) en Odoo
 
 ## Instalación
 
-1. Coloque el módulo en la carpeta `addons` de su instalación de Odoo 18
+1. Coloque el módulo en la carpeta `addons` de su instalación de Odoo 19
 2. Actualice la lista de aplicaciones
 3. Instale el módulo "Poultry Management" desde el menú de Aplicaciones
 
@@ -139,5 +139,11 @@ aceleradora.la
 
 ## Versión
 
-18.0.1.0.0
+19.0.1.0.0 (rama `19.0`; la rama `18.0` mantiene la línea Odoo 18).
+
+## Migración desde Odoo 18
+
+- Actualice la base de datos con el procedimiento que corresponda (Enterprise, OpenUpgrade u otro).
+- En el servidor Odoo 19, actualice el módulo: `-u poultry_management`.
+- Si tras la actualización aparece algún error de carga, revise el log: suelen ser herencias de vistas estándar o campos renombrados en el core.
 
