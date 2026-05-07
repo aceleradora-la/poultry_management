@@ -45,8 +45,11 @@ class ProductProduct(models.Model):
         date_from = fields.Datetime.now() - timedelta(days=7)
         domain = [
             ('state', '=', 'done'),
-            # En stock.move.line, `date` puede ser fecha de creación/actualización.
-            # En stock.move, `date` es fecha programada y, al quedar done, pasa a ser la fecha real del movimiento.
+            # En UI (como en tu ejemplo), la regla "Fecha está dentro de -7 días" se aplica sobre
+            # stock.move.line.date. En algunos flujos, move_id.date puede quedarse con la fecha
+            # planificada. Usamos OR para cubrir ambos casos.
+            '|',
+            ('date', '>=', date_from),
             ('move_id.date', '>=', date_from),
             ('product_id', 'in', list(product_ids)),
             ('location_id.usage', '=', 'internal'),
