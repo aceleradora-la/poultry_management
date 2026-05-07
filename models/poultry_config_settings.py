@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api
+from odoo import models, fields
 
 
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
+
+    poultry_stock_dashboard_category_ids = fields.Many2many(
+        related='company_id.poultry_stock_dashboard_category_ids',
+        readonly=False,
+    )
 
     poultry_unclassified_egg_product_id = fields.Many2one(
         'product.product',

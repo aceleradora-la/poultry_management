@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -28,6 +28,8 @@
         'data/poultry_config_parameters.xml',
         'views/uom_views.xml',
         'views/product_template_views.xml',
+        'views/poultry_res_config_settings_views.xml',
+        'views/poultry_stock_dashboard_views.xml',
         'views/poultry_genetics_views.xml',
         'views/poultry_coop_views.xml',
         'views/poultry_batch_views.xml',
