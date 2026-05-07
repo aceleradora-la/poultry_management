@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_poultry_stock_dashboard" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.poultry.stock.dashboard</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="stock.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='stock']/block[@name='operations_setting_container']" position="after">
+                <block title="Gestión Avícola" name="poultry_stock_dashboard_settings_block">
+                    <setting string="Tablero cobertura de stock"
+                             help="Si selecciona categorías, el tablero solo muestra productos en esas categorías (incluye subcategorías). Vacío = todas.">
+                        <field name="poultry_stock_dashboard_category_ids"
+                               widget="many2many_tags"
+                               placeholder="Todas las categorías"
+                               options="{'no_create_edit': True}"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

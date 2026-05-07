@@ -21,6 +21,10 @@
                            help="Al finalizar una OF, valida que la suma consumida de componentes sea igual a la cantidad producida (en la misma UdM)."/>
                     <label for="poultry_validate_kit_consumption"/>
                 </div>
+                <group string="Cobertura de stock (tablero)" invisible="not is_storable">
+                    <field name="poultry_cover_green_days"/>
+                    <field name="poultry_cover_yellow_days"/>
+                </group>
             </xpath>
         </field>
     </record>
