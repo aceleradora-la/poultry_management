@@ -45,7 +45,9 @@ class ProductProduct(models.Model):
         date_from = fields.Datetime.now() - timedelta(days=7)
         domain = [
             ('state', '=', 'done'),
-            ('date', '>=', date_from),
+            # En stock.move.line, `date` puede ser fecha de creación/actualización.
+            # En stock.move, `date` es fecha programada y, al quedar done, pasa a ser la fecha real del movimiento.
+            ('move_id.date', '>=', date_from),
             ('product_id', 'in', list(product_ids)),
             ('location_id.usage', '=', 'internal'),
             ('location_dest_id.usage', '!=', 'internal'),
