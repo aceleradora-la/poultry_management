@@ -52,7 +52,9 @@ class ProductProduct(models.Model):
             ('location_id.usage', '=', 'internal'),
             ('location_dest_id.usage', '!=', 'internal'),
         ]
-        MoveLine = self.env['stock.move.line']
+        # Nota: este tablero es analítico. Para que el cálculo no dependa de reglas de registro
+        # (que pueden ocultar movimientos) lo calculamos con sudo.
+        MoveLine = self.env['stock.move.line'].sudo()
         groups = MoveLine.read_group(domain, ['quantity_product_uom:sum'], ['product_id'])
         result = {}
         for row in groups:
