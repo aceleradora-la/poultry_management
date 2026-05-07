@@ -30,6 +30,7 @@
         'views/product_template_views.xml',
         'views/poultry_res_config_settings_views.xml',
         'views/poultry_stock_dashboard_views.xml',
+        'views/poultry_stock_quant_dashboard_views.xml',
         'views/poultry_genetics_views.xml',
         'views/poultry_coop_views.xml',
         'views/poultry_batch_views.xml',
