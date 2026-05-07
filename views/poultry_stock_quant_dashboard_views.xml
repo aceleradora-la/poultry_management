@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="stock_quant_search_poultry_cover" model="ir.ui.view">
+        <field name="name">stock.quant.search.poultry.cover</field>
+        <field name="model">stock.quant</field>
+        <field name="inherit_id" ref="stock.stock_quant_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <searchpanel>
+                    <!-- Similar al stock-report: ubicación/almacén + categoría de producto -->
+                    <field name="warehouse_id" icon="fa-filter" enable_counters="1"/>
+                    <field name="location_id" icon="fa-filter" enable_counters="1"/>
+                    <field name="product_categ_id" icon="fa-filter" enable_counters="1"/>
+                </searchpanel>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="stock_quant_kanban_poultry_cover" model="ir.ui.view">
+        <field name="name">stock.quant.kanban.poultry.cover</field>
+        <field name="model">stock.quant</field>
+        <field name="arch" type="xml">
+            <kanban create="false"
+                    decoration-success="poultry_cover_signal == 'green'"
+                    decoration-warning="poultry_cover_signal == 'yellow'"
+                    decoration-danger="poultry_cover_signal == 'red'"
+                    decoration-muted="poultry_cover_signal == 'neutral'">
+                <field name="product_id"/>
+                <field name="location_id"/>
+                <field name="warehouse_id"/>
+                <field name="quantity"/>
+                <field name="product_uom_id"/>
+                <field name="poultry_cover_daily_avg"/>
+                <field name="poultry_cover_days_display"/>
+                <field name="poultry_cover_signal"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div>
+                                    <strong class="d-block"><field name="product_id"/></strong>
+                                    <div class="text-muted small">
+                                        <field name="warehouse_id" invisible="not warehouse_id"/>
+                                        <span t-if="record.warehouse_id.raw_value and record.location_id.raw_value"> · </span>
+                                        <field name="location_id"/>
+                                    </div>
+                                </div>
+                                <field name="poultry_cover_signal"/>
+                            </div>
+
+                            <div class="row small g-1 mt-1">
+                                <div class="col-6">
+                                    <span class="text-muted">A la mano</span>
+                                    <div><field name="quantity"/> <field name="product_uom_id" class="d-inline"/></div>
+                                </div>
+                                <div class="col-6">
+                                    <span class="text-muted">Consumo/día (7d)</span>
+                                    <div><field name="poultry_cover_daily_avg"/></div>
+                                </div>
+                                <div class="col-12 mt-1">
+                                    <span class="text-muted">Días cobertura</span>
+                                    <div class="fw-bold"><field name="poultry_cover_days_display"/></div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="stock_quant_tree_poultry_cover" model="ir.ui.view">
+        <field name="name">stock.quant.list.poultry.cover</field>
+        <field name="model">stock.quant</field>
+        <field name="inherit_id" ref="stock.stock_quant_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <attribute name="decoration-success">poultry_cover_signal == 'green'</attribute>
+                <attribute name="decoration-warning">poultry_cover_signal == 'yellow'</attribute>
+                <attribute name="decoration-danger">poultry_cover_signal == 'red'</attribute>
+                <attribute name="decoration-muted">poultry_cover_signal == 'neutral'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='quantity']" position="after">
+                <field name="poultry_cover_daily_avg" string="Consumo/día (7d)" optional="hide"/>
+                <field name="poultry_cover_days_display" string="Días cobertura" optional="show"/>
+                <field name="poultry_cover_signal" string="Semáforo" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_poultry_stock_quant_dashboard" model="ir.actions.act_window">
+        <field name="name">Cobertura de stock</field>
+        <field name="res_model">stock.quant</field>
+        <field name="view_mode">kanban,list</field>
+        <field name="search_view_id" ref="stock_quant_search_poultry_cover"/>
+        <field name="context">{'search_default_internal_loc': 1, 'always_show_loc': 1}</field>
+        <field name="domain">[]</field>
+    </record>
+</odoo>
+
