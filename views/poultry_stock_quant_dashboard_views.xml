@@ -46,7 +46,12 @@
                                         <field name="location_id"/>
                                     </div>
                                 </div>
-                                <field name="poultry_cover_signal"/>
+                                <div class="d-flex align-items-center">
+                                    <span t-if="record.poultry_cover_signal.raw_value == 'green'" class="fa fa-circle text-success" title="Cobertura: verde"/>
+                                    <span t-elif="record.poultry_cover_signal.raw_value == 'yellow'" class="fa fa-circle text-warning" title="Cobertura: amarillo"/>
+                                    <span t-elif="record.poultry_cover_signal.raw_value == 'red'" class="fa fa-circle text-danger" title="Cobertura: rojo"/>
+                                    <span t-else="" class="fa fa-circle text-muted" title="Cobertura: sin datos"/>
+                                </div>
                             </div>
 
                             <div class="row small g-1 mt-1">
@@ -85,7 +90,7 @@
             <xpath expr="//field[@name='quantity']" position="after">
                 <field name="poultry_cover_daily_avg" string="Consumo/día (7d)" optional="hide"/>
                 <field name="poultry_cover_days_display" string="Días cobertura" optional="show"/>
-                <field name="poultry_cover_signal" string="Semáforo" optional="hide"/>
+                <field name="poultry_cover_signal" string="Semáforo" widget="badge" optional="hide"/>
             </xpath>
         </field>
     </record>
