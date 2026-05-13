@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Tablero de cobertura de stock: consumo medio diario (salidas últimos 7 días / 7) y semáforo por umbrales en plantilla.
+Tablero de cobertura de stock: consumo medio diario (suma salidas en ventana / días ventana)
+y semáforo por umbrales (producto o categoría).
 """
+from collections import defaultdict
 from datetime import timedelta
 
 from odoo import api, fields, models
@@ -12,10 +14,10 @@ class ProductProduct(models.Model):
     _inherit = 'product.product'
 
     poultry_cover_daily_avg = fields.Float(
-        string='Consumo diario (7 días)',
+        string='Consumo diario (ventana)',
         digits='Product Unit of Measure',
         compute='_compute_poultry_cover_metrics',
-        help='Promedio diario de salidas desde stock interno en los últimos 7 días (UdM del producto).',
+        help='Promedio diario de salidas desde stock interno en la ventana configurada (UdM del producto).',
     )
     poultry_cover_days = fields.Float(
         string='Días de cobertura',
@@ -38,16 +40,14 @@ class ProductProduct(models.Model):
         compute='_compute_poultry_cover_metrics',
     )
 
-    def _poultry_sum_outgoing_product_uom(self, product_ids):
-        """Salidas done en ventana móvil de 7 días: internal → no internal."""
+    def _poultry_sum_outgoing_product_uom(self, product_ids, window_days):
+        """Salidas done en ventana móvil: internal → no internal."""
         if not product_ids:
             return {}
-        date_from = fields.Datetime.now() - timedelta(days=7)
+        window_days = max(float(window_days or 7.0), 1.0)
+        date_from = fields.Datetime.now() - timedelta(days=window_days)
         domain = [
             ('state', '=', 'done'),
-            # En UI (como en tu ejemplo), la regla "Fecha está dentro de -7 días" se aplica sobre
-            # stock.move.line.date. En algunos flujos, move_id.date puede quedarse con la fecha
-            # planificada. Usamos OR para cubrir ambos casos.
             '|',
             ('date', '>=', date_from),
             ('move_id.date', '>=', date_from),
@@ -55,8 +55,6 @@ class ProductProduct(models.Model):
             ('location_id.usage', '=', 'internal'),
             ('location_dest_id.usage', '!=', 'internal'),
         ]
-        # Nota: este tablero es analítico. Para que el cálculo no dependa de reglas de registro
-        # (que pueden ocultar movimientos) lo calculamos con sudo.
         MoveLine = self.env['stock.move.line'].sudo()
         groups = MoveLine.read_group(domain, ['quantity_product_uom:sum'], ['product_id'])
         result = {}
@@ -80,18 +78,33 @@ class ProductProduct(models.Model):
     @api.depends(
         'qty_available',
         'uom_id',
+        'product_tmpl_id.poultry_cover_window_days',
         'product_tmpl_id.poultry_cover_green_days',
         'product_tmpl_id.poultry_cover_yellow_days',
+        'product_tmpl_id.categ_id.poultry_cover_window_days',
+        'product_tmpl_id.categ_id.poultry_cover_green_days',
+        'product_tmpl_id.categ_id.poultry_cover_yellow_days',
     )
     def _compute_poultry_cover_metrics(self):
-        consumption_map = self._poultry_sum_outgoing_product_uom(set(self.ids))
+        buckets = defaultdict(list)
+        for product in self:
+            tmpl = product.product_tmpl_id
+            wd = int(round(tmpl._poultry_effective_cover_window_days()))
+            wd = max(wd, 1)
+            buckets[wd].append(product.id)
+
+        consumption = {}
+        for window_int, pids in buckets.items():
+            consumption.update(self._poultry_sum_outgoing_product_uom(pids, float(window_int)))
+
         for product in self:
             tmpl = product.product_tmpl_id
             rounding = product.uom_id.rounding or 0.0001
-            green_th = tmpl.poultry_cover_green_days
-            yellow_th = tmpl.poultry_cover_yellow_days
-            total_out = consumption_map.get(product.id, 0.0)
-            daily = total_out / 7.0
+            window = tmpl._poultry_effective_cover_window_days()
+            green_th = tmpl._poultry_effective_cover_green_days()
+            yellow_th = tmpl._poultry_effective_cover_yellow_days()
+            total_out = consumption.get(product.id, 0.0)
+            daily = total_out / window if window else 0.0
             product.poultry_cover_daily_avg = float_round(daily, precision_rounding=rounding)
             qty = product.qty_available
 
