@@ -89,13 +89,12 @@ class ProductProduct(models.Model):
         buckets = defaultdict(list)
         for product in self:
             tmpl = product.product_tmpl_id
-            wd = int(round(tmpl._poultry_effective_cover_window_days()))
-            wd = max(wd, 1)
+            wd = float(tmpl._poultry_effective_cover_window_days())
             buckets[wd].append(product.id)
 
         consumption = {}
-        for window_int, pids in buckets.items():
-            consumption.update(self._poultry_sum_outgoing_product_uom(pids, float(window_int)))
+        for window_days, pids in buckets.items():
+            consumption.update(self._poultry_sum_outgoing_product_uom(pids, window_days))
 
         for product in self:
             tmpl = product.product_tmpl_id
