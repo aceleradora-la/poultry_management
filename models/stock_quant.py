@@ -8,7 +8,7 @@ class StockQuant(models.Model):
     _inherit = 'stock.quant'
 
     poultry_cover_daily_avg = fields.Float(
-        string='Consumo diario (7 días)',
+        string='Consumo diario (ventana)',
         related='product_id.poultry_cover_daily_avg',
         readonly=True,
         digits='Product Unit of Measure',
@@ -38,6 +38,10 @@ class StockQuant(models.Model):
         'product_id.poultry_cover_daily_avg',
         'product_id.product_tmpl_id.poultry_cover_green_days',
         'product_id.product_tmpl_id.poultry_cover_yellow_days',
+        'product_id.product_tmpl_id.poultry_cover_window_days',
+        'product_id.product_tmpl_id.categ_id.poultry_cover_green_days',
+        'product_id.product_tmpl_id.categ_id.poultry_cover_yellow_days',
+        'product_id.product_tmpl_id.categ_id.poultry_cover_window_days',
     )
     def _compute_poultry_cover_quant_metrics(self):
         for quant in self:
@@ -47,6 +51,8 @@ class StockQuant(models.Model):
 
             daily = product.poultry_cover_daily_avg or 0.0
             qty = quant.quantity or 0.0
+            green_th = tmpl._poultry_effective_cover_green_days()
+            yellow_th = tmpl._poultry_effective_cover_yellow_days()
 
             if float_is_zero(daily, precision_rounding=rounding):
                 quant.poultry_cover_days = False
@@ -62,9 +68,9 @@ class StockQuant(models.Model):
             quant.poultry_cover_days = float_round(days, precision_rounding=0.01)
             quant.poultry_cover_days_display = str(float_round(days, precision_rounding=0.01))
 
-            if float_compare(days, tmpl.poultry_cover_green_days, precision_digits=2) >= 0:
+            if float_compare(days, green_th, precision_digits=2) >= 0:
                 quant.poultry_cover_signal = 'green'
-            elif float_compare(days, tmpl.poultry_cover_yellow_days, precision_digits=2) >= 0:
+            elif float_compare(days, yellow_th, precision_digits=2) >= 0:
                 quant.poultry_cover_signal = 'yellow'
             else:
                 quant.poultry_cover_signal = 'red'
