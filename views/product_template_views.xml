@@ -23,8 +23,6 @@
                 </div>
                 <group string="Cobertura de stock (tablero)" invisible="not is_storable">
                     <field name="poultry_cover_window_days" placeholder="Desde categoría"/>
-                    <field name="poultry_cover_green_days" placeholder="Desde categoría"/>
-                    <field name="poultry_cover_yellow_days" placeholder="Desde categoría"/>
                 </group>
             </xpath>
         </field>
