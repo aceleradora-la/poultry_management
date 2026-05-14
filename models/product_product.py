@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Tablero de cobertura de stock: consumo medio diario (suma salidas en ventana / días ventana)
-y semáforo por umbrales (producto o categoría).
+Tablero de cobertura de stock: consumo medio diario (ventana configurable en producto/categoría)
+y semáforo con umbrales alineados a Odoo (plazo proveedor + días compra + margen PO).
 """
 from collections import defaultdict
 from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.tools.float_utils import float_compare, float_is_zero, float_round
+
+# Orden estándar de product.supplierinfo (mismo criterio que el planificador al tomar el primero).
+_SUPPLIERINFO_ORDER = 'sequence, min_qty desc, price, id'
+# Valor alto para ordenar al final (menos urgente) en columnas con orden ascendente por días.
+_SORT_TAIL = 1e9
 
 
 class ProductProduct(models.Model):
@@ -31,14 +36,55 @@ class ProductProduct(models.Model):
     )
     poultry_cover_signal = fields.Selection(
         selection=[
-            ('green', 'Verde'),
-            ('yellow', 'Amarillo'),
             ('red', 'Rojo'),
+            ('yellow', 'Amarillo'),
+            ('green', 'Verde'),
             ('neutral', 'Sin datos'),
         ],
         string='Semáforo cobertura',
         compute='_compute_poultry_cover_metrics',
+        store=True,
+        index=True,
     )
+    poultry_cover_sort_days = fields.Float(
+        string='Orden cobertura (días)',
+        compute='_compute_poultry_cover_metrics',
+        store=True,
+        index=True,
+        help='Clave para ordenar el tablero Kanban: menor = más urgente (solo uso interno).',
+    )
+
+    def _poultry_first_supplierinfo(self):
+        """Primer vendor line como lista ordenada del modelo (sequence, min_qty desc, …)."""
+        self.ensure_one()
+        SupplierInfo = self.env['product.supplierinfo'].sudo()
+        company = self.env.company
+        domain = [
+            ('product_tmpl_id', '=', self.product_tmpl_id.id),
+            '|', ('product_id', '=', False), ('product_id', '=', self.id),
+            '|', ('company_id', '=', False), ('company_id', '=', company.id),
+        ]
+        return SupplierInfo.search(domain, order=_SUPPLIERINFO_ORDER, limit=1)
+
+    def _poultry_odoo_cover_threshold_days(self):
+        """Amarillo = delay del primer proveedor; verde = amarillo + días compra + margen PO si aplica."""
+        self.ensure_one()
+        company = self.env.company
+        info = self._poultry_first_supplierinfo()
+        yellow = float(info.delay) if info else 0.0
+
+        days_purchase = 0.0
+        if 'days_to_purchase' in company._fields:
+            days_purchase = float(company.days_to_purchase or 0.0)
+
+        use_po_lead = self.env['ir.config_parameter'].sudo().get_param('purchase.use_po_lead') == 'True'
+        po_extra = float(company.po_lead or 0.0) if use_po_lead else 0.0
+
+        buffer = days_purchase + po_extra
+        if buffer <= 0.0:
+            buffer = 0.01
+        green = yellow + buffer
+        return yellow, green
 
     def _poultry_sum_outgoing_product_uom(self, product_ids, window_days):
         """Salidas done en ventana móvil: internal → no internal."""
@@ -75,15 +121,18 @@ class ProductProduct(models.Model):
             result[pid] = qty or 0.0
         return result
 
+    @api.depends_context('company')
     @api.depends(
         'qty_available',
         'uom_id',
         'product_tmpl_id.poultry_cover_window_days',
-        'product_tmpl_id.poultry_cover_green_days',
-        'product_tmpl_id.poultry_cover_yellow_days',
         'product_tmpl_id.categ_id.poultry_cover_window_days',
-        'product_tmpl_id.categ_id.poultry_cover_green_days',
-        'product_tmpl_id.categ_id.poultry_cover_yellow_days',
+        'product_tmpl_id.seller_ids',
+        'product_tmpl_id.seller_ids.delay',
+        'product_tmpl_id.seller_ids.sequence',
+        'product_tmpl_id.seller_ids.min_qty',
+        'product_tmpl_id.seller_ids.product_id',
+        'product_tmpl_id.seller_ids.company_id',
     )
     def _compute_poultry_cover_metrics(self):
         buckets = defaultdict(list)
@@ -100,8 +149,7 @@ class ProductProduct(models.Model):
             tmpl = product.product_tmpl_id
             rounding = product.uom_id.rounding or 0.0001
             window = tmpl._poultry_effective_cover_window_days()
-            green_th = tmpl._poultry_effective_cover_green_days()
-            yellow_th = tmpl._poultry_effective_cover_yellow_days()
+            yellow_th, green_th = product._poultry_odoo_cover_threshold_days()
             total_out = consumption.get(product.id, 0.0)
             daily = total_out / window if window else 0.0
             product.poultry_cover_daily_avg = float_round(daily, precision_rounding=rounding)
@@ -112,14 +160,17 @@ class ProductProduct(models.Model):
                 if float_is_zero(qty, precision_rounding=rounding):
                     product.poultry_cover_days_display = '—'
                     product.poultry_cover_signal = 'neutral'
+                    product.poultry_cover_sort_days = _SORT_TAIL
                 else:
                     product.poultry_cover_days_display = '∞'
                     product.poultry_cover_signal = 'green'
+                    product.poultry_cover_sort_days = _SORT_TAIL
                 continue
 
             days = qty / daily if daily else 0.0
             product.poultry_cover_days = float_round(days, precision_rounding=0.01)
             product.poultry_cover_days_display = str(float_round(days, precision_rounding=0.01))
+            product.poultry_cover_sort_days = float(product.poultry_cover_days)
 
             if float_compare(days, green_th, precision_digits=2) >= 0:
                 product.poultry_cover_signal = 'green'
@@ -130,20 +181,19 @@ class ProductProduct(models.Model):
 
     @api.model
     def action_open_poultry_stock_dashboard(self):
-        """Dominio: almacenables + categorías opcionales por compañía (child_of)."""
+        """Solo Kanban: stock empresa (qty_available), agrupado por semáforo y ordenado por urgencia."""
         domain = [('is_storable', '=', True), ('active', '=', True)]
         cats = self.env.company.poultry_stock_dashboard_category_ids
         if cats:
             domain.append(('categ_id', 'child_of', cats.ids))
         kanban_view = self.env.ref('poultry_management.product_product_kanban_poultry_cover')
-        list_view = self.env.ref('poultry_management.product_product_tree_poultry_cover')
         search_view = self.env.ref('poultry_management.product_product_search_poultry_cover')
         return {
             'type': 'ir.actions.act_window',
             'name': 'Cobertura de stock',
             'res_model': 'product.product',
-            'view_mode': 'kanban,list',
-            'views': [(kanban_view.id, 'kanban'), (list_view.id, 'list')],
+            'view_mode': 'kanban',
+            'views': [(kanban_view.id, 'kanban')],
             'search_view_id': search_view.id,
             'domain': domain,
             'context': {},

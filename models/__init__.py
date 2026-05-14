@@ -4,7 +4,6 @@ from . import res_company
 from . import product_category
 from . import product_template
 from . import product_product
-from . import stock_quant
 from . import uom_uom
 from . import poultry_coop
 from . import poultry_batch
