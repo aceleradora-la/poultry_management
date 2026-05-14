@@ -1,5 +1,6 @@
 /* Tablero Cobertura de stock: amarillo legible (Bootstrap/Odoo "warning" suele verse marrón). */
-.o_poultry_stock_cover_dashboard .o_poultry_cover_icon--amber {
+.o_poultry_stock_cover_dashboard .o_poultry_cover_icon--amber,
+.o_poultry_stock_cover_dashboard .o_poultry_cover_fcst-icon--amber {
     color: #e6ac00 !important;
 }
 
