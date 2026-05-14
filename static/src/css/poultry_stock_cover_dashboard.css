@@ -1,11 +1,61 @@
-/* Tablero Cobertura de stock: amarillo legible (Bootstrap/Odoo "warning" suele verse marrón). */
-.o_poultry_stock_cover_dashboard .o_poultry_cover_icon--amber,
-.o_poultry_stock_cover_dashboard .o_poultry_cover_fcst-icon--amber {
-    color: #e6ac00 !important;
+/* Tablero Cobertura de stock: discos de semáforo con días dentro del círculo. */
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
 }
 
-/* Tarjeta en estado amarillo: sin t-attf-class en OWL (evita #{} que no compila en Kanban Odoo 19). */
-.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_icon--amber) {
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk {
+    width: 4.5rem;
+    height: 4.5rem;
+    min-width: 4.5rem;
+    min-height: 4.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.05;
+    text-align: center;
+    padding: 4px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* Contenido Odoo del campo dentro del disco */
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk .o_field_widget,
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk span {
+    font-weight: 700;
+    font-size: inherit;
+    line-height: 1.05;
+    text-align: center;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--red {
+    background-color: #dc3545;
+    color: #fff !important;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--yellow {
+    background-color: #e6ac00;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--yellow * {
+    color: #1a1a1a !important;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--green {
+    background-color: #198754;
+    color: #fff !important;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--neutral {
+    background-color: #adb5bd;
+    color: #fff !important;
+}
+
+/* Tarjeta en estado amarillo REAL (solo el primer grupo). */
+.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_disk-group--real .o_poultry_cover_disk--yellow) {
     border-inline-start: 3px solid #e6ac00;
     background-color: rgba(230, 172, 0, 0.06);
 }

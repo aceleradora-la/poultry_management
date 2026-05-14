@@ -48,28 +48,54 @@
                                     <span t-if="record.default_code.raw_value" class="text-muted small d-block">
                                         Ref. <field name="default_code"/>
                                     </span>
-                                    <div class="small mt-1 lh-sm">
-                                        <span class="text-muted">Real:</span>
-                                        <span class="fw-semibold"><field name="poultry_cover_days_display"/></span>
-                                        <span class="text-muted"> días</span>
+                                    <div class="d-flex flex-wrap align-items-end gap-3 mt-2">
+                                        <div class="o_poultry_cover_disk-group o_poultry_cover_disk-group--real text-center">
+                                            <div class="text-muted text-uppercase mb-1 o_poultry_cover_disk-label">Real</div>
+                                            <t t-if="record.poultry_cover_signal.raw_value == 'red'">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--red" title="Cobertura real: rojo">
+                                                    <field name="poultry_cover_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                            <t t-elif="record.poultry_cover_signal.raw_value == 'yellow'">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--yellow" title="Cobertura real: amarillo">
+                                                    <field name="poultry_cover_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                            <t t-elif="record.poultry_cover_signal.raw_value == 'green'">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--green" title="Cobertura real: verde">
+                                                    <field name="poultry_cover_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                            <t t-else="">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--neutral" title="Cobertura real: sin datos">
+                                                    <field name="poultry_cover_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                        </div>
+                                        <div class="o_poultry_cover_disk-group o_poultry_cover_disk-group--fcst text-center">
+                                            <div class="text-muted text-uppercase mb-1 o_poultry_cover_disk-label">Pronóst.</div>
+                                            <t t-if="record.poultry_cover_forecast_signal.raw_value == 'red'">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--red" title="Cobertura pronóstico: rojo">
+                                                    <field name="poultry_cover_forecast_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                            <t t-elif="record.poultry_cover_forecast_signal.raw_value == 'yellow'">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--yellow" title="Cobertura pronóstico: amarillo">
+                                                    <field name="poultry_cover_forecast_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                            <t t-elif="record.poultry_cover_forecast_signal.raw_value == 'green'">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--green" title="Cobertura pronóstico: verde">
+                                                    <field name="poultry_cover_forecast_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                            <t t-else="">
+                                                <div class="o_poultry_cover_disk o_poultry_cover_disk--neutral" title="Cobertura pronóstico: sin datos">
+                                                    <field name="poultry_cover_forecast_days_display" readonly="1" nolabel="1"/>
+                                                </div>
+                                            </t>
+                                        </div>
                                     </div>
-                                    <div class="small lh-sm">
-                                        <span class="text-muted">Pronóstico:</span>
-                                        <span class="fw-semibold"><field name="poultry_cover_forecast_days_display"/></span>
-                                        <span class="text-muted"> días</span>
-                                    </div>
-                                </div>
-                                <div class="d-flex flex-column align-items-end ms-1 flex-shrink-0">
-                                    <span class="text-muted text-uppercase" style="font-size: 0.6rem; letter-spacing: 0.02em;">Real</span>
-                                    <span t-if="record.poultry_cover_signal.raw_value == 'red'" class="fa fa-circle text-danger fs-5" title="Real: rojo"/>
-                                    <span t-elif="record.poultry_cover_signal.raw_value == 'yellow'" class="fa fa-circle fs-5 o_poultry_cover_icon--amber" title="Real: amarillo"/>
-                                    <span t-elif="record.poultry_cover_signal.raw_value == 'green'" class="fa fa-circle text-success fs-5" title="Real: verde"/>
-                                    <span t-else="" class="fa fa-circle text-muted fs-5" title="Real: sin datos"/>
-                                    <span class="text-muted text-uppercase mt-1" style="font-size: 0.6rem; letter-spacing: 0.02em;">Pronóst.</span>
-                                    <span t-if="record.poultry_cover_forecast_signal.raw_value == 'red'" class="fa fa-circle text-danger fs-5" title="Pronóstico: rojo"/>
-                                    <span t-elif="record.poultry_cover_forecast_signal.raw_value == 'yellow'" class="fa fa-circle fs-5 o_poultry_cover_fcst-icon--amber" title="Pronóstico: amarillo"/>
-                                    <span t-elif="record.poultry_cover_forecast_signal.raw_value == 'green'" class="fa fa-circle text-success fs-5" title="Pronóstico: verde"/>
-                                    <span t-else="" class="fa fa-circle text-muted fs-5" title="Pronóstico: sin datos"/>
                                 </div>
                             </div>
                             <div class="row small g-1 mt-1">
