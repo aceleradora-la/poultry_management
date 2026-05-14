@@ -13,6 +13,8 @@ from odoo.tools.float_utils import float_compare, float_is_zero, float_round
 _SUPPLIERINFO_ORDER = 'sequence, min_qty desc, price, id'
 # Valor alto para ordenar al final (menos urgente) en columnas con orden ascendente por días.
 _SORT_TAIL = 1e9
+# Orden fijo de columnas Kanban al agrupar por semáforo (Odoo suele ordenar por conteo al filtrar).
+_SIGNAL_GROUP_READ_ORDER = {'red': 0, 'yellow': 1, 'green': 2, 'neutral': 3}
 
 
 class ProductProduct(models.Model):
@@ -178,6 +180,30 @@ class ProductProduct(models.Model):
                 product.poultry_cover_signal = 'yellow'
             else:
                 product.poultry_cover_signal = 'red'
+
+    @api.model
+    def read_group(self, domain, fields, groupby, **kwargs):
+        """Fija el orden de columnas Rojo → Amarillo → Verde → Sin datos al agrupar por semáforo.
+
+        Sin esto, el cliente ordena grupos por nº de registros (y empata alfabéticamente: Amarillo antes que Rojo).
+        """
+        rows = super().read_group(domain, fields, groupby, **kwargs)
+        if not groupby:
+            return rows
+        first = groupby[0] if isinstance(groupby, (list, tuple)) else groupby
+        field_name = first.split(':')[0] if isinstance(first, str) else first
+        if field_name != 'poultry_cover_signal':
+            return rows
+
+        def _signal_sort_key(row):
+            val = row.get('poultry_cover_signal')
+            if val is False or val is None:
+                return _SIGNAL_GROUP_READ_ORDER['neutral']
+            if isinstance(val, (list, tuple)):
+                val = val[0]
+            return _SIGNAL_GROUP_READ_ORDER.get(val, 99)
+
+        return sorted(rows, key=_signal_sort_key)
 
     @api.model
     def action_open_poultry_stock_dashboard(self):
