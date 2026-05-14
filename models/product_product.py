@@ -2,6 +2,8 @@
 """
 Tablero de cobertura de stock (solo productos comprables): consumo en ventana configurable
 y semáforo según plazo del primer proveedor, días para comprar y margen PO (buffer).
+
+Incluye segunda línea con stock pronosticado (``virtual_available`` de Odoo) y mismo criterio de color.
 """
 from collections import defaultdict
 from datetime import timedelta
@@ -16,6 +18,13 @@ _SORT_TAIL = 1e9
 # Orden fijo de columnas Kanban al agrupar por semáforo (Odoo suele ordenar por conteo al filtrar).
 _SIGNAL_GROUP_READ_ORDER = {'red': 0, 'yellow': 1, 'green': 2, 'neutral': 3}
 
+_COVER_SIGNAL_SEL = [
+    ('red', 'Rojo'),
+    ('yellow', 'Amarillo'),
+    ('green', 'Verde'),
+    ('neutral', 'Sin datos'),
+]
+
 
 class ProductProduct(models.Model):
     _inherit = 'product.product'
@@ -27,23 +36,18 @@ class ProductProduct(models.Model):
         help='Promedio diario de salidas desde stock interno en la ventana configurada (UdM del producto).',
     )
     poultry_cover_days = fields.Float(
-        string='Días de cobertura',
+        string='Días de cobertura (real)',
         compute='_compute_poultry_cover_metrics',
         digits=(16, 2),
-        help='Stock a la mano / consumo diario. Vacío si no hubo consumo en el período.',
+        help='Cantidad a la mano / consumo diario. Vacío si no hubo consumo en el período.',
     )
     poultry_cover_days_display = fields.Char(
-        string='Días cobertura',
+        string='Días cobertura (real)',
         compute='_compute_poultry_cover_metrics',
     )
     poultry_cover_signal = fields.Selection(
-        selection=[
-            ('red', 'Rojo'),
-            ('yellow', 'Amarillo'),
-            ('green', 'Verde'),
-            ('neutral', 'Sin datos'),
-        ],
-        string='Semáforo cobertura',
+        selection=_COVER_SIGNAL_SEL,
+        string='Semáforo cobertura (real)',
         compute='_compute_poultry_cover_metrics',
         store=True,
         index=True,
@@ -55,6 +59,40 @@ class ProductProduct(models.Model):
         index=True,
         help='Clave para ordenar el tablero Kanban: menor = más urgente (solo uso interno).',
     )
+    poultry_cover_forecast_days = fields.Float(
+        string='Días cobertura (pronóstico)',
+        compute='_compute_poultry_cover_metrics',
+        digits=(16, 2),
+        help='Cantidad pronosticada (virtual_available) / consumo diario.',
+    )
+    poultry_cover_forecast_days_display = fields.Char(
+        string='Días cobertura pronóstico',
+        compute='_compute_poultry_cover_metrics',
+    )
+    poultry_cover_forecast_signal = fields.Selection(
+        selection=_COVER_SIGNAL_SEL,
+        string='Semáforo cobertura (pronóstico)',
+        compute='_compute_poultry_cover_metrics',
+    )
+
+    @staticmethod
+    def _poultry_cover_line_metrics(daily, rounding, qty, plazo_th, tope_amarillo_th):
+        """Una línea semáforo: (días_float_o_False, texto, señal, sort_key)."""
+        if float_is_zero(daily, precision_rounding=rounding):
+            if float_is_zero(qty, precision_rounding=rounding):
+                return False, '—', 'neutral', _SORT_TAIL
+            return False, '∞', 'green', _SORT_TAIL
+        days = qty / daily if daily else 0.0
+        days_rounded = float_round(days, precision_rounding=0.01)
+        display = str(days_rounded)
+        sort_key = float(days_rounded)
+        if float_compare(days, tope_amarillo_th, precision_digits=2) > 0:
+            sig = 'green'
+        elif float_compare(days, plazo_th, precision_digits=2) > 0:
+            sig = 'yellow'
+        else:
+            sig = 'red'
+        return days_rounded, display, sig, sort_key
 
     def _poultry_first_supplierinfo(self):
         """Primer vendor line como lista ordenada del modelo (sequence, min_qty desc, …)."""
@@ -139,6 +177,7 @@ class ProductProduct(models.Model):
     @api.depends_context('company')
     @api.depends(
         'qty_available',
+        'virtual_available',
         'uom_id',
         'product_tmpl_id.poultry_cover_window_days',
         'product_tmpl_id.categ_id.poultry_cover_window_days',
@@ -169,31 +208,25 @@ class ProductProduct(models.Model):
             total_out = consumption.get(product.id, 0.0)
             daily = total_out / window if window else 0.0
             product.poultry_cover_daily_avg = float_round(daily, precision_rounding=rounding)
-            qty = product.qty_available
 
-            if float_is_zero(daily, precision_rounding=rounding):
-                product.poultry_cover_days = False
-                if float_is_zero(qty, precision_rounding=rounding):
-                    product.poultry_cover_days_display = '—'
-                    product.poultry_cover_signal = 'neutral'
-                    product.poultry_cover_sort_days = _SORT_TAIL
-                else:
-                    product.poultry_cover_days_display = '∞'
-                    product.poultry_cover_signal = 'green'
-                    product.poultry_cover_sort_days = _SORT_TAIL
-                continue
+            qty_real = product.qty_available
+            qty_fcst = product.virtual_available
 
-            days = qty / daily if daily else 0.0
-            product.poultry_cover_days = float_round(days, precision_rounding=0.01)
-            product.poultry_cover_days_display = str(float_round(days, precision_rounding=0.01))
-            product.poultry_cover_sort_days = float(product.poultry_cover_days)
+            dr, dstr_r, sig_r, sort_r = self._poultry_cover_line_metrics(
+                daily, rounding, qty_real, plazo_th, tope_amarillo_th
+            )
+            df, dstr_f, sig_f, _ = self._poultry_cover_line_metrics(
+                daily, rounding, qty_fcst, plazo_th, tope_amarillo_th
+            )
 
-            if float_compare(days, tope_amarillo_th, precision_digits=2) > 0:
-                product.poultry_cover_signal = 'green'
-            elif float_compare(days, plazo_th, precision_digits=2) > 0:
-                product.poultry_cover_signal = 'yellow'
-            else:
-                product.poultry_cover_signal = 'red'
+            product.poultry_cover_days = dr
+            product.poultry_cover_days_display = dstr_r
+            product.poultry_cover_signal = sig_r
+            product.poultry_cover_sort_days = sort_r
+
+            product.poultry_cover_forecast_days = df
+            product.poultry_cover_forecast_days_display = dstr_f
+            product.poultry_cover_forecast_signal = sig_f
 
     @api.model
     def read_group(self, domain, fields, groupby, **kwargs):
@@ -221,7 +254,7 @@ class ProductProduct(models.Model):
 
     @api.model
     def action_open_poultry_stock_dashboard(self):
-        """Solo Kanban: stock empresa (qty_available), agrupado por semáforo y ordenado por urgencia."""
+        """Solo Kanban: agrupación y orden por semáforo real; tarjeta muestra también pronóstico."""
         domain = [
             ('is_storable', '=', True),
             ('active', '=', True),
