@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.11.2',
+    'version': '18.0.1.11.3',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -15,10 +15,9 @@
     'website': 'https://www.tuempresa.com',
     'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web', 'stock', 'purchase_stock'],
     'assets': {
-        # JavaScript dinámico desactivado - usando nombres fijos ahora
-        # 'web.assets_backend': [
-        #     'poultry_management/static/src/js/poultry_dynamic_columns.js',
-        # ],
+        'web.assets_backend': [
+            'poultry_management/static/src/css/poultry_stock_cover_dashboard.css',
+        ],
     },
     'data': [
         'security/poultry_security.xml',

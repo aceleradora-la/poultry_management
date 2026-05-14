@@ -1,0 +1,9 @@
+/* Tablero Cobertura de stock: amarillo legible (Bootstrap/Odoo "warning" suele verse marrón). */
+.o_poultry_stock_cover_dashboard .o_poultry_cover_icon--amber {
+    color: #e6ac00 !important;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_card--amber {
+    border-inline-start: 3px solid #e6ac00;
+    background-color: rgba(230, 172, 0, 0.06);
+}
