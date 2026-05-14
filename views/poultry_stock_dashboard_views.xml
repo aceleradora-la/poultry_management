@@ -37,7 +37,7 @@
                 <field name="poultry_cover_sort_days" invisible="1"/>
                 <templates>
                     <t t-name="kanban-box">
-                        <div t-attf-class="oe_kanban_card oe_kanban_global_click p-2#{' o_poultry_cover_card--amber' if record.poultry_cover_signal.raw_value == 'yellow' else ''}">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
                             <div class="o_kanban_record_top d-flex mb-2">
                                 <field name="image_128" widget="image" options="{'img_class': 'rounded-3 object-fit-contain'}" class="o_kanban_image flex-shrink-0 me-2"/>
                                 <div class="o_kanban_record_headings flex-grow-1">

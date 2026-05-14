@@ -3,7 +3,8 @@
     color: #e6ac00 !important;
 }
 
-.o_poultry_stock_cover_dashboard .o_poultry_cover_card--amber {
+/* Tarjeta en estado amarillo: sin t-attf-class en OWL (evita #{} que no compila en Kanban Odoo 19). */
+.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_icon--amber) {
     border-inline-start: 3px solid #e6ac00;
     background-color: rgba(230, 172, 0, 0.06);
 }
