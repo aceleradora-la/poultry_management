@@ -140,7 +140,11 @@ class ProductProduct(models.Model):
         return plazo, tope_amarillo
 
     def _poultry_sum_outgoing_product_uom(self, product_ids, window_days):
-        """Salidas done en ventana móvil: internal → no internal."""
+        """Salidas done en ventana: stock interno → fuera de stock interno útil.
+
+        No cuenta traspasos interno→interno ni salidas hacia **tránsito** (suele ser paso intermedio
+        de entregas/recepciones y no es consumo real).
+        """
         if not product_ids:
             return {}
         window_days = max(float(window_days or 7.0), 1.0)
@@ -152,7 +156,7 @@ class ProductProduct(models.Model):
             ('move_id.date', '>=', date_from),
             ('product_id', 'in', list(product_ids)),
             ('location_id.usage', '=', 'internal'),
-            ('location_dest_id.usage', '!=', 'internal'),
+            ('location_dest_id.usage', 'not in', ('internal', 'transit')),
         ]
         MoveLine = self.env['stock.move.line'].sudo()
         groups = MoveLine.read_group(domain, ['quantity_product_uom:sum'], ['product_id'])
