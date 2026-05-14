@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Tablero de cobertura de stock: consumo medio diario (ventana configurable en producto/categoría)
-y semáforo con umbrales alineados a Odoo.
-
-Rojo por debajo del horizonte total de reaprovisionamiento (plazo proveedor + días para comprar
-+ margen de compras si aplica). Amarillo en banda intermedia; verde con holgura adicional
-(mismo bloque operativo sumado de nuevo).
+Tablero de cobertura de stock (solo productos comprables): consumo en ventana configurable
+y semáforo según plazo del primer proveedor, días para comprar y margen PO (buffer).
 """
 from collections import defaultdict
 from datetime import timedelta
@@ -73,32 +69,37 @@ class ProductProduct(models.Model):
         return SupplierInfo.search(domain, order=_SUPPLIERINFO_ORDER, limit=1)
 
     def _poultry_odoo_cover_threshold_days(self):
-        """Devuelve (días_crítico, días_verde) para el semáforo.
+        """Límites del semáforo: (plazo_proveedor, tope_amarillo).
 
-        * ``días_crítico`` = plazo del primer proveedor + días para comprar + margen PO (si está activo).
-          Cobertura **estrictamente menor** → **rojo** (no alcanza el tiempo hasta reponer).
-        * ``días_verde`` = días_crítico + (días para comprar + margen PO otra vez), misma lógica que
-          la holgura que antes separaba amarillo de verde, aplicada sobre el horizonte completo.
+        * **Plazo proveedor**: ``delay`` del primer ``product.supplierinfo`` (0 si no hay).
+        * **Delay interno**: ``days_to_purchase`` de la compañía (``purchase_stock``).
+        * **Buffer**: ``po_lead`` si ``purchase.use_po_lead`` está activo; si no, 0.
+
+        - Rojo: días de cobertura ``<=`` plazo proveedor.
+        - Amarillo: ``>`` plazo y ``<=`` plazo + delay + buffer.
+        - Verde: ``>`` plazo + delay + buffer.
+
+        Si delay + buffer sería igual al solo plazo (sin delay interno ni buffer), se usa 0,01 días
+        mínimos en el bloque interno para conservar una banda amarilla mínima.
         """
         self.ensure_one()
         company = self.env.company
         info = self._poultry_first_supplierinfo()
-        delay = float(info.delay) if info else 0.0
+        plazo = float(info.delay) if info else 0.0
 
         days_purchase = 0.0
         if 'days_to_purchase' in company._fields:
             days_purchase = float(company.days_to_purchase or 0.0)
 
         use_po_lead = self.env['ir.config_parameter'].sudo().get_param('purchase.use_po_lead') == 'True'
-        po_extra = float(company.po_lead or 0.0) if use_po_lead else 0.0
+        buffer_po = float(company.po_lead or 0.0) if use_po_lead else 0.0
 
-        buffer = days_purchase + po_extra
-        if buffer <= 0.0:
-            buffer = 0.01
+        bloque_interno = days_purchase + buffer_po
+        if bloque_interno <= 0.0:
+            bloque_interno = 0.01
 
-        critical = delay + buffer
-        green = critical + buffer
-        return critical, green
+        tope_amarillo = plazo + bloque_interno
+        return plazo, tope_amarillo
 
     def _poultry_sum_outgoing_product_uom(self, product_ids, window_days):
         """Salidas done en ventana móvil: internal → no internal."""
@@ -147,6 +148,7 @@ class ProductProduct(models.Model):
         'product_tmpl_id.seller_ids.min_qty',
         'product_tmpl_id.seller_ids.product_id',
         'product_tmpl_id.seller_ids.company_id',
+        'product_tmpl_id.purchase_ok',
     )
     def _compute_poultry_cover_metrics(self):
         buckets = defaultdict(list)
@@ -163,7 +165,7 @@ class ProductProduct(models.Model):
             tmpl = product.product_tmpl_id
             rounding = product.uom_id.rounding or 0.0001
             window = tmpl._poultry_effective_cover_window_days()
-            critical_th, green_th = product._poultry_odoo_cover_threshold_days()
+            plazo_th, tope_amarillo_th = product._poultry_odoo_cover_threshold_days()
             total_out = consumption.get(product.id, 0.0)
             daily = total_out / window if window else 0.0
             product.poultry_cover_daily_avg = float_round(daily, precision_rounding=rounding)
@@ -186,9 +188,9 @@ class ProductProduct(models.Model):
             product.poultry_cover_days_display = str(float_round(days, precision_rounding=0.01))
             product.poultry_cover_sort_days = float(product.poultry_cover_days)
 
-            if float_compare(days, green_th, precision_digits=2) >= 0:
+            if float_compare(days, tope_amarillo_th, precision_digits=2) > 0:
                 product.poultry_cover_signal = 'green'
-            elif float_compare(days, critical_th, precision_digits=2) >= 0:
+            elif float_compare(days, plazo_th, precision_digits=2) > 0:
                 product.poultry_cover_signal = 'yellow'
             else:
                 product.poultry_cover_signal = 'red'
@@ -220,7 +222,11 @@ class ProductProduct(models.Model):
     @api.model
     def action_open_poultry_stock_dashboard(self):
         """Solo Kanban: stock empresa (qty_available), agrupado por semáforo y ordenado por urgencia."""
-        domain = [('is_storable', '=', True), ('active', '=', True)]
+        domain = [
+            ('is_storable', '=', True),
+            ('active', '=', True),
+            ('purchase_ok', '=', True),
+        ]
         cats = self.env.company.poultry_stock_dashboard_category_ids
         if cats:
             domain.append(('categ_id', 'child_of', cats.ids))
