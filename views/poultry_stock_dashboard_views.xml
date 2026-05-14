@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Heredar la búsqueda estándar de variantes: el panel lateral no se renderiza bien con una search "primary" mínima. -->
     <record id="product_product_search_poultry_cover" model="ir.ui.view">
         <field name="name">product.product.search.poultry.cover</field>
         <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_search_form_view"/>
         <field name="arch" type="xml">
-            <search string="Cobertura de stock">
-                <field name="name"/>
-                <field name="default_code"/>
-                <separator/>
+            <xpath expr="//search" position="inside">
                 <searchpanel>
-                    <field name="categ_id" icon="fa-filter" enable_counters="1"/>
+                    <field name="categ_id" string="Categoría" icon="fa-filter" enable_counters="1" hierarchize="1" select="multi"/>
                 </searchpanel>
-            </search>
+            </xpath>
         </field>
     </record>
 
@@ -26,6 +25,7 @@
                     decoration-warning="poultry_cover_signal == 'yellow'"
                     decoration-danger="poultry_cover_signal == 'red'"
                     decoration-muted="poultry_cover_signal == 'neutral'">
+                <field name="display_name"/>
                 <field name="name"/>
                 <field name="default_code"/>
                 <field name="image_128"/>
@@ -41,8 +41,10 @@
                             <div class="o_kanban_record_top d-flex mb-2">
                                 <field name="image_128" widget="image" options="{'img_class': 'rounded-3 object-fit-contain'}" class="o_kanban_image flex-shrink-0 me-2"/>
                                 <div class="o_kanban_record_headings flex-grow-1">
-                                    <strong class="o_kanban_record_title d-block"><field name="name"/></strong>
-                                    <span class="text-muted small"><field name="default_code"/></span>
+                                    <strong class="o_kanban_record_title d-block"><field name="display_name"/></strong>
+                                    <span t-if="record.default_code.raw_value" class="text-muted small">
+                                        Ref. <field name="default_code"/>
+                                    </span>
                                 </div>
                                 <div class="d-flex align-items-center ms-1">
                                     <span t-if="record.poultry_cover_signal.raw_value == 'red'" class="fa fa-circle text-danger fs-3" title="Cobertura: rojo"/>
