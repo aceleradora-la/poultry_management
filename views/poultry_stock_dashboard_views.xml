@@ -19,10 +19,10 @@
         <field name="model">product.product</field>
         <field name="arch" type="xml">
             <kanban create="false"
+                    class="o_poultry_stock_cover_dashboard"
                     default_group_by="poultry_cover_signal"
                     default_order="poultry_cover_sort_days asc, id asc"
                     decoration-success="poultry_cover_signal == 'green'"
-                    decoration-warning="poultry_cover_signal == 'yellow'"
                     decoration-danger="poultry_cover_signal == 'red'"
                     decoration-muted="poultry_cover_signal == 'neutral'">
                 <field name="display_name"/>
@@ -37,7 +37,7 @@
                 <field name="poultry_cover_sort_days" invisible="1"/>
                 <templates>
                     <t t-name="kanban-box">
-                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click p-2#{' o_poultry_cover_card--amber' if record.poultry_cover_signal.raw_value == 'yellow' else ''}">
                             <div class="o_kanban_record_top d-flex mb-2">
                                 <field name="image_128" widget="image" options="{'img_class': 'rounded-3 object-fit-contain'}" class="o_kanban_image flex-shrink-0 me-2"/>
                                 <div class="o_kanban_record_headings flex-grow-1">
@@ -48,7 +48,7 @@
                                 </div>
                                 <div class="d-flex align-items-center ms-1">
                                     <span t-if="record.poultry_cover_signal.raw_value == 'red'" class="fa fa-circle text-danger fs-3" title="Cobertura: rojo"/>
-                                    <span t-elif="record.poultry_cover_signal.raw_value == 'yellow'" class="fa fa-circle text-warning fs-3" title="Cobertura: amarillo"/>
+                                    <span t-elif="record.poultry_cover_signal.raw_value == 'yellow'" class="fa fa-circle fs-3 o_poultry_cover_icon--amber" title="Cobertura: amarillo"/>
                                     <span t-elif="record.poultry_cover_signal.raw_value == 'green'" class="fa fa-circle text-success fs-3" title="Cobertura: verde"/>
                                     <span t-else="" class="fa fa-circle text-muted fs-3" title="Cobertura: sin datos"/>
                                 </div>
