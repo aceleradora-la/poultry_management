@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Tablero de cobertura de stock: consumo medio diario (ventana configurable en producto/categoría)
-y semáforo con umbrales alineados a Odoo (plazo proveedor + días compra + margen PO).
+y semáforo con umbrales alineados a Odoo.
+
+Rojo por debajo del horizonte total de reaprovisionamiento (plazo proveedor + días para comprar
++ margen de compras si aplica). Amarillo en banda intermedia; verde con holgura adicional
+(mismo bloque operativo sumado de nuevo).
 """
 from collections import defaultdict
 from datetime import timedelta
@@ -69,11 +73,17 @@ class ProductProduct(models.Model):
         return SupplierInfo.search(domain, order=_SUPPLIERINFO_ORDER, limit=1)
 
     def _poultry_odoo_cover_threshold_days(self):
-        """Amarillo = delay del primer proveedor; verde = amarillo + días compra + margen PO si aplica."""
+        """Devuelve (días_crítico, días_verde) para el semáforo.
+
+        * ``días_crítico`` = plazo del primer proveedor + días para comprar + margen PO (si está activo).
+          Cobertura **estrictamente menor** → **rojo** (no alcanza el tiempo hasta reponer).
+        * ``días_verde`` = días_crítico + (días para comprar + margen PO otra vez), misma lógica que
+          la holgura que antes separaba amarillo de verde, aplicada sobre el horizonte completo.
+        """
         self.ensure_one()
         company = self.env.company
         info = self._poultry_first_supplierinfo()
-        yellow = float(info.delay) if info else 0.0
+        delay = float(info.delay) if info else 0.0
 
         days_purchase = 0.0
         if 'days_to_purchase' in company._fields:
@@ -85,8 +95,10 @@ class ProductProduct(models.Model):
         buffer = days_purchase + po_extra
         if buffer <= 0.0:
             buffer = 0.01
-        green = yellow + buffer
-        return yellow, green
+
+        critical = delay + buffer
+        green = critical + buffer
+        return critical, green
 
     def _poultry_sum_outgoing_product_uom(self, product_ids, window_days):
         """Salidas done en ventana móvil: internal → no internal."""
@@ -151,7 +163,7 @@ class ProductProduct(models.Model):
             tmpl = product.product_tmpl_id
             rounding = product.uom_id.rounding or 0.0001
             window = tmpl._poultry_effective_cover_window_days()
-            yellow_th, green_th = product._poultry_odoo_cover_threshold_days()
+            critical_th, green_th = product._poultry_odoo_cover_threshold_days()
             total_out = consumption.get(product.id, 0.0)
             daily = total_out / window if window else 0.0
             product.poultry_cover_daily_avg = float_round(daily, precision_rounding=rounding)
@@ -176,7 +188,7 @@ class ProductProduct(models.Model):
 
             if float_compare(days, green_th, precision_digits=2) >= 0:
                 product.poultry_cover_signal = 'green'
-            elif float_compare(days, yellow_th, precision_digits=2) >= 0:
+            elif float_compare(days, critical_th, precision_digits=2) >= 0:
                 product.poultry_cover_signal = 'yellow'
             else:
                 product.poultry_cover_signal = 'red'
