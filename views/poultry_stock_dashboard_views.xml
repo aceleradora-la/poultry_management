@@ -7,6 +7,9 @@
         <field name="inherit_id" ref="product.product_search_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
+                <separator/>
+                <filter string="Con datos de cobertura" name="poultry_cover_tablero_con_datos"
+                        domain="[('poultry_cover_signal', 'in', ('red', 'yellow', 'green'))]"/>
                 <searchpanel>
                     <field name="categ_id" string="Categoría" icon="fa-filter" enable_counters="1" hierarchize="1" select="multi"/>
                 </searchpanel>

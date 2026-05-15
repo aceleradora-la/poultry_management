@@ -54,8 +54,18 @@
     color: #fff !important;
 }
 
-/* Tarjeta en estado amarillo REAL (solo el primer grupo). */
+/* Tarjeta según semáforo REAL: borde izq + fondo suave (mismo criterio que columna Kanban). */
+.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_disk-group--real .o_poultry_cover_disk--red) {
+    border-inline-start: 3px solid #dc3545;
+    background-color: rgba(220, 53, 69, 0.06);
+}
+
 .o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_disk-group--real .o_poultry_cover_disk--yellow) {
     border-inline-start: 3px solid #e6ac00;
     background-color: rgba(230, 172, 0, 0.06);
+}
+
+.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_disk-group--real .o_poultry_cover_disk--green) {
+    border-inline-start: 3px solid #198754;
+    background-color: rgba(25, 135, 84, 0.06);
 }

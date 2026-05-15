@@ -277,5 +277,5 @@ class ProductProduct(models.Model):
             'views': [(kanban_view.id, 'kanban')],
             'search_view_id': search_view.id,
             'domain': domain,
-            'context': {},
+            'context': {'search_default_poultry_cover_tablero_con_datos': 1},
         }
