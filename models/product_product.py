@@ -150,7 +150,7 @@ class ProductProduct(models.Model):
         - ``date_from``: inicio del día ``hoy - N`` a 00:00:00 en la misma TZ.
         - Devuelve límites en UTC naive para el dominio de ``stock.move.line``.
         """
-        window_days = max(int(float(window_days or 7)), 1)
+        window_days = max(int(float(window_days)), 1)
         company = self.env.company
         tz_name = company.partner_id.tz or self.env.user.tz or 'UTC'
         today = fields.Date.context_today(self.with_context(tz=tz_name))
