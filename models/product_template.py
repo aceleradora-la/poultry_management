@@ -11,8 +11,8 @@ class ProductTemplate(models.Model):
     poultry_cover_window_days = fields.Float(
         string='Días ventana consumo',
         digits=(16, 1),
-        help='Días hacia atrás para sumar salidas y dividir el total (consumo diario). '
-             'Vacío: usar el valor de la categoría del producto.',
+        help='Días calendario cerrados (TZ compañía) para consumo: día (hoy−N) 00:00 a ayer 23:59, '
+             'sin hoy. Vacío: usar categoría.',
     )
 
     is_egg_production = fields.Boolean(

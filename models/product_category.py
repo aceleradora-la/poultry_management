@@ -11,7 +11,8 @@ class ProductCategory(models.Model):
         string='Días ventana consumo',
         default=7.0,
         digits=(16, 1),
-        help='Cantidad de días hacia atrás para sumar salidas y dividir el total (promedio diario de consumo).',
+        help='Días calendario cerrados (TZ de la compañía) para sumar salidas: desde el día (hoy−N) '
+             '00:00 hasta ayer 23:59. No incluye el día en curso. El total se divide entre N.',
     )
 
     @api.constrains('poultry_cover_window_days')
