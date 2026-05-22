@@ -51,6 +51,7 @@ class ProductProduct(models.Model):
         compute='_compute_poultry_cover_metrics',
         store=True,
         index=True,
+        group_expand='_group_expand_poultry_cover_signal',
     )
     poultry_cover_sort_days = fields.Float(
         string='Orden cobertura (días)',
@@ -233,6 +234,11 @@ class ProductProduct(models.Model):
             product.poultry_cover_forecast_signal = sig_f
 
     @api.model
+    def _group_expand_poultry_cover_signal(self, groups, domain, order):
+        """Columnas Kanban fijas (rojo → amarillo → verde); sin datos queda fuera del dominio del tablero."""
+        return ['red', 'yellow', 'green']
+
+    @api.model
     def read_group(self, domain, fields, groupby, **kwargs):
         """Fija el orden de columnas Rojo → Amarillo → Verde → Sin datos al agrupar por semáforo.
 
@@ -267,6 +273,11 @@ class ProductProduct(models.Model):
         cats = self.env.company.poultry_stock_dashboard_category_ids
         if cats:
             domain.append(('categ_id', 'child_of', cats.ids))
+        # Refrescar semáforos almacenados antes de filtrar por color (evita columnas mezcladas en 1ª carga).
+        products = self.search(domain)
+        if products:
+            products._compute_poultry_cover_metrics()
+        domain.append(('poultry_cover_signal', 'in', ('red', 'yellow', 'green')))
         kanban_view = self.env.ref('poultry_management.product_product_kanban_poultry_cover')
         search_view = self.env.ref('poultry_management.product_product_search_poultry_cover')
         return {
@@ -277,5 +288,8 @@ class ProductProduct(models.Model):
             'views': [(kanban_view.id, 'kanban')],
             'search_view_id': search_view.id,
             'domain': domain,
-            'context': {'search_default_poultry_cover_tablero_con_datos': 1},
+            'context': {
+                'search_default_poultry_cover_tablero_con_datos': 1,
+                'group_by': ['poultry_cover_signal'],
+            },
         }

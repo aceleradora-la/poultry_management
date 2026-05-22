@@ -28,6 +28,9 @@
                     decoration-success="poultry_cover_signal == 'green'"
                     decoration-danger="poultry_cover_signal == 'red'"
                     decoration-muted="poultry_cover_signal == 'neutral'">
+                <field name="poultry_cover_signal"/>
+                <field name="poultry_cover_sort_days" invisible="1"/>
+                <field name="poultry_cover_forecast_signal"/>
                 <field name="display_name"/>
                 <field name="name"/>
                 <field name="default_code"/>
@@ -38,9 +41,6 @@
                 <field name="poultry_cover_daily_avg"/>
                 <field name="poultry_cover_days_display"/>
                 <field name="poultry_cover_forecast_days_display"/>
-                <field name="poultry_cover_signal"/>
-                <field name="poultry_cover_forecast_signal"/>
-                <field name="poultry_cover_sort_days" invisible="1"/>
                 <templates>
                     <t t-name="kanban-box">
                         <div class="oe_kanban_card oe_kanban_global_click p-2">
