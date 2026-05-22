@@ -40,6 +40,10 @@ class ProductTemplate(models.Model):
     def _poultry_effective_cover_window_days(self):
         self.ensure_one()
         categ = self.categ_id
-        w = self.poultry_cover_window_days if self.poultry_cover_window_days is not False else categ.poultry_cover_window_days
+        # En formulario vacío el Float queda en 0.0, no en False: solo usar plantilla si > 0.
+        if self.poultry_cover_window_days and self.poultry_cover_window_days > 0:
+            w = self.poultry_cover_window_days
+        else:
+            w = categ.poultry_cover_window_days
         w = float(w or 7.0)
         return max(w, 1.0)
