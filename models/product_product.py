@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Tablero de cobertura de stock (solo productos comprables): consumo en ventana configurable
-y semáforo según plazo del primer proveedor, días para comprar y margen PO (buffer).
+Tablero de cobertura de stock (solo productos comprables): consumo en ventana de días
+calendario cerrados (TZ compañía) y semáforo según plazo proveedor, días compra y margen PO.
 
 Incluye segunda línea con stock pronosticado (``virtual_available`` de Odoo) y mismo criterio de color.
 """
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, time, timedelta
+
+import pytz
 
 from odoo import api, fields, models
 from odoo.tools.float_utils import float_compare, float_is_zero, float_round
@@ -140,24 +142,45 @@ class ProductProduct(models.Model):
         tope_amarillo = plazo + bloque_interno
         return plazo, tope_amarillo
 
+    @api.model
+    def _poultry_cover_window_datetimes(self, window_days):
+        """Ventana de consumo: N días calendario **cerrados** en TZ de la compañía, sin incluir hoy.
+
+        - ``date_to``: fin de ayer (23:59:59) en TZ compañía.
+        - ``date_from``: inicio del día ``hoy - N`` a 00:00:00 en la misma TZ.
+        - Devuelve límites en UTC naive para el dominio de ``stock.move.line``.
+        """
+        window_days = max(int(float(window_days or 7)), 1)
+        company = self.env.company
+        tz_name = company.partner_id.tz or self.env.user.tz or 'UTC'
+        today = fields.Date.context_today(self.with_context(tz=tz_name))
+        yesterday = today - timedelta(days=1)
+        start_day = today - timedelta(days=window_days)
+
+        tz = pytz.timezone(tz_name)
+        start_local = tz.localize(datetime.combine(start_day, time.min))
+        end_local = tz.localize(datetime.combine(yesterday, time(23, 59, 59)))
+        start_utc = start_local.astimezone(pytz.UTC).replace(tzinfo=None)
+        end_utc = end_local.astimezone(pytz.UTC).replace(tzinfo=None)
+        return start_utc, end_utc
+
     def _poultry_sum_outgoing_product_uom(self, product_ids, window_days):
         """Salidas done en ventana: stock interno → fuera de stock interno útil.
 
-        No cuenta traspasos interno→interno ni salidas hacia **tránsito** (suele ser paso intermedio
-        de entregas/recepciones y no es consumo real).
+        Ventana por días calendario cerrados (TZ compañía). No cuenta traspasos interno→interno
+        ni salidas hacia **tránsito**.
         """
         if not product_ids:
             return {}
-        window_days = max(float(window_days or 7.0), 1.0)
-        date_from = fields.Datetime.now() - timedelta(days=window_days)
+        date_from, date_to = self._poultry_cover_window_datetimes(window_days)
         domain = [
             ('state', '=', 'done'),
-            '|',
-            ('date', '>=', date_from),
-            ('move_id.date', '>=', date_from),
             ('product_id', 'in', list(product_ids)),
             ('location_id.usage', '=', 'internal'),
             ('location_dest_id.usage', 'not in', ('internal', 'transit')),
+            '|',
+            '&', ('date', '>=', date_from), ('date', '<=', date_to),
+            '&', ('move_id.date', '>=', date_from), ('move_id.date', '<=', date_to),
         ]
         MoveLine = self.env['stock.move.line'].sudo()
         groups = MoveLine.read_group(domain, ['quantity_product_uom:sum'], ['product_id'])
