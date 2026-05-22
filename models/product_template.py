@@ -7,12 +7,13 @@ from odoo.exceptions import ValidationError
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
-    # False = heredar de la categoría del producto (product.category).
+    # False / vacío = heredar de la categoría. Al borrar el campo en formulario Odoo guarda 0 → se normaliza a False.
     poultry_cover_window_days = fields.Float(
         string='Días ventana consumo',
         digits=(16, 1),
+        default=False,
         help='Días calendario cerrados (TZ compañía) para consumo: día (hoy−N) 00:00 a ayer 23:59, '
-             'sin hoy. Vacío: usar categoría.',
+             'sin hoy. Dejar vacío para usar la categoría.',
     )
 
     is_egg_production = fields.Boolean(
@@ -31,18 +32,31 @@ class ProductTemplate(models.Model):
         ),
     )
 
-    @api.constrains('poultry_cover_window_days', 'categ_id')
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('poultry_cover_window_days') in (0, 0.0):
+                vals['poultry_cover_window_days'] = False
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if vals.get('poultry_cover_window_days') in (0, 0.0):
+            vals['poultry_cover_window_days'] = False
+        return super().write(vals)
+
+    @api.constrains('poultry_cover_window_days')
     def _check_poultry_cover_window(self):
         for tmpl in self:
-            if tmpl.poultry_cover_window_days is not False and tmpl.poultry_cover_window_days <= 0:
-                raise ValidationError('Los días de ventana de consumo deben ser mayores que cero.')
+            w = tmpl.poultry_cover_window_days
+            if w is not False and w is not None and w < 0:
+                raise ValidationError('Los días de ventana de consumo no pueden ser negativos.')
 
     def _poultry_effective_cover_window_days(self):
         self.ensure_one()
         categ = self.categ_id
-        # En formulario vacío el Float queda en 0.0, no en False: solo usar plantilla si > 0.
-        if self.poultry_cover_window_days and self.poultry_cover_window_days > 0:
-            w = self.poultry_cover_window_days
+        w_prod = self.poultry_cover_window_days
+        if w_prod not in (False, None) and float(w_prod) > 0:
+            w = float(w_prod)
         else:
             w = categ.poultry_cover_window_days
         w = float(w or 7.0)
