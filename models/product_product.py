@@ -234,7 +234,7 @@ class ProductProduct(models.Model):
             product.poultry_cover_forecast_signal = sig_f
 
     @api.model
-    def _group_expand_poultry_cover_signal(self, groups, domain, order):
+    def _group_expand_poultry_cover_signal(self, values, domain):
         """Columnas Kanban fijas (rojo → amarillo → verde); sin datos queda fuera del dominio del tablero."""
         return ['red', 'yellow', 'green']
 
