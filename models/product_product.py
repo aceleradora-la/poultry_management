@@ -50,14 +50,14 @@ class ProductProduct(models.Model):
     poultry_cover_signal = fields.Selection(
         selection=_COVER_SIGNAL_SEL,
         string='Semáforo cobertura (real)',
-        compute='_compute_poultry_cover_metrics',
+        compute='_compute_poultry_cover_metrics_store',
         store=True,
         index=True,
         group_expand='_group_expand_poultry_cover_signal',
     )
     poultry_cover_sort_days = fields.Float(
         string='Orden cobertura (días)',
-        compute='_compute_poultry_cover_metrics',
+        compute='_compute_poultry_cover_metrics_store',
         store=True,
         index=True,
         help='Clave para ordenar el tablero Kanban: menor = más urgente (solo uso interno).',
@@ -202,8 +202,7 @@ class ProductProduct(models.Model):
             result[pid] = qty or 0.0
         return result
 
-    @api.depends_context('company')
-    @api.depends(
+    _POULTRY_COVER_METRICS_DEPENDS = [
         'qty_available',
         'virtual_available',
         'uom_id',
@@ -216,8 +215,10 @@ class ProductProduct(models.Model):
         'product_tmpl_id.seller_ids.product_id',
         'product_tmpl_id.seller_ids.company_id',
         'product_tmpl_id.purchase_ok',
-    )
-    def _compute_poultry_cover_metrics(self):
+    ]
+
+    def _poultry_build_cover_metrics_data(self):
+        """Métricas de cobertura por product_id (compartido por computes store / no-store)."""
         buckets = defaultdict(list)
         for product in self:
             tmpl = product.product_tmpl_id
@@ -228,6 +229,7 @@ class ProductProduct(models.Model):
         for window_days, pids in buckets.items():
             consumption.update(self._poultry_sum_outgoing_product_uom(pids, window_days))
 
+        result = {}
         for product in self:
             tmpl = product.product_tmpl_id
             rounding = product.uom_id.rounding or 0.0001
@@ -235,26 +237,47 @@ class ProductProduct(models.Model):
             plazo_th, tope_amarillo_th = product._poultry_odoo_cover_threshold_days()
             total_out = consumption.get(product.id, 0.0)
             daily = total_out / window if window else 0.0
-            product.poultry_cover_daily_avg = float_round(daily, precision_rounding=rounding)
-
-            qty_real = product.qty_available
-            qty_fcst = product.virtual_available
+            daily_avg = float_round(daily, precision_rounding=rounding)
 
             dr, dstr_r, sig_r, sort_r = self._poultry_cover_line_metrics(
-                daily, rounding, qty_real, plazo_th, tope_amarillo_th
+                daily, rounding, product.qty_available, plazo_th, tope_amarillo_th
             )
             df, dstr_f, sig_f, _ = self._poultry_cover_line_metrics(
-                daily, rounding, qty_fcst, plazo_th, tope_amarillo_th
+                daily, rounding, product.virtual_available, plazo_th, tope_amarillo_th
             )
+            result[product.id] = {
+                'daily_avg': daily_avg,
+                'days': dr,
+                'days_display': dstr_r,
+                'signal': sig_r,
+                'sort_days': sort_r,
+                'forecast_days': df,
+                'forecast_days_display': dstr_f,
+                'forecast_signal': sig_f,
+            }
+        return result
 
-            product.poultry_cover_days = dr
-            product.poultry_cover_days_display = dstr_r
-            product.poultry_cover_signal = sig_r
-            product.poultry_cover_sort_days = sort_r
+    @api.depends_context('company')
+    @api.depends(*_POULTRY_COVER_METRICS_DEPENDS)
+    def _compute_poultry_cover_metrics(self):
+        data = self._poultry_build_cover_metrics_data()
+        for product in self:
+            row = data[product.id]
+            product.poultry_cover_daily_avg = row['daily_avg']
+            product.poultry_cover_days = row['days']
+            product.poultry_cover_days_display = row['days_display']
+            product.poultry_cover_forecast_days = row['forecast_days']
+            product.poultry_cover_forecast_days_display = row['forecast_days_display']
+            product.poultry_cover_forecast_signal = row['forecast_signal']
 
-            product.poultry_cover_forecast_days = df
-            product.poultry_cover_forecast_days_display = dstr_f
-            product.poultry_cover_forecast_signal = sig_f
+    @api.depends_context('company')
+    @api.depends(*_POULTRY_COVER_METRICS_DEPENDS)
+    def _compute_poultry_cover_metrics_store(self):
+        data = self._poultry_build_cover_metrics_data()
+        for product in self:
+            row = data[product.id]
+            product.poultry_cover_signal = row['signal']
+            product.poultry_cover_sort_days = row['sort_days']
 
     @api.model
     def _group_expand_poultry_cover_signal(self, values, domain):
@@ -300,6 +323,7 @@ class ProductProduct(models.Model):
         products = self.search(domain)
         if products:
             products._compute_poultry_cover_metrics()
+            products._compute_poultry_cover_metrics_store()
         domain.append(('poultry_cover_signal', 'in', ('red', 'yellow', 'green')))
         kanban_view = self.env.ref('poultry_management.product_product_kanban_poultry_cover')
         search_view = self.env.ref('poultry_management.product_product_search_poultry_cover')
