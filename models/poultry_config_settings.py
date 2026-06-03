@@ -6,13 +6,6 @@ from odoo import models, fields
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
-    poultry_stock_dashboard_category_ids = fields.Many2many(
-        'product.category',
-        related='company_id.poultry_stock_dashboard_category_ids',
-        readonly=False,
-        string='Tablero cobertura: categorías',
-    )
-
     poultry_unclassified_egg_product_id = fields.Many2one(
         'product.product',
         string='Producto para Huevo sin Clasificar',
@@ -20,4 +13,3 @@ class ResConfigSettings(models.TransientModel):
         domain="[('type', '=', 'consu'), ('active', '=', True)]",
         help='Producto que se utilizará para representar el huevo sin clasificar en las recolecciones de producción'
     )
-

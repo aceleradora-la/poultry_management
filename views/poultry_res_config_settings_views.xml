@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Desactiva la extensión en Ajustes > Inventario que referenciaba poultry_stock_dashboard_category_ids
-         y bloqueaba la instalación de otros módulos (validación global de res.config.settings). -->
-    <record id="res_config_settings_view_form_poultry_stock_dashboard" model="ir.ui.view">
-        <field name="active" eval="False"/>
-    </record>
+    <!-- Eliminar por completo la extensión en Ajustes > Inventario (active=False no bastaba: el arch
+         seguía en BD y rompía la validación de res.config.settings al instalar otros módulos). -->
+    <delete model="ir.ui.view" id="res_config_settings_view_form_poultry_stock_dashboard"/>
 </odoo>
