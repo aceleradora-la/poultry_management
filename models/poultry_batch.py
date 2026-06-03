@@ -91,16 +91,20 @@ class PoultryBatch(models.Model):
                         f'Aves totales: {total_birds}'
                     )
     
-    @api.model
-    def create(self, vals):
-        """Genera código automático si no se proporciona"""
-        if not vals.get('code'):
-            vals['code'] = self.env['ir.sequence'].next_by_code('poultry.batch') or 'NUEVO'
-        if not vals.get('name') or vals.get('name') == 'Nuevo':
-            genetics_name = self.env['poultry.genetics'].browse(vals.get('genetics_id')).name if vals.get('genetics_id') else ''
-            birth_date = vals.get('birth_date', fields.Date.today())
-            vals['name'] = f'{genetics_name} - {birth_date}'
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Genera código y nombre automáticos si no se proporcionan."""
+        for vals in vals_list:
+            if not vals.get('code'):
+                vals['code'] = self.env['ir.sequence'].next_by_code('poultry.batch') or 'NUEVO'
+            if not vals.get('name') or vals.get('name') == 'Nuevo':
+                genetics_name = (
+                    self.env['poultry.genetics'].browse(vals.get('genetics_id')).name
+                    if vals.get('genetics_id') else ''
+                )
+                birth_date = vals.get('birth_date', fields.Date.today())
+                vals['name'] = f'{genetics_name} - {birth_date}'
+        return super().create(vals_list)
     
     def name_get(self):
         """Personaliza el nombre mostrado"""
