@@ -126,7 +126,19 @@ class PoultryEggCollection(models.Model):
                                               compute='_compute_final_totals', store=True,
                                               digits=(16, 2),
                                               help='Peso medio elaborado en gramos: Total de Gramos / Total de Huevos Finales (solo variantes con Peso Medio)')
-    
+
+    # Totales por unidad de medida (ranura 1=mayor, 2=intermedia, 3=Huevo).
+    # store=False: solo presentación; los labels se renombran dinámicamente en el form.
+    total_initial_boxes = fields.Float(string='Total Inicial UdM1', compute='_compute_totals', store=False, digits=(16, 2))
+    total_initial_maps = fields.Float(string='Total Inicial UdM2', compute='_compute_totals', store=False, digits=(16, 2))
+    total_initial_eggs = fields.Float(string='Total Inicial UdM3', compute='_compute_totals', store=False, digits=(16, 2))
+    total_final_boxes = fields.Float(string='Total Bruto UdM1', compute='_compute_totals', store=False, digits=(16, 2))
+    total_final_maps = fields.Float(string='Total Bruto UdM2', compute='_compute_totals', store=False, digits=(16, 2))
+    total_final_eggs = fields.Float(string='Total Bruto UdM3', compute='_compute_totals', store=False, digits=(16, 2))
+    total_produced_boxes = fields.Float(string='Total Final UdM1', compute='_compute_totals', store=False, digits=(16, 2))
+    total_produced_maps = fields.Float(string='Total Final UdM2', compute='_compute_totals', store=False, digits=(16, 2))
+    total_produced_eggs = fields.Float(string='Total Final UdM3', compute='_compute_totals', store=False, digits=(16, 2))
+
     notes = fields.Text(string='Notas')
     
     @api.depends('product_tmpl_id')
