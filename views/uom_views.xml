@@ -18,7 +18,9 @@
                         </group>
                         <group string="Configuración para Gestión Avícola">
                             <field name="use_in_poultry"/>
-                            <field name="display_name_poultry" 
+                            <field name="is_poultry_egg"
+                                   invisible="not use_in_poultry"/>
+                            <field name="display_name_poultry"
                                    invisible="not use_in_poultry"
                                    placeholder="Si está vacío, se usará el nombre de la unidad de medida"/>
                         </group>
@@ -37,6 +39,7 @@
                 <field name="name"/>
                 <field name="category_id"/>
                 <field name="ratio"/>
+                <field name="is_poultry_egg" optional="hide"/>
                 <field name="use_in_poultry" optional="hide"/>
                 <field name="display_name_poultry" optional="hide"/>
                 <field name="active" widget="boolean_toggle"/>

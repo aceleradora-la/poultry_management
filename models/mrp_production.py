@@ -90,24 +90,56 @@ class MrpProduction(models.Model):
             qty = sum(getattr(move, 'move_line_ids', self.env['stock.move.line']).mapped('qty_done') or [0.0])
         return qty or 0.0
 
+    def _poultry_get_egg_uom(self, uom):
+        """
+        Devuelve la unidad marcada como Huevo (is_poultry_egg) en la categoría
+        de la UdM recibida. Es la unidad de referencia para convertir a huevos.
+        """
+        if not uom:
+            return self.env['uom.uom']
+        return self.env['uom.uom'].search([
+            ('category_id', '=', uom.category_id.id),
+            ('is_poultry_egg', '=', True),
+        ], limit=1)
+
+    def _poultry_qty_to_eggs(self, qty, uom):
+        """
+        Convierte una cantidad en su UdM a cantidad de Huevos, usando la
+        conversión estándar de Odoo dentro de la categoría hacia la unidad
+        marcada como Huevo. Funciona aunque producido y componentes estén en
+        categorías distintas, porque cada categoría tiene su propio Huevo.
+        """
+        egg_uom = self._poultry_get_egg_uom(uom)
+        if not egg_uom:
+            raise UserError(
+                f'No hay una unidad marcada como Huevo (referencia) en la categoría '
+                f'"{uom.category_id.display_name}" de la unidad "{uom.name}". '
+                f'Configúrela en Gestión Avícola > Unidades de Medida.'
+            )
+        return uom._compute_quantity(qty or 0.0, egg_uom)
+
     def _poultry_validate_kit_consumption_equals_finished(self):
         """
         Valida que la suma de cantidades consumidas de componentes (move_raw_ids),
-        convertidas a la UdM del producto final, sea igual a la cantidad producida.
+        convertidas a cantidad de Huevos, sea igual a la cantidad producida
+        (también en Huevos). Cada UdM se convierte a la unidad Huevo de su propia
+        categoría, por lo que producido y componentes pueden tener UdM distintas.
         """
         self.ensure_one()
-        finished_uom = self.product_uom_id
         finished_qty = self._poultry_get_finished_qty_for_validation()
+        finished_eggs = self._poultry_qty_to_eggs(finished_qty, self.product_uom_id)
+        egg_uom = self._poultry_get_egg_uom(self.product_uom_id)
 
-        total = 0.0
+        total_eggs = 0.0
         for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel'):
             consumed = self._poultry_get_move_consumed_qty(move)
-            total += move.product_uom._compute_quantity(consumed, finished_uom)
+            total_eggs += self._poultry_qty_to_eggs(consumed, move.product_uom)
 
-        if float_compare(total, finished_qty, precision_rounding=finished_uom.rounding) != 0:
+        rounding = egg_uom.rounding or 0.01
+        if float_compare(total_eggs, finished_eggs, precision_rounding=rounding) != 0:
             raise UserError(
-                f'Validación KIT: la suma consumida ({total:g} {finished_uom.name}) '
-                f'no coincide con lo producido ({finished_qty:g} {finished_uom.name}).'
+                f'Validación KIT: la suma consumida ({total_eggs:g} huevos) '
+                f'no coincide con lo producido ({finished_eggs:g} huevos).'
             )
 
     def button_mark_done(self):
