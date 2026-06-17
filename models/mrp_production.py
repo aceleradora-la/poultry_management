@@ -106,40 +106,53 @@ class MrpProduction(models.Model):
         """
         Convierte una cantidad en su UdM a cantidad de Huevos, usando la
         conversión estándar de Odoo dentro de la categoría hacia la unidad
-        marcada como Huevo. Funciona aunque producido y componentes estén en
-        categorías distintas, porque cada categoría tiene su propio Huevo.
+        marcada como Huevo de esa misma categoría.
+
+        Devuelve None si la categoría de la UdM no tiene unidad Huevo, es decir,
+        si la UdM no representa huevos (p. ej. film en gramos, cajas en unidades).
+        Nunca cruza categorías, por lo que no dispara el error de Odoo de
+        "distinta categoría".
         """
         egg_uom = self._poultry_get_egg_uom(uom)
         if not egg_uom:
-            raise UserError(
-                f'No hay una unidad marcada como Huevo (referencia) en la categoría '
-                f'"{uom.category_id.display_name}" de la unidad "{uom.name}". '
-                f'Configúrela en Gestión Avícola > Unidades de Medida.'
-            )
+            return None
         return uom._compute_quantity(qty or 0.0, egg_uom)
 
     def _poultry_validate_kit_consumption_equals_finished(self):
         """
-        Valida que la suma de cantidades consumidas de componentes (move_raw_ids),
-        convertidas a cantidad de Huevos, sea igual a la cantidad producida
-        (también en Huevos). Cada UdM se convierte a la unidad Huevo de su propia
-        categoría, por lo que producido y componentes pueden tener UdM distintas.
+        Valida que, en una OF marcada como Mix Producto Avícola, la suma de los
+        componentes que SON huevos (convertidos a Huevos según la UdM Huevo de
+        cada categoría) sea igual a la cantidad de huevos producida.
+
+        Los componentes que no son huevos (film, cajas, etc., medidos en gramos
+        o unidades) se ignoran: pueden mezclarse libremente en la OF. El producido
+        y los componentes huevo pueden estar en categorías de UdM distintas.
         """
         self.ensure_one()
         finished_qty = self._poultry_get_finished_qty_for_validation()
         finished_eggs = self._poultry_qty_to_eggs(finished_qty, self.product_uom_id)
+        if finished_eggs is None:
+            raise UserError(
+                f'No hay una unidad marcada como Huevo (referencia) en la categoría '
+                f'"{self.product_uom_id.category_id.display_name}" del producto a producir. '
+                f'Configúrela en Gestión Avícola > Unidades de Medida.'
+            )
         egg_uom = self._poultry_get_egg_uom(self.product_uom_id)
 
         total_eggs = 0.0
         for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel'):
             consumed = self._poultry_get_move_consumed_qty(move)
-            total_eggs += self._poultry_qty_to_eggs(consumed, move.product_uom)
+            consumed_eggs = self._poultry_qty_to_eggs(consumed, move.product_uom)
+            if consumed_eggs is None:
+                # Componente que no es huevo (p. ej. film en gramos): no participa del balance.
+                continue
+            total_eggs += consumed_eggs
 
         rounding = egg_uom.rounding or 0.01
         if float_compare(total_eggs, finished_eggs, precision_rounding=rounding) != 0:
             raise UserError(
-                f'Validación KIT: la suma consumida ({total_eggs:g} huevos) '
-                f'no coincide con lo producido ({finished_eggs:g} huevos).'
+                f'Validación KIT: la suma de huevos consumidos ({total_eggs:g} huevos) '
+                f'no coincide con los huevos producidos ({finished_eggs:g} huevos).'
             )
 
     def button_mark_done(self):
