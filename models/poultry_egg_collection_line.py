@@ -3,6 +3,7 @@
 from odoo import models, fields, api
 from odoo.osv import expression
 import math
+import re
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -109,9 +110,37 @@ class PoultryEggCollectionLine(models.Model):
                                  store=True, digits=(16, 2))
     produced_map = fields.Float(string='Final PI', compute='_compute_production', 
                                  store=True, digits=(16, 2))
-    produced_egg = fields.Float(string='Final Huevo', compute='_compute_production', 
+    produced_egg = fields.Float(string='Final Huevo', compute='_compute_production',
                                  store=True, digits=(16, 2))
-    
+
+    # Nombres dinámicos de las 3 "ranuras" de UdM (para encabezados de columnas en pantalla).
+    # Espejan la lógica del reporte: UdM de la categoría del producto ordenadas por ratio desc,
+    # mostrando el "Nombre para Parte de Producción". store=False: solo presentación.
+    uom_1_name = fields.Char(string='Nombre UdM 1', compute='_compute_uom_slot_names', store=False)
+    uom_2_name = fields.Char(string='Nombre UdM 2', compute='_compute_uom_slot_names', store=False)
+    uom_3_name = fields.Char(string='Nombre UdM 3', compute='_compute_uom_slot_names', store=False)
+
+    @api.model
+    def _strip_t_suffix(self, name):
+        """Quita el sufijo ' T' de los nombres de UdM (ej: 'Cajón T' -> 'Cajón')."""
+        if not name:
+            return name
+        return re.sub(r'\s+T\s*$', '', (name or '').strip(), flags=re.IGNORECASE)
+
+    @api.model
+    def _get_poultry_uom_slot_names(self, product_variant):
+        """Devuelve hasta 3 nombres de UdM (display para parte) ordenados por ratio desc."""
+        uoms = self._get_poultry_uoms(product_variant)
+        return [self._strip_t_suffix((uom.poultry_display_name or uom.name) or '') for uom in uoms[:3]]
+
+    @api.depends('product_variant_id')
+    def _compute_uom_slot_names(self):
+        for line in self:
+            names = line._get_poultry_uom_slot_names(line.product_variant_id) if line.product_variant_id else []
+            line.uom_1_name = names[0] if len(names) > 0 else ''
+            line.uom_2_name = names[1] if len(names) > 1 else ''
+            line.uom_3_name = names[2] if len(names) > 2 else ''
+
     # Campo para almacenar el total de producción en unidad de referencia
     total_produced_reference = fields.Float(string='Total Producido (Unidad Ref)', 
                                              compute='_compute_production', 

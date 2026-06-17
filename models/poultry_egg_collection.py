@@ -4,7 +4,6 @@ from odoo import models, fields, api
 from odoo.exceptions import ValidationError, UserError
 from markupsafe import Markup
 import logging
-import re
 
 _logger = logging.getLogger(__name__)
 
@@ -62,10 +61,28 @@ class PoultryEggCollection(models.Model):
                                         store=True, readonly=True, index=True,
                                         help='Primera variante del producto (almacenado para uso en pivot)')
     
-    product_variant_name = fields.Char(string='Nombre Variante Producto', 
-                                      compute='_compute_product_variant_name', 
+    product_variant_name = fields.Char(string='Nombre Variante Producto',
+                                      compute='_compute_product_variant_name',
                                       store=True, readonly=True, index=True,
                                       help='Nombre de la variante del producto (almacenado para uso en reportes)')
+
+    # Nombres dinámicos de las 3 "ranuras" de UdM, para los labels de totales del form.
+    # store=False: solo presentación (los lee el JS desde el record de la colección).
+    uom_1_name = fields.Char(string='Nombre UdM 1', compute='_compute_uom_slot_names', store=False)
+    uom_2_name = fields.Char(string='Nombre UdM 2', compute='_compute_uom_slot_names', store=False)
+    uom_3_name = fields.Char(string='Nombre UdM 3', compute='_compute_uom_slot_names', store=False)
+
+    @api.depends('product_variant_id', 'line_ids.product_variant_id')
+    def _compute_uom_slot_names(self):
+        Line = self.env['poultry.egg.collection.line']
+        for collection in self:
+            variant = collection.product_variant_id
+            if not variant and collection.line_ids:
+                variant = collection.line_ids[0].product_variant_id
+            names = Line._get_poultry_uom_slot_names(variant) if variant else []
+            collection.uom_1_name = names[0] if len(names) > 0 else ''
+            collection.uom_2_name = names[1] if len(names) > 1 else ''
+            collection.uom_3_name = names[2] if len(names) > 2 else ''
     date = fields.Date(string='Fecha de Recolección', required=True, default=fields.Date.today, tracking=True)
     operator_id = fields.Many2one('hr.employee', string='Operador', 
                                   domain="[('active', '=', True)]",
@@ -290,41 +307,20 @@ class PoultryEggCollection(models.Model):
         if not self.product_tmpl_id:
             return {'columns': [], 'lines': [], 'empty_cells': []}
 
-        def _strip_t_suffix(name):
-            """Quita el sufijo ' T' de los nombres de UoM en el reporte."""
-            if not name:
-                return name
-            s = (name or '').strip()
-            # Quitar espacio(s) + T al final (ej: "Cajón T", "Maple 30 T")
-            return re.sub(r'\s+T\s*$', '', s, flags=re.IGNORECASE)
-
         def _get_attribute_value_label(variant):
             attr_value = Line._get_main_attribute_value_from_variant(variant)
             return (attr_value.name or '').strip() if attr_value else ''
 
         # Obtener nombres de UoM (ordenados por ratio desc: PT, PI, Huevo)
-        uom_names = []
-        if self.line_ids:
-            first_line = self.line_ids[0]
-            if first_line.product_variant_id:
-                first_line._ensure_uom_value_ids()
-            sorted_uoms = sorted(
-                first_line.uom_value_ids,
-                key=lambda x: x.uom_ratio or 0.0,
-                reverse=True
-            )[:3]
-            uom_names = [
-                _strip_t_suffix(uom_val.uom_display_name or (uom_val.uom_id.name if uom_val.uom_id else ''))
-                for uom_val in sorted_uoms
-            ]
+        if self.line_ids and self.line_ids[0].product_variant_id:
+            uom_names = Line._get_poultry_uom_slot_names(self.line_ids[0].product_variant_id)
         else:
             variants = self.product_tmpl_id.product_variant_ids
             if not variants and self.product_tmpl_id.product_variant_id:
                 variants = self.product_tmpl_id.product_variant_id
             if not variants:
                 return {'columns': [], 'lines': [], 'empty_cells': []}
-            uoms = Line._get_poultry_uoms(variants[0])
-            uom_names = [_strip_t_suffix((uom.poultry_display_name or uom.name) or '') for uom in uoms[:3]]
+            uom_names = Line._get_poultry_uom_slot_names(variants[0])
 
         # Columnas: Variante | Inicial UoM1 | ... | Bruto UoM1 | ... | PESO MEDIO
         # Inicial y Bruto en mixed case, nombres UoM y PESO MEDIO en mayúsculas

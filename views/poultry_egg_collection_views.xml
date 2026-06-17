@@ -111,6 +111,18 @@
                                 <label for="total_boxes" string="Total Cajones"/>
                                 <field name="total_boxes" readonly="1" nolabel="1"/>
                             </group>
+                            <!-- Totales por Unidad: labels dinámicos por UdM (los renombra el JS) -->
+                            <group string="Totales por Unidad" invisible="state == 'draft' or state == 'counted'">
+                                <field name="uom_1_name" invisible="1"/>
+                                <field name="uom_2_name" invisible="1"/>
+                                <field name="uom_3_name" invisible="1"/>
+                                <label for="total_produced_boxes" string="Total Final"/>
+                                <field name="total_produced_boxes" readonly="1" nolabel="1"/>
+                                <label for="total_produced_maps" string="Total Final"/>
+                                <field name="total_produced_maps" readonly="1" nolabel="1"/>
+                                <label for="total_produced_eggs" string="Total Final"/>
+                                <field name="total_produced_eggs" readonly="1" nolabel="1"/>
+                            </group>
                         </group>
                     </group>
                     <notebook>
@@ -120,12 +132,16 @@
                                 <list string="Líneas de Recolección" editable="bottom"
                                       column_invisible="parent.state == 'draft'">
                                     <!-- Mantener variante interna oculta para preservar lógica y unicidad -->
-                                    <field name="product_variant_id" 
+                                    <field name="product_variant_id"
                                            invisible="1"
                                            column_invisible="1"
                                            readonly="1"
                                            force_save="1"
                                            options="{'no_create': True, 'no_create_edit': True}"/>
+                                    <!-- Nombres dinámicos de UdM (ocultos): los usa el JS para los encabezados -->
+                                    <field name="uom_1_name" invisible="1" column_invisible="1"/>
+                                    <field name="uom_2_name" invisible="1" column_invisible="1"/>
+                                    <field name="uom_3_name" invisible="1" column_invisible="1"/>
                                     <!-- Mostrar solo el valor del atributo (ej. 1, 2, 3, X, S) -->
                                     <field name="attribute_value_name"
                                            string="Valor del Atributo"

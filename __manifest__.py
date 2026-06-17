@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.11.25',
+    'version': '18.0.1.11.26',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -17,6 +17,7 @@
     'assets': {
         'web.assets_backend': [
             'poultry_management/static/src/css/poultry_stock_cover_dashboard.css',
+            'poultry_management/static/src/js/poultry_dynamic_columns.js',
         ],
     },
     'data': [
