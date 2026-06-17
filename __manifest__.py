@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.11.26',
+    'version': '18.0.1.11.27',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """

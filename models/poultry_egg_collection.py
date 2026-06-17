@@ -204,10 +204,10 @@ class PoultryEggCollection(models.Model):
     def _compute_totals(self):
         """Calcula los totales de todas las líneas"""
         for collection in self:
-            # Asegurar que los campos computed de las líneas estén calculados
-            if collection.line_ids:
-                collection.line_ids._compute_production()
-            
+            # Nota: NO llamar a _compute_production() aquí. Los produced_* y
+            # uom_value_ids.produced_qty se mantienen por su propio compute al
+            # cambiar los datos de la línea. Estos totales son solo lectura.
+
             # Usar el nuevo sistema dinámico si hay uom_value_ids, sino usar legacy
             use_dynamic = any(line.uom_value_ids for line in collection.line_ids)
             

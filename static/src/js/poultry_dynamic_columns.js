@@ -37,6 +37,24 @@ patch(ListRenderer.prototype, {
             return columns;
         }
         const data = records[0].data || {};
+
+        // --- DIAGNÓSTICO TEMPORAL (quitar tras confirmar) ---
+        if (!window.__poultryColsLogged) {
+            window.__poultryColsLogged = true;
+            const sample = columns.find((c) => COLUMN_MAP[c.name]) || columns[0];
+            console.log("[POULTRY] getColumns resModel:", this.props.list.resModel);
+            console.log("[POULTRY] uom_1_name en data:", data.uom_1_name,
+                "| uom_2_name:", data.uom_2_name, "| uom_3_name:", data.uom_3_name);
+            console.log("[POULTRY] data keys:", Object.keys(data));
+            if (sample) {
+                console.log("[POULTRY] columna ejemplo name:", sample.name,
+                    "| keys:", Object.keys(sample),
+                    "| label:", sample.label, "| string:", sample.string);
+                console.log("[POULTRY] columna ejemplo (objeto):", sample);
+            }
+        }
+        // --- FIN DIAGNÓSTICO ---
+
         return columns.map((column) => {
             const mapping = COLUMN_MAP[column.name];
             if (!mapping) {
@@ -47,8 +65,10 @@ patch(ListRenderer.prototype, {
             if (!name) {
                 return column;
             }
-            // Copia para no mutar la definición compartida de la columna.
-            return { ...column, label: `${prefix} ${name.toUpperCase()}` };
+            // Copia para no mutar la definición compartida. Seteamos varias
+            // propiedades candidatas (hedge) hasta confirmar cuál usa el header.
+            const newTitle = `${prefix} ${name.toUpperCase()}`;
+            return { ...column, label: newTitle, string: newTitle };
         });
     },
 });
