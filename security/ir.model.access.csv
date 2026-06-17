@@ -13,6 +13,8 @@ access_poultry_egg_collection_line_uom_manager,poultry.egg.collection.line.uom.m
 access_poultry_egg_collection_line_uom_user,poultry.egg.collection.line.uom.user,model_poultry_egg_collection_line_uom,poultry_management.poultry_user,1,0,0,0
 access_poultry_mortality_manager,poultry.mortality.manager,model_poultry_mortality,poultry_management.poultry_manager,1,1,1,1
 access_poultry_mortality_user,poultry.mortality.user,model_poultry_mortality,poultry_management.poultry_user,1,0,0,0
+access_poultry_genetics_manager,poultry.genetics.manager,model_poultry_genetics,poultry_management.poultry_manager,1,1,1,1
+access_poultry_genetics_user,poultry.genetics.user,model_poultry_genetics,poultry_management.poultry_user,1,0,0,0
 access_poultry_genetics_standard_manager,poultry.genetics.standard.manager,model_poultry_genetics_standard,poultry_management.poultry_manager,1,1,1,1
 access_poultry_genetics_standard_user,poultry.genetics.standard.user,model_poultry_genetics_standard,poultry_management.poultry_user,1,0,0,0
 access_poultry_mortality_report_wizard_manager,poultry.mortality.report.wizard.manager,model_poultry_mortality_report_wizard,poultry_management.poultry_manager,1,1,1,1
