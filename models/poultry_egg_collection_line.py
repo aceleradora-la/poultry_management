@@ -245,10 +245,7 @@ class PoultryEggCollectionLine(models.Model):
         """Raíz de la jerarquía relative_uom_id (sustituye categoría + ratio==1 en Odoo 18)."""
         if not product_variant or not product_variant.uom_id:
             return False
-        uom = product_variant.uom_id
-        while uom.relative_uom_id:
-            uom = uom.relative_uom_id
-        return uom
+        return product_variant.uom_id._poultry_root_uom()
     
     @api.depends('final_box', 'final_map', 'final_egg',
                  'uom_value_ids.final_qty', 'uom_value_ids.uom_ratio',

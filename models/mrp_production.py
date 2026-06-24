@@ -92,8 +92,14 @@ class MrpProduction(models.Model):
 
     def _poultry_validate_kit_consumption_equals_finished(self):
         """
-        Valida que la suma de cantidades consumidas de componentes (move_raw_ids),
-        convertidas a la UdM del producto final, sea igual a la cantidad producida.
+        Valida que, en una OF mix avícola, la suma de los componentes que pertenecen
+        a la MISMA familia de UdM que el producto final (es decir, los huevos),
+        convertidos a la UdM del producto final, sea igual a la cantidad producida.
+
+        Los componentes de otra familia (film en gramos, cajas en unidades, etc.) se
+        ignoran: pueden mezclarse libremente en la OF. En Odoo 19 `_compute_quantity`
+        ya no valida familias y convertiría ciegamente entre familias distintas
+        (mezclando gramos con huevos), por eso filtramos por familia común explícita.
         """
         self.ensure_one()
         finished_uom = self.product_uom_id
@@ -101,8 +107,13 @@ class MrpProduction(models.Model):
 
         total = 0.0
         for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel'):
+            move_uom = move.product_uom
+            # Solo participan del balance los componentes convertibles a la UdM
+            # del producto final (misma familia / raíz relative_uom_id).
+            if not move_uom or not finished_uom._has_common_reference(move_uom):
+                continue
             consumed = self._poultry_get_move_consumed_qty(move)
-            total += move.product_uom._compute_quantity(consumed, finished_uom)
+            total += move_uom._compute_quantity(consumed, finished_uom)
 
         if float_compare(total, finished_qty, precision_rounding=finished_uom.rounding) != 0:
             raise UserError(

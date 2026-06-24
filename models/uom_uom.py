@@ -38,3 +38,26 @@ class UomUom(models.Model):
         help='Nombre que se mostrará en el parte de producción'
     )
 
+    def _poultry_root_uom(self):
+        """Raíz de la jerarquía relative_uom_id (Odoo 19 reemplaza category_id).
+
+        La unidad raíz no tiene relative_uom_id y su factor es 1.0; cumple el rol
+        que en Odoo <=18 tenía la unidad con ratio == 1.0 dentro de la categoría.
+        """
+        self.ensure_one()
+        uom = self
+        while uom.relative_uom_id:
+            uom = uom.relative_uom_id
+        return uom
+
+    def _has_common_reference(self, other):
+        """True si ambas UdM pertenecen a la misma familia (comparten unidad raíz).
+
+        Sustituye en Odoo 19 a la comparación por category_id: dos unidades son
+        convertibles entre sí si comparten la misma raíz de relative_uom_id.
+        """
+        self.ensure_one()
+        if not other:
+            return False
+        return self._poultry_root_uom() == other._poultry_root_uom()
+
