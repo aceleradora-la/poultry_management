@@ -23,6 +23,9 @@ const LIST_COLUMN_SLOTS = {
     final_box: ["Bruto", 0],
     final_map: ["Bruto", 1],
     final_egg: ["Bruto", 2],
+    produced_box: ["Final", 0],
+    produced_map: ["Final", 1],
+    produced_egg: ["Final", 2],
 };
 
 // Campo de total del form -> [prefijo, índice de slot de UoM]
