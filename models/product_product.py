@@ -183,23 +183,14 @@ class ProductProduct(models.Model):
             '&', ('move_id.date', '>=', date_from), ('move_id.date', '<=', date_to),
         ]
         MoveLine = self.env['stock.move.line'].sudo()
-        groups = MoveLine.read_group(domain, ['quantity_product_uom:sum'], ['product_id'])
+        # Odoo 19: read_group (público) fue eliminado; _read_group devuelve tuplas
+        # (valor_groupby, *agregados). Para un m2m/m2o el valor es el propio registro.
+        groups = MoveLine._read_group(domain, ['product_id'], ['quantity_product_uom:sum'])
         result = {}
-        for row in groups:
-            p = row.get('product_id')
-            if not p:
+        for product, qty in groups:
+            if not product:
                 continue
-            pid = p[0] if isinstance(p, (list, tuple)) else p
-            qty = None
-            for key, val in row.items():
-                if key == 'product_id' or key == '__domain':
-                    continue
-                if key.endswith('_sum'):
-                    qty = val
-                    break
-            if qty is None:
-                qty = row.get('quantity_product_uom') or 0.0
-            result[pid] = qty or 0.0
+            result[product.id] = qty or 0.0
         return result
 
     _POULTRY_COVER_METRICS_DEPENDS = [
@@ -285,12 +276,16 @@ class ProductProduct(models.Model):
         return ['red', 'yellow', 'green']
 
     @api.model
-    def read_group(self, domain, fields, groupby, **kwargs):
+    def formatted_read_group(self, domain, groupby=(), aggregates=(), having=(), offset=0, limit=None, order=None):
         """Fija el orden de columnas Rojo → Amarillo → Verde → Sin datos al agrupar por semáforo.
 
         Sin esto, el cliente ordena grupos por nº de registros (y empata alfabéticamente: Amarillo antes que Rojo).
+
+        Odoo 19: read_group (público) fue reemplazado por formatted_read_group
+        (domain, groupby, aggregates, having, offset, limit, order) -> list[dict].
         """
-        rows = super().read_group(domain, fields, groupby, **kwargs)
+        rows = super().formatted_read_group(
+            domain, groupby, aggregates, having=having, offset=offset, limit=limit, order=order)
         if not groupby:
             return rows
         first = groupby[0] if isinstance(groupby, (list, tuple)) else groupby

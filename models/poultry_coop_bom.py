@@ -163,15 +163,14 @@ class PoultryCoopBom(models.Model):
         self.ensure_one()
         self.write({'active': False, 'end_date': fields.Date.today()})
     
-    def name_get(self):
-        """Personaliza el nombre mostrado"""
-        result = []
+    @api.depends('coop_id.name', 'bom_id.product_id.name', 'active')
+    def _compute_display_name(self):
+        """Personaliza el nombre mostrado (Odoo 17+ reemplaza name_get por _compute_display_name)."""
         for coop_bom in self:
             name = f'{coop_bom.coop_id.name} - {coop_bom.bom_id.product_id.name}'
             if coop_bom.active:
                 name += ' [ACTIVA]'
-            result.append((coop_bom.id, name))
-        return result
+            coop_bom.display_name = name
 
     @api.model
     def get_active_bom_for_coop_date(self, coop_id, target_date=False):

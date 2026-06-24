@@ -102,13 +102,12 @@ class PoultryBatch(models.Model):
             vals['name'] = f'{genetics_name} - {birth_date}'
         return super().create(vals)
     
-    def name_get(self):
-        """Personaliza el nombre mostrado"""
-        result = []
+    @api.depends('code', 'name', 'coop_id.name')
+    def _compute_display_name(self):
+        """Personaliza el nombre mostrado (Odoo 17+ reemplaza name_get por _compute_display_name)."""
         for batch in self:
             name = f'{batch.code} - {batch.name}'
             if batch.coop_id:
                 name += f' [{batch.coop_id.name}]'
-            result.append((batch.id, name))
-        return result
+            batch.display_name = name
 
