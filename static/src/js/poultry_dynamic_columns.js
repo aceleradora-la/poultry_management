@@ -3,7 +3,7 @@
 import { patch } from "@web/core/utils/patch";
 import { ListRenderer } from "@web/views/list/list_renderer";
 import { FormRenderer } from "@web/views/form/form_renderer";
-import { onMounted, onPatched } from "@odoo/owl";
+import { onMounted, onPatched, onWillRender } from "@odoo/owl";
 
 // Renombra dinámicamente las columnas/labels del parte de producción con los
 // nombres reales de las unidades de medida (uom_1_name / uom_2_name / uom_3_name).
@@ -43,20 +43,29 @@ function uomSlotNames(data) {
 }
 
 patch(ListRenderer.prototype, {
-    getColumns(record) {
-        const columns = super.getColumns(record);
+    setup() {
+        super.setup();
+        // El header itera `this.columns` y muestra `column.label`. Renombramos antes
+        // de cada render (onWillRender) para que el header tome los nombres reales de
+        // UdM apenas los registros estén cargados, sin necesidad de un click/refresh.
+        onWillRender(() => this._poultryRenameColumns());
+    },
+
+    _poultryRenameColumns() {
         const list = this.props.list;
         if (!list || list.resModel !== LINE_MODEL || !list.records || !list.records.length) {
-            return columns;
+            return;
         }
         const names = uomSlotNames(list.records[0].data);
-        for (const column of columns) {
+        if (!names[0] && !names[1] && !names[2]) {
+            return;
+        }
+        for (const column of this.columns || []) {
             const slot = LIST_COLUMN_SLOTS[column.name];
             if (slot && names[slot[1]]) {
                 column.label = `${names[slot[1]]} ${slot[0]}`;
             }
         }
-        return columns;
     },
 });
 
