@@ -3,7 +3,7 @@
 import { patch } from "@web/core/utils/patch";
 import { ListRenderer } from "@web/views/list/list_renderer";
 import { FormRenderer } from "@web/views/form/form_renderer";
-import { onMounted, onPatched, onWillRender } from "@odoo/owl";
+import { onMounted, onPatched } from "@odoo/owl";
 
 // Renombra dinámicamente las columnas/labels del parte de producción con los
 // nombres reales de las unidades de medida (uom_1_name / uom_2_name / uom_3_name).
@@ -43,29 +43,27 @@ function uomSlotNames(data) {
 }
 
 patch(ListRenderer.prototype, {
-    setup() {
-        super.setup();
-        // El header itera `this.columns` y muestra `column.label`. Renombramos antes
-        // de cada render (onWillRender) para que el header tome los nombres reales de
-        // UdM apenas los registros estén cargados, sin necesidad de un click/refresh.
-        onWillRender(() => this._poultryRenameColumns());
-    },
-
-    _poultryRenameColumns() {
+    // La clase base hace `this.columns = this.getActiveColumns()` dentro de su propio
+    // onWillRender, reasignando el array en cada render. Enganchamos ese mismo método
+    // para renombrar los labels sobre el array definitivo, evitando problemas de orden
+    // de hooks. El header (t-foreach="columns" / column.label) toma los nombres reales.
+    getActiveColumns() {
+        const columns = super.getActiveColumns();
         const list = this.props.list;
         if (!list || list.resModel !== LINE_MODEL || !list.records || !list.records.length) {
-            return;
+            return columns;
         }
         const names = uomSlotNames(list.records[0].data);
         if (!names[0] && !names[1] && !names[2]) {
-            return;
+            return columns;
         }
-        for (const column of this.columns || []) {
+        for (const column of columns) {
             const slot = LIST_COLUMN_SLOTS[column.name];
             if (slot && names[slot[1]]) {
                 column.label = `${names[slot[1]]} ${slot[0]}`;
             }
         }
+        return columns;
     },
 });
 
