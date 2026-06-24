@@ -38,12 +38,13 @@ class PoultryMortality(models.Model):
             else:
                 record.batch_age_weeks = 0
     
-    @api.model
-    def create(self, vals):
-        """Genera referencia automática si no se proporciona"""
-        if not vals.get('name') or vals.get('name') == 'Nuevo Registro':
-            vals['name'] = self.env['ir.sequence'].next_by_code('poultry.mortality') or 'NUEVO'
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Genera referencia automática si no se proporciona (Odoo 17+: create recibe lista)."""
+        for vals in vals_list:
+            if not vals.get('name') or vals.get('name') == 'Nuevo Registro':
+                vals['name'] = self.env['ir.sequence'].next_by_code('poultry.mortality') or 'NUEVO'
+        return super().create(vals_list)
     
     @api.constrains('dead_count')
     def _check_dead_count(self):

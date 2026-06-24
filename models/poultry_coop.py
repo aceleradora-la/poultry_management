@@ -155,12 +155,13 @@ class PoultryCoop(models.Model):
             if self.search_count([('code', '=', coop.code), ('id', '!=', coop.id)]) > 0:
                 raise ValidationError(f'El código {coop.code} ya existe. Debe ser único.')
     
-    @api.model
-    def create(self, vals):
-        """Genera código automático si no se proporciona"""
-        if not vals.get('code'):
-            vals['code'] = self.env['ir.sequence'].next_by_code('poultry.coop') or 'NUEVO'
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Genera código automático si no se proporciona (Odoo 17+: create recibe lista)."""
+        for vals in vals_list:
+            if not vals.get('code'):
+                vals['code'] = self.env['ir.sequence'].next_by_code('poultry.coop') or 'NUEVO'
+        return super().create(vals_list)
 
     @staticmethod
     def _sort_coop_bom_commands(commands):
