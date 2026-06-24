@@ -23,8 +23,12 @@ class PoultryEggCollection(models.Model):
                 raise UserError('Solo se pueden eliminar partes de producción en estado Inicio (Borrador).')
     
     @api.model
-    def _read_group_groupby(self, groupby_spec, query):
-        """Override para evitar errores cuando se usa product_tmpl_id o product_id en pivot"""
+    def _read_group_groupby(self, alias, groupby_spec, query):
+        """Override para evitar errores cuando se usa product_tmpl_id o product_id en pivot.
+
+        Odoo 19 añadió `alias` como primer parámetro de la firma
+        (_read_group_groupby(self, alias, groupby_spec, query)).
+        """
         # Si el groupby es product_tmpl_id o product_id, redirigir a product_variant_id
         # Manejar tanto string simple como formato con intervalo (ej: 'product_tmpl_id:day')
         if isinstance(groupby_spec, str):
@@ -35,7 +39,7 @@ class PoultryEggCollection(models.Model):
                     groupby_spec = f'product_variant_id:{interval}'
                 else:
                     groupby_spec = 'product_variant_id'
-        return super()._read_group_groupby(groupby_spec, query)
+        return super()._read_group_groupby(alias, groupby_spec, query)
 
     name = fields.Char(string='Referencia', required=True, copy=False, index=True,
                        default='NUEVA', readonly=False,
