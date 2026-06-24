@@ -42,7 +42,8 @@
                 <field name="poultry_cover_days_display"/>
                 <field name="poultry_cover_forecast_days_display"/>
                 <templates>
-                    <t t-name="kanban-box">
+                    <!-- Odoo 19: la plantilla kanban-box se renombró a card. -->
+                    <t t-name="card">
                         <div class="oe_kanban_card oe_kanban_global_click p-2">
                             <div class="o_kanban_record_top d-flex mb-2">
                                 <field name="image_128" widget="image" options="{'img_class': 'rounded-3 object-fit-contain'}" class="o_kanban_image flex-shrink-0 me-2"/>
