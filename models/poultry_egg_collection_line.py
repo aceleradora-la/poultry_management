@@ -3,6 +3,7 @@
 from odoo import models, fields, api
 from odoo.osv import expression
 import math
+import re
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -246,6 +247,33 @@ class PoultryEggCollectionLine(models.Model):
         if not product_variant or not product_variant.uom_id:
             return False
         return product_variant.uom_id._poultry_root_uom()
+
+    # Nombres dinámicos de las 3 UdM (PT, PI, Huevo) para renombrar las columnas
+    # del parte de producción vía JS (static/src/js/poultry_dynamic_columns.js).
+    uom_1_name = fields.Char(string='Nombre UdM 1', compute='_compute_uom_slot_names', store=False)
+    uom_2_name = fields.Char(string='Nombre UdM 2', compute='_compute_uom_slot_names', store=False)
+    uom_3_name = fields.Char(string='Nombre UdM 3', compute='_compute_uom_slot_names', store=False)
+
+    @api.model
+    def _strip_t_suffix(self, name):
+        """Quita el sufijo ' T' de los nombres de UdM (ej: 'Cajón T' -> 'Cajón')."""
+        if not name:
+            return name
+        return re.sub(r'\s+T\s*$', '', (name or '').strip(), flags=re.IGNORECASE)
+
+    @api.model
+    def _get_poultry_uom_slot_names(self, product_variant):
+        """Devuelve hasta 3 nombres de UdM (display para parte) ordenados por factor desc."""
+        uoms = self._get_poultry_uoms(product_variant)
+        return [self._strip_t_suffix((uom.poultry_display_name or uom.name) or '') for uom in uoms[:3]]
+
+    @api.depends('product_variant_id')
+    def _compute_uom_slot_names(self):
+        for line in self:
+            names = line._get_poultry_uom_slot_names(line.product_variant_id) if line.product_variant_id else []
+            line.uom_1_name = names[0] if len(names) > 0 else ''
+            line.uom_2_name = names[1] if len(names) > 1 else ''
+            line.uom_3_name = names[2] if len(names) > 2 else ''
     
     @api.depends('final_box', 'final_map', 'final_egg',
                  'uom_value_ids.final_qty', 'uom_value_ids.uom_ratio',
