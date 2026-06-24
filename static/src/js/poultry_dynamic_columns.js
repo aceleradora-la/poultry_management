@@ -63,7 +63,13 @@ patch(ListRenderer.prototype, {
         for (const column of columns) {
             const slot = LIST_COLUMN_SLOTS[column.name];
             if (slot && names[slot[1]]) {
-                column.label = `${names[slot[1]]} ${slot[0]}`;
+                const label = `${names[slot[1]]} ${slot[0]}`;
+                column.label = label;
+                // Las columnas Float se topan en ~93px (FIELD_WIDTHS.float) y truncan el
+                // header dinámico. El hook de anchos respeta column.attrs.width (fija el
+                // ancho), así que lo ajustamos al largo del texto del header.
+                const px = Math.max(90, Math.ceil(label.length * 8.5) + 24);
+                column.attrs = Object.assign({}, column.attrs, { width: `${px}px` });
             }
         }
         return columns;
