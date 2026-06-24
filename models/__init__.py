@@ -15,6 +15,7 @@ from . import poultry_mortality
 from . import poultry_egg_collection
 from . import poultry_egg_collection_line
 from . import poultry_egg_collection_line_uom
+from . import mrp_bom
 from . import mrp_production
 from . import mrp_unbuild
 from . import poultry_stock_move

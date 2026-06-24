@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.11.28',
+    'version': '18.0.1.11.29',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -46,6 +46,7 @@
         'views/poultry_coop_close_wizard_views.xml',
         'views/poultry_mortality_views.xml',
         'views/poultry_genetics_standard_views.xml',
+        'views/mrp_bom_views.xml',
         'views/mrp_production_views.xml',
         'views/poultry_menus.xml',
         'reports/poultry_report_wizard_views.xml',

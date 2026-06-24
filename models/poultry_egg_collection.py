@@ -758,9 +758,22 @@ class PoultryEggCollection(models.Model):
             if product.id in bom_cache:
                 return bom_cache[product.id]
             Bom = self.env['mrp.bom']
-            # Odoo 18: _bom_find(products, picking_type=None, company_id=False, bom_type=False)
-            found = Bom._bom_find(products=product, company_id=self.env.company.id, bom_type='normal')
-            bom = found[product] if found else False
+            bom = False
+            # Productos de huevo: priorizar la BOM marcada para Gestión Avícola.
+            # Preferir la específica de la variante; si no, la del producto base.
+            if product.product_tmpl_id.is_egg_production:
+                candidates = Bom.search([
+                    ('use_for_egg_production', '=', True),
+                    ('product_tmpl_id', '=', product.product_tmpl_id.id),
+                    '|', ('product_id', '=', product.id), ('product_id', '=', False),
+                    '|', ('company_id', '=', self.env.company.id), ('company_id', '=', False),
+                ])
+                bom = candidates.filtered(lambda b: b.product_id == product)[:1] or candidates[:1]
+            # Fallback: comportamiento estándar de Odoo (primera BOM activa).
+            if not bom:
+                # Odoo 18: _bom_find(products, picking_type=None, company_id=False, bom_type=False)
+                found = Bom._bom_find(products=product, company_id=self.env.company.id, bom_type='normal')
+                bom = found[product] if found else False
             bom_cache[product.id] = bom
             return bom
         
