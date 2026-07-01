@@ -15,8 +15,11 @@ class PoultryBatch(models.Model):
     genetics_id = fields.Many2one('poultry.genetics', string='Genética', required=True)
     genetics_name = fields.Char(string='Genética', related='genetics_id.name', readonly=True, store=True)
 
-    # Cantidad de aves (tamaño total del lote, independiente del galpón)
-    bird_count = fields.Integer(string='Cantidad de Aves', required=True, default=0)
+    # Cantidad de aves (tamaño total del lote, independiente del galpón). Se calcula
+    # solo a partir de los Movimientos de Aves de tipo Ingreso confirmados: un Traslado
+    # no suma aves nuevas, solo las reubica entre galpones dentro del mismo lote.
+    movement_ids = fields.One2many('poultry.batch.movement', 'batch_id', string='Movimientos de Aves')
+    bird_count = fields.Integer(string='Cantidad de Aves', compute='_compute_bird_count', store=True)
 
     # Información adicional
     supplier_id = fields.Many2one('res.partner', string='Proveedor',
@@ -90,6 +93,16 @@ class PoultryBatch(models.Model):
         for batch in self:
             active_lines = batch.coop_line_ids.filtered(lambda l: l.active and not l.date_to)
             batch.live_bird_count = sum(active_lines.mapped('live_bird_count'))
+
+    @api.depends('movement_ids.movement_type', 'movement_ids.state', 'movement_ids.bird_count')
+    def _compute_bird_count(self):
+        """Cantidad total de aves del lote: suma de los Ingresos confirmados (los
+        Traslados no cambian el total, solo mueven aves ya existentes del lote)."""
+        for batch in self:
+            ingresos = batch.movement_ids.filtered(
+                lambda m: m.movement_type == 'ingreso' and m.state == 'done'
+            )
+            batch.bird_count = sum(ingresos.mapped('bird_count'))
 
     @api.depends('mortality_ids')
     def _compute_mortality_count(self):
