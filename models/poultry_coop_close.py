@@ -253,3 +253,52 @@ class PoultryCoopClose(models.Model):
                 'unclassified_production_id': False,
                 'state': 'cancel',
             })
+
+    @api.model
+    def _poultry_rebuild_all_indicator_values(self, date_from=None, date_to=None):
+        """Reconstruye desde cero (borra y recalcula) los valores reales derivados de
+        Cierres de Galpón: Consumo (Alimento/Agua) y Producción de Huevos (% Ave-Día,
+        Huevos Acumulados Ave-Día).
+
+        Siempre hace un rebuild completo del rango, nunca un recálculo incremental:
+        el indicador acumulado depende del valor anterior guardado, así que recalcular
+        fuera de orden o parcialmente corrompería la cadena de acumulados para todas
+        las fechas posteriores. Procesa los Cierres de Galpón en orden cronológico
+        GLOBAL (no por lote), porque un mismo día de un mismo galpón puede tocar la
+        cadena de acumulados de varios lotes a la vez.
+
+        No filtra por el estado MRP de la OF (Confirmada/Hecha/etc.): usa directamente
+        product_qty y move_raw_ids, poblados desde que se crea la OF en
+        _create_unclassified_production, sin importar si luego se marcó como Hecha.
+        """
+        domain = [('unclassified_production_id', '!=', False)]
+        if date_from:
+            domain.append(('date', '>=', date_from))
+        if date_to:
+            domain.append(('date', '<=', date_to))
+        closes = self.search(domain, order='date asc, id asc')
+        if not closes:
+            return 0
+
+        indicators = self.env['poultry.indicator'].search([
+            ('category', 'in', ('feed_consumption', 'water_consumption', 'egg_production')),
+        ])
+        affected_batches = self.env['poultry.batch.coop.line'].search([
+            ('coop_id', 'in', closes.mapped('coop_id').ids),
+        ]).mapped('batch_id')
+        dates = closes.mapped('date')
+        if indicators and affected_batches:
+            self.env['poultry.batch.indicator.value'].search([
+                ('indicator_id', 'in', indicators.ids),
+                ('batch_id', 'in', affected_batches.ids),
+                ('date', '>=', min(dates)),
+                ('date', '<=', max(dates)),
+            ]).unlink()
+
+        count = 0
+        for close in closes:
+            production = close.unclassified_production_id
+            if production and production.coop_id:
+                production._poultry_compute_all_indicator_values()
+                count += 1
+        return count

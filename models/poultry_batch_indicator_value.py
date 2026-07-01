@@ -16,6 +16,14 @@ class PoultryBatchIndicatorValue(models.Model):
                                     index=True, ondelete='restrict')
     date = fields.Date(string='Fecha', required=True, index=True)
     value = fields.Float(string='Valor Real', digits=(16, 4))
+    numerator = fields.Float(string='Numerador', digits=(16, 4),
+        help='Numerador crudo del día (ej. gramos de alimento o huevos de este lote ese '
+             'día), ya escalado de forma que numerador/denominador sea igual a Valor Real. '
+             'Permite que un rollup semanal sume numerador y denominador por separado en '
+             'vez de promediar tasas diarias.')
+    denominator = fields.Float(string='Denominador', digits=(16, 4),
+        help='Denominador crudo del día (aves vivas de este lote ese día). No aplica a '
+             'indicadores acumulados, donde Valor Real ya es el total y no una tasa.')
 
     production_id = fields.Many2one('mrp.production', string='Orden de Fabricación de Origen',
                                      readonly=True,
@@ -35,9 +43,15 @@ class PoultryBatchIndicatorValue(models.Model):
             record.display_name = f'{record.batch_id.name} - {record.indicator_id.name} - {record.date}'
 
     @api.model
-    def _set_value(self, batch, coop, target_date, indicator, value, production=None):
+    def _set_value(self, batch, coop, target_date, indicator, value,
+                    numerator=None, denominator=None, production=None):
         """Crea o actualiza (upsert) el valor real de un indicador para un lote y fecha,
-        de forma que recalcular (p. ej. re-cerrar una OF) no duplique registros."""
+        de forma que recalcular (p. ej. re-cerrar una OF, o un recálculo histórico) no
+        duplique registros.
+
+        numerator/denominator son opcionales (centinela None, no 0.0): un indicador que
+        nunca los use (ej. futuros indicadores sin lógica de tasa) puede seguir llamando
+        solo con value, sin pisar valores existentes con ceros."""
         existing = self.search([
             ('batch_id', '=', batch.id),
             ('indicator_id', '=', indicator.id),
@@ -48,6 +62,10 @@ class PoultryBatchIndicatorValue(models.Model):
             'value': value,
             'production_id': production.id if production else False,
         }
+        if numerator is not None:
+            vals['numerator'] = numerator
+        if denominator is not None:
+            vals['denominator'] = denominator
         if existing:
             existing.write(vals)
             return existing

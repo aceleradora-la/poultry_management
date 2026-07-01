@@ -28,6 +28,12 @@
         <field name="arch" type="xml">
             <form string="Lote de Aves">
                 <header>
+                    <button name="action_confirm_housed_birds" string="Confirmar Aves Alojadas"
+                            type="object" class="oe_highlight"
+                            invisible="not production_start_date or housed_bird_count"/>
+                    <button name="action_reset_housed_birds" string="Reiniciar Aves Alojadas"
+                            type="object" confirm="¿Reiniciar la Cantidad de Aves Alojadas confirmada? Si ya se calcularon Huevos Acumulados Ave-Alojada con la base anterior, va a haber que recalcular indicadores después de volver a confirmar."
+                            invisible="not housed_bird_count"/>
                     <field name="active" widget="boolean_toggle"/>
                 </header>
                 <sheet>
@@ -54,6 +60,10 @@
                             <field name="period" readonly="1" widget="badge"
                                    decoration-info="period == 'crianza'"
                                    decoration-success="period == 'produccion'"/>
+                        </group>
+                        <group string="Aves Alojadas (Ave-Alojada)">
+                            <field name="production_start_date" readonly="housed_bird_count != 0"/>
+                            <field name="housed_bird_count" readonly="1"/>
                         </group>
                     </group>
                     <notebook>

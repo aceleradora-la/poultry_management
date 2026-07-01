@@ -110,10 +110,16 @@
               action="action_poultry_genetics_standard"
               sequence="40"/>
 
-    <menuitem id="menu_poultry_uom" 
-              name="Unidades de Medida" 
-              parent="menu_poultry_configuration" 
-              action="action_uom_poultry" 
+    <menuitem id="menu_poultry_uom"
+              name="Unidades de Medida"
+              parent="menu_poultry_configuration"
+              action="action_uom_poultry"
               sequence="50"/>
+
+    <menuitem id="menu_poultry_recompute_indicators_wizard"
+              name="Recalcular Indicadores de Producción"
+              parent="menu_poultry_configuration"
+              action="action_poultry_recompute_indicators_wizard"
+              sequence="60"/>
 </odoo>
 

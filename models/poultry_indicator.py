@@ -25,6 +25,19 @@ class PoultryIndicator(models.Model):
              'proveedor de genética (Período de Crianza / Período de Producción).')
     sequence = fields.Integer(string='Secuencia', default=10)
     active = fields.Boolean(string='Activo', default=True)
+    accumulation_type = fields.Selection([
+        ('none', 'Ninguno (tasa diaria/semanal)'),
+        ('live', 'Acumulado sobre Aves Vivas (Ave-Día)'),
+        ('housed', 'Acumulado sobre Aves Alojadas (Ave-Alojada)'),
+    ], string='Tipo de Acumulación', default='none', required=True,
+        help='"Ninguno": el valor real es una tasa diaria (ej. Consumo de Alimento, '
+             '% Ave-Día); se agrega por semana como suma(numerador)/suma(denominador). '
+             '"Ave-Día": total acumulado desde el inicio de postura, sumando cada día '
+             'huevos/aves VIVAS ese día. "Ave-Alojada": igual, pero siempre divide por '
+             'la cantidad de aves alojadas al inicio de la postura (fija, no baja con la '
+             'mortalidad). Los acumulados no se suman ni promedian por semana: se muestra '
+             'el último valor con fecha dentro del período.'
+    )
     notes = fields.Text(string='Notas')
     real_value_source = fields.Char(
         string='Origen de Valor Real',

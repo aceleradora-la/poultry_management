@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 
 class PoultryBatch(models.Model):
@@ -51,6 +51,23 @@ class PoultryBatch(models.Model):
     ], string='Período', compute='_compute_period',
         help='Se calcula automáticamente según la Edad en Semanas y la Semana de '
              'Transición a Producción configurada en la Genética del lote.')
+
+    # Aves Alojadas: un lote puede recibir Ingresos en varios días, así que la base
+    # fija para Huevos Acumulados Ave-Alojada no puede inferirse sola del primer día
+    # con datos de producción. El usuario confirma explícitamente cuándo el lote
+    # está completo y entra en producción; desde ese momento queda fija.
+    production_start_date = fields.Date(
+        string='Fecha de Entrada en Producción',
+        help='Fecha en la que el lote se considera completo (ya recibió todos sus '
+             'Ingresos) y entra en producción. A partir de esta fecha se calcula '
+             'Huevos Acumulados Ave-Alojada, con la Cantidad de Aves Alojadas fija.'
+    )
+    housed_bird_count = fields.Integer(
+        string='Aves Alojadas', readonly=True, copy=False,
+        help='Cantidad de aves vivas del lote a la Fecha de Entrada en Producción, '
+             'fijada al confirmar. No se ajusta con ingresos posteriores ni con '
+             'mortalidad: es la base fija del indicador Huevos Acumulados Ave-Alojada.'
+    )
 
     @api.depends('birth_date')
     def _compute_age_days(self):
@@ -131,6 +148,42 @@ class PoultryBatch(models.Model):
                 birth_date = vals.get('birth_date', fields.Date.today())
                 vals['name'] = f'{genetics_name} - {birth_date}'
         return super().create(vals_list)
+
+    def action_confirm_housed_birds(self):
+        """Congela la Cantidad de Aves Alojadas a la Fecha de Entrada en Producción
+        indicada, sumando la población viva (a esa fecha) de las asignaciones a
+        galpón vigentes en ese momento. Se usa una sola vez por lote: una vez
+        confirmado, ni nuevos Ingresos ni la mortalidad posterior lo modifican."""
+        for batch in self:
+            if not batch.production_start_date:
+                raise UserError(
+                    'Debe indicar la Fecha de Entrada en Producción antes de confirmar '
+                    'las Aves Alojadas.'
+                )
+            if batch.housed_bird_count:
+                raise UserError(
+                    f'Las Aves Alojadas del lote {batch.name} ya están confirmadas '
+                    f'({batch.housed_bird_count}). Reinícielas primero si necesita '
+                    f'corregirlas.'
+                )
+            lines = batch.coop_line_ids.filtered(
+                lambda l: l.active and l.date_from <= batch.production_start_date
+                and (not l.date_to or l.date_to >= batch.production_start_date)
+            )
+            housed = sum(line._get_live_bird_count_on(batch.production_start_date) for line in lines)
+            if housed <= 0:
+                raise UserError(
+                    f'No se encontraron aves vivas del lote {batch.name} asignadas a '
+                    f'un galpón en la Fecha de Entrada en Producción indicada.'
+                )
+            batch.housed_bird_count = housed
+
+    def action_reset_housed_birds(self):
+        """Permite corregir una confirmación errónea. Si ya se calcularon valores de
+        Huevos Acumulados Ave-Alojada con la base anterior, hay que volver a
+        confirmar y luego usar Recalcular Indicadores de Producción para que los
+        valores reales queden consistentes con la nueva base."""
+        self.write({'housed_bird_count': 0})
 
     def name_get(self):
         """Personaliza el nombre mostrado"""

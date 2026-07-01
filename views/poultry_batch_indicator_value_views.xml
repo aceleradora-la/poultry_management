@@ -10,6 +10,8 @@
                 <field name="coop_id"/>
                 <field name="indicator_id"/>
                 <field name="value"/>
+                <field name="numerator" optional="hide"/>
+                <field name="denominator" optional="hide"/>
                 <field name="production_id"/>
             </list>
         </field>
@@ -30,6 +32,8 @@
                         <group>
                             <field name="indicator_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="value"/>
+                            <field name="numerator"/>
+                            <field name="denominator"/>
                             <field name="production_id" readonly="1"/>
                         </group>
                     </group>

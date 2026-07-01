@@ -9,6 +9,7 @@
                 <field name="code"/>
                 <field name="name"/>
                 <field name="category"/>
+                <field name="accumulation_type"/>
                 <field name="uom_id"/>
                 <field name="standard_count"/>
                 <field name="active" widget="boolean_toggle"/>
@@ -31,6 +32,7 @@
                             <field name="name" placeholder="Ej: Peso Corporal"/>
                             <field name="uom_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="category"/>
+                            <field name="accumulation_type"/>
                             <field name="sequence"/>
                         </group>
                         <group>

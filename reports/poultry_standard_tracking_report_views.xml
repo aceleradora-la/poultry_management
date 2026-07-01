@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_standard_tracking_report_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.standard.tracking.report.wizard.form</field>
+        <field name="model">poultry.standard.tracking.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte de Seguimiento de Estándares">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="genetics_id" readonly="1"/>
+                            <field name="version_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="granularity" widget="radio" options="{'horizontal': true}"/>
+                        </group>
+                    </group>
+                    <button name="action_generate" string="Generar / Actualizar" type="object" class="oe_highlight"/>
+                    <field name="line_ids" nolabel="1" readonly="1">
+                        <list string="Seguimiento de Estándares" decoration-danger="is_out_of_range">
+                            <field name="period_label"/>
+                            <field name="week"/>
+                            <field name="indicator_id"/>
+                            <field name="value_low"/>
+                            <field name="value_high"/>
+                            <field name="real_value"/>
+                            <field name="is_out_of_range" column_invisible="1"/>
+                        </list>
+                    </field>
+                </sheet>
+                <footer>
+                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_poultry_standard_tracking_report" model="ir.actions.act_window">
+        <field name="name">Seguimiento de Estándares</field>
+        <field name="res_model">poultry.standard.tracking.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_poultry_standard_tracking_report"
+              name="Seguimiento de Estándares"
+              parent="menu_poultry_reports"
+              action="action_poultry_standard_tracking_report"
+              sequence="25"/>
+</odoo>

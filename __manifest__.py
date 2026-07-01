@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.16.1',
+    'version': '18.0.1.17.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -54,8 +54,10 @@
         'views/mrp_bom_views.xml',
         'views/mrp_production_views.xml',
         'views/poultry_menus.xml',
+        'views/poultry_recompute_indicators_wizard_views.xml',
         'reports/poultry_report_wizard_views.xml',
         'reports/poultry_reports.xml',
+        'reports/poultry_standard_tracking_report_views.xml',
     ],
     'installable': True,
     'application': True,

@@ -162,20 +162,44 @@ class MrpProduction(models.Model):
                 mo._poultry_validate_kit_consumption_equals_finished()
         result = super().button_mark_done()
         for mo in self:
-            if mo.coop_close_id:
-                mo._poultry_compute_consumption_indicator_values()
+            mo._poultry_compute_all_indicator_values()
         return result
 
     def _poultry_get_consumption_uom(self, xml_id):
         uom = self.env.ref(xml_id, raise_if_not_found=False)
         return uom or self.env['uom.uom']
 
+    def _poultry_get_active_lines_and_birds(self, target_date):
+        """Devuelve (lines, birds_by_line, total_birds): las poultry.batch.coop.line
+        activas para self.coop_id en target_date, y la población viva de cada una.
+        Compartido por el cálculo de consumo y el de producción de huevos."""
+        self.ensure_one()
+        lines = self.env['poultry.batch.coop.line'].search([
+            ('coop_id', '=', self.coop_id.id),
+            ('active', '=', True),
+            ('date_from', '<=', target_date),
+            '|', ('date_to', '=', False), ('date_to', '>=', target_date),
+        ])
+        birds_by_line = {line.id: line._get_live_bird_count_on(target_date) for line in lines}
+        return lines, birds_by_line, sum(birds_by_line.values())
+
+    def _poultry_compute_all_indicator_values(self):
+        """Punto de entrada único para calcular todos los indicadores reales derivados
+        de esta OF de Huevo sin Clasificar (consumo + producción de huevos). Se llama
+        tanto desde button_mark_done() (tiempo real) como desde el recálculo histórico
+        (poultry.coop.close._poultry_rebuild_all_indicator_values)."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+        self._poultry_compute_consumption_indicator_values()
+        self._poultry_compute_egg_production_indicator_values()
+
     def _poultry_compute_consumption_indicator_values(self):
-        """Al cerrar (button_mark_done) la OF de Huevo sin Clasificar generada por un
-        Cierre de Galpón, calcula el consumo real de Alimento (g/ave-día) y Agua
-        (ml/ave-día) sumando las líneas de componentes marcadas como tales, y lo
-        reparte entre los lotes presentes en el galpón esa fecha según su población
-        viva ese día (poultry.batch.coop.line), guardando el resultado en
+        """Al cerrar la OF de Huevo sin Clasificar generada por un Cierre de Galpón,
+        calcula el consumo real de Alimento (g/ave-día) y Agua (ml/ave-día) sumando
+        las líneas de componentes marcadas como tales, y lo reparte entre los lotes
+        presentes en el galpón esa fecha según su población viva ese día
+        (poultry.batch.coop.line), guardando el resultado en
         poultry.batch.indicator.value."""
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
@@ -201,18 +225,8 @@ class MrpProduction(models.Model):
         if feed_qty_kg <= 0 and water_qty_l <= 0:
             return
 
-        lines = self.env['poultry.batch.coop.line'].search([
-            ('coop_id', '=', self.coop_id.id),
-            ('active', '=', True),
-            ('date_from', '<=', target_date),
-            '|', ('date_to', '=', False), ('date_to', '>=', target_date),
-        ])
-        if not lines:
-            return
-
-        birds_by_line = {line.id: line._get_live_bird_count_on(target_date) for line in lines}
-        total_birds = sum(birds_by_line.values())
-        if total_birds <= 0:
+        lines, birds_by_line, total_birds = self._poultry_get_active_lines_and_birds(target_date)
+        if not lines or total_birds <= 0:
             return
 
         Indicator = self.env['poultry.indicator']
@@ -226,12 +240,106 @@ class MrpProduction(models.Model):
         water_ml_per_bird_day = (water_qty_l * 1000.0 / total_birds) if water_qty_l > 0 else 0.0
 
         for line in lines:
-            if birds_by_line[line.id] <= 0:
+            birds = birds_by_line[line.id]
+            if birds <= 0:
                 continue
             if feed_indicator and feed_qty_kg > 0:
-                Value._set_value(line.batch_id, self.coop_id, target_date,
-                                  feed_indicator, feed_g_per_bird_day, self)
+                Value._set_value(line.batch_id, self.coop_id, target_date, feed_indicator,
+                                  feed_g_per_bird_day,
+                                  numerator=feed_g_per_bird_day * birds, denominator=birds,
+                                  production=self)
             if water_indicator and water_qty_l > 0:
-                Value._set_value(line.batch_id, self.coop_id, target_date,
-                                  water_indicator, water_ml_per_bird_day, self)
+                Value._set_value(line.batch_id, self.coop_id, target_date, water_indicator,
+                                  water_ml_per_bird_day,
+                                  numerator=water_ml_per_bird_day * birds, denominator=birds,
+                                  production=self)
+
+    def _poultry_compute_egg_production_indicator_values(self):
+        """Al cerrar la OF de Huevo sin Clasificar: % Ave-Día, Huevos Acumulados
+        Ave-Día y Huevos Acumulados Ave-Alojada por lote, repartiendo el total de
+        huevos del día (self.product_qty, fijado desde la creación de la OF en
+        poultry.coop.close, sin depender del estado MRP en que quede) entre los
+        lotes presentes en el galpón según su población viva ese día.
+
+        % Ave-Día es una tasa diaria (huevos de este lote ese día / aves vivas ese
+        día). Los dos acumulados son independientes entre sí: NO se derivan del %
+        Ave-Día ya calculado, se recalculan cada día desde los mismos datos crudos.
+        Ave-Día acumulado suma cada día huevos/aves VIVAS ese día. Ave-Alojada
+        acumulado suma cada día huevos/aves ALOJADAS AL INICIO (fija, no baja con la
+        mortalidad ni sube con nuevos Ingresos) — solo se calcula si el usuario ya
+        confirmó poultry.batch.housed_bird_count (action_confirm_housed_birds) y la
+        fecha es posterior a production_start_date; antes de eso no hay una base
+        fija válida, porque el lote puede seguir recibiendo Ingresos."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+        target_date = self.coop_close_id.date or self._get_scheduled_date()
+        total_eggs = self.product_qty or 0.0
+        if total_eggs <= 0:
+            return
+
+        lines, birds_by_line, total_birds = self._poultry_get_active_lines_and_birds(target_date)
+        if not lines or total_birds <= 0:
+            return
+
+        Indicator = self.env['poultry.indicator']
+        rate_indicator = Indicator.search(
+            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
+        cumulative_live_indicator = Indicator.search(
+            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'live'),
+             ('active', '=', True)], limit=1)
+        cumulative_housed_indicator = Indicator.search(
+            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'housed'),
+             ('active', '=', True)], limit=1)
+        if not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator:
+            return
+
+        Value = self.env['poultry.batch.indicator.value']
+        # Uniforme por ave: mismo huevos/ave para todos los lotes que comparten el galpón.
+        eggs_per_bird_day = total_eggs / total_birds
+
+        for line in lines:
+            birds = birds_by_line[line.id]
+            if birds <= 0:
+                continue
+            batch_egg_share = eggs_per_bird_day * birds
+
+            if rate_indicator:
+                Value._set_value(line.batch_id, self.coop_id, target_date, rate_indicator,
+                                  eggs_per_bird_day * 100.0,
+                                  numerator=batch_egg_share * 100.0, denominator=birds,
+                                  production=self)
+
+            if cumulative_live_indicator:
+                previous = Value.search([
+                    ('batch_id', '=', line.batch_id.id),
+                    ('indicator_id', '=', cumulative_live_indicator.id),
+                    ('date', '<', target_date),
+                ], order='date desc', limit=1)
+                previous_total = previous.value if previous else 0.0
+                Value._set_value(line.batch_id, self.coop_id, target_date, cumulative_live_indicator,
+                                  previous_total + eggs_per_bird_day,
+                                  numerator=batch_egg_share, denominator=birds,
+                                  production=self)
+
+            if cumulative_housed_indicator:
+                batch = line.batch_id
+                # Solo se calcula si el usuario ya confirmó las Aves Alojadas
+                # (poultry.batch.action_confirm_housed_birds) y la fecha es posterior
+                # a la Fecha de Entrada en Producción: antes de eso no hay una base
+                # fija válida (el lote puede seguir recibiendo Ingresos).
+                if (batch.housed_bird_count and batch.production_start_date
+                        and target_date >= batch.production_start_date):
+                    previous = Value.search([
+                        ('batch_id', '=', batch.id),
+                        ('indicator_id', '=', cumulative_housed_indicator.id),
+                        ('date', '<', target_date),
+                    ], order='date desc', limit=1)
+                    previous_total = previous.value if previous else 0.0
+                    eggs_per_housed_bird = batch_egg_share / batch.housed_bird_count
+                    Value._set_value(batch, self.coop_id, target_date, cumulative_housed_indicator,
+                                      previous_total + eggs_per_housed_bird,
+                                      numerator=batch_egg_share, denominator=batch.housed_bird_count,
+                                      production=self)
 
