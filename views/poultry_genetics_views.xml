@@ -37,8 +37,9 @@
                                     <field name="code"/>
                                     <field name="name"/>
                                     <field name="birth_date"/>
-                                    <field name="coop_id"/>
+                                    <field name="current_coop_ids" widget="many2many_tags"/>
                                     <field name="bird_count"/>
+                                    <field name="live_bird_count"/>
                                 </list>
                             </field>
                         </page>
