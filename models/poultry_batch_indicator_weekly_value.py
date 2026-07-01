@@ -20,6 +20,11 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
     ], string='Período')
 
     real_value = fields.Float(string='Valor Real', digits=(16, 4))
+    value_low = fields.Float(string='Bajo (Estándar)', digits=(16, 4),
+        help='Valor Bajo del estándar de genética para este indicador y semana, según '
+             'la Versión de Estándar predeterminada de la genética del lote al momento '
+             'de calcular. Permite comparar Real vs. Bajo/Alto directamente en el pivot.')
+    value_high = fields.Float(string='Alto (Estándar)', digits=(16, 4))
 
     week_date_from = fields.Date(string='Desde')
     week_date_to = fields.Date(string='Hasta')

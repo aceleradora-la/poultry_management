@@ -13,6 +13,8 @@
                        decoration-success="period == 'produccion'"/>
                 <field name="week_date_from"/>
                 <field name="week_date_to"/>
+                <field name="value_low"/>
+                <field name="value_high"/>
                 <field name="real_value"/>
             </list>
         </field>
@@ -26,6 +28,8 @@
                 <field name="batch_id" type="row"/>
                 <field name="week" type="col"/>
                 <field name="indicator_id" type="row"/>
+                <field name="value_low" type="measure"/>
+                <field name="value_high" type="measure"/>
                 <field name="real_value" type="measure"/>
             </pivot>
         </field>
@@ -59,7 +63,9 @@
                 Valores reales agregados por Semana de Vida (no semana calendario),
                 ya calculados correctamente al guardar cada valor diario: suma de
                 numerador/denominador para indicadores de tasa, último valor para
-                acumulados. Explorá libremente agrupando por lote, indicador o semana.
+                acumulados. Incluye el Bajo/Alto del estándar (versión predeterminada
+                de la genética) como medidas, para comparar Real vs. Estándar directo
+                en el pivot. Explorá libremente agrupando por lote, indicador o semana.
             </p>
         </field>
     </record>

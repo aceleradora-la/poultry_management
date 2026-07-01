@@ -110,6 +110,11 @@ class PoultryBatchIndicatorValue(models.Model):
                           if total_denominator else 0.0)
 
         period = 'crianza' if week <= (batch.genetics_id.rearing_end_week or 17) else 'produccion'
+        # Bajo/Alto según la Versión de Estándar predeterminada de la genética del lote,
+        # para poder comparar Real vs. Bajo/Alto directamente en el pivot sin tener que
+        # abrir el reporte. Si el usuario necesita comparar contra otra versión, sigue
+        # pudiendo usar el Reporte de Seguimiento de Estándares (que sí permite elegirla).
+        value_low, value_high = batch.genetics_id.get_standard_range(week, indicator, period=period)
 
         Weekly = self.env['poultry.batch.indicator.weekly.value']
         existing_weekly = Weekly.search([
@@ -120,6 +125,8 @@ class PoultryBatchIndicatorValue(models.Model):
         weekly_vals = {
             'period': period,
             'real_value': real_value,
+            'value_low': value_low,
+            'value_high': value_high,
             'week_date_from': week_date_from,
             'week_date_to': week_date_to,
         }
