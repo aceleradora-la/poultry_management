@@ -14,6 +14,13 @@ class PoultryCoop(models.Model):
     size = fields.Float(string='Tamaño (m²)', required=True, help='Tamaño del galpón en metros cuadrados')
     capacity = fields.Integer(string='Capacidad de Aves', required=True, help='Capacidad máxima de aves que puede albergar')
     active = fields.Boolean(string='Activo', default=True)
+
+    coop_type = fields.Selection([
+        ('recria', 'Recría'),
+        ('produccion', 'Producción'),
+    ], string='Tipo de Galpón',
+        help='Permite distinguir galpones de recría (donde ingresan las pollitas) de '
+             'galpones productivos, para el Movimiento de Aves de traslado entre ellos.')
     
     # Relaciones con lotes de aves (vía asignaciones lote-galpón, un lote puede repartirse
     # entre varios galpones y cambiar de galpón a lo largo de su vida)

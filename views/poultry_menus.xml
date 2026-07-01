@@ -28,11 +28,18 @@
               action="action_poultry_coop_close" 
               sequence="20"/>
 
+    <!-- Menú: Movimiento de Aves -->
+    <menuitem id="menu_poultry_batch_movement"
+              name="Movimiento de Aves"
+              parent="menu_poultry_management_root"
+              action="action_poultry_batch_movement"
+              sequence="25"/>
+
     <!-- Menú: Registro Aves Muertas -->
-    <menuitem id="menu_poultry_mortality" 
-              name="Registro de Aves Muertas" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_mortality" 
+    <menuitem id="menu_poultry_mortality"
+              name="Registro de Aves Muertas"
+              parent="menu_poultry_management_root"
+              action="action_poultry_mortality"
               sequence="30"/>
 
     <!-- Menú: Reportes -->

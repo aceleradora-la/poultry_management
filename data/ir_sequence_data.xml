@@ -53,5 +53,14 @@
         <field name="number_increment">1</field>
         <field name="number_next">1</field>
     </record>
+
+    <record id="sequence_poultry_batch_movement" model="ir.sequence">
+        <field name="name">Secuencia de Movimiento de Aves</field>
+        <field name="code">poultry.batch.movement</field>
+        <field name="prefix">MOV-</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+    </record>
 </odoo>
 

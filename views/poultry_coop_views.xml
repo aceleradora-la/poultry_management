@@ -9,6 +9,7 @@
                   decoration-danger="occupancy_percentage &gt;= 1.0">
                 <field name="code"/>
                 <field name="name"/>
+                <field name="coop_type"/>
                 <field name="size"/>
                 <field name="capacity"/>
                 <field name="current_birds_count"/>
@@ -47,6 +48,7 @@
                         <group>
                             <field name="code" placeholder="Ej: GAL-001"/>
                             <field name="name" placeholder="Ej: Galpón Principal"/>
+                            <field name="coop_type"/>
                             <field name="size"/>
                             <field name="capacity"/>
                         </group>
@@ -143,7 +145,12 @@
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
                 <separator/>
-                <filter string="Con Capacidad Disponible" name="available_capacity" 
+                <filter string="Recría" name="type_recria" domain="[('coop_type', '=', 'recria')]"/>
+                <filter string="Producción" name="type_produccion" domain="[('coop_type', '=', 'produccion')]"/>
+                <separator/>
+                <filter string="Por Tipo de Galpón" name="by_coop_type" context="{'group_by': 'coop_type'}"/>
+                <separator/>
+                <filter string="Con Capacidad Disponible" name="available_capacity"
                         domain="[('current_birds_count', '&lt;', 'capacity')]"/>
                 <filter string="Capacidad Llena" name="full_capacity" 
                         domain="[('current_birds_count', '&gt;=', 'capacity')]"/>
