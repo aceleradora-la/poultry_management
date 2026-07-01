@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from odoo import models, fields, api
+from odoo.exceptions import UserError
 
 
 class PoultryStandardTrackingReportWizard(models.TransientModel):
@@ -67,9 +68,16 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         Line = self.env['poultry.standard.tracking.report.line']
         self.line_ids.unlink()
 
+        if not self.batch_id:
+            raise UserError('Debe seleccionar un Lote de Aves antes de generar el reporte.')
+
         version = self.version_id or self.genetics_id.default_standard_version_id
-        if not self.batch_id or not self.genetics_id or not version:
-            return True
+        if not version:
+            raise UserError(
+                f'La genética {self.genetics_id.name} no tiene una Versión de Estándar '
+                f'predeterminada ni se eligió una manualmente. Cree una Versión de '
+                f'Estándar para esta genética, o elíjala en el campo Versión de Estándar.'
+            )
 
         Value = self.env['poultry.batch.indicator.value']
         all_values = Value.search([
@@ -79,7 +87,23 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         ])
         indicators = all_values.mapped('indicator_id')
         if not indicators:
-            return True
+            any_value = Value.search([('batch_id', '=', self.batch_id.id)], order='date asc', limit=1)
+            if any_value:
+                raise UserError(
+                    f'El lote {self.batch_id.name} tiene valores reales calculados, pero '
+                    f'ninguno entre {self.date_from} y {self.date_to}. El más antiguo '
+                    f'disponible es del {any_value.date}. Ajuste el rango de fechas.'
+                )
+            raise UserError(
+                f'El lote {self.batch_id.name} todavía no tiene ningún valor real '
+                f'calculado. Verifique que: haya al menos un Cierre de Galpón cuya Orden '
+                f'de Fabricación de Huevo sin Clasificar esté marcada como Hecha (eso es '
+                f'lo que dispara el cálculo), que los Indicadores (Consumo de Alimento/'
+                f'Agua, % Ave-Día, etc.) ya estén creados, y que la Lista de Materiales '
+                f'tenga sus líneas marcadas como Alimento/Agua. Si los Cierres son '
+                f'anteriores a haber creado los Indicadores, use "Recalcular Indicadores '
+                f'de Producción" (Configuración).'
+            )
 
         periods = self._get_periods()
         lines_vals = []
