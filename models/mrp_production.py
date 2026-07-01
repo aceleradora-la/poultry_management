@@ -231,9 +231,11 @@ class MrpProduction(models.Model):
 
         Indicator = self.env['poultry.indicator']
         feed_indicator = Indicator.search(
-            [('category', '=', 'feed_consumption'), ('active', '=', True)], limit=1)
+            [('category', '=', 'feed_consumption'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
         water_indicator = Indicator.search(
-            [('category', '=', 'water_consumption'), ('active', '=', True)], limit=1)
+            [('category', '=', 'water_consumption'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
 
         Value = self.env['poultry.batch.indicator.value']
         feed_g_per_bird_day = (feed_qty_kg * 1000.0 / total_birds) if feed_qty_kg > 0 else 0.0

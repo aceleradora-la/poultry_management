@@ -17,6 +17,7 @@ from . import poultry_indicator
 from . import poultry_genetics_standard_version
 from . import poultry_genetics_standard
 from . import poultry_batch_indicator_value
+from . import poultry_batch_indicator_weekly_value
 from . import poultry_mortality
 from . import poultry_egg_collection
 from . import poultry_egg_collection_line

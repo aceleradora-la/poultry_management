@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from datetime import timedelta
+
 from odoo import models, fields, api
 
 
@@ -68,10 +70,61 @@ class PoultryBatchIndicatorValue(models.Model):
             vals['denominator'] = denominator
         if existing:
             existing.write(vals)
-            return existing
-        vals.update({
-            'batch_id': batch.id,
-            'indicator_id': indicator.id,
-            'date': target_date,
-        })
-        return self.create(vals)
+            record = existing
+        else:
+            vals.update({
+                'batch_id': batch.id,
+                'indicator_id': indicator.id,
+                'date': target_date,
+            })
+            record = self.create(vals)
+        self._recompute_weekly_value(batch, indicator, target_date)
+        return record
+
+    def _recompute_weekly_value(self, batch, indicator, target_date):
+        """Recalcula y guarda el agregado de la Semana de Vida (anclada a la Fecha de
+        Nacimiento del lote) que contiene target_date, para que quede disponible como
+        dato persistente y pivoteable (poultry.batch.indicator.weekly.value), en vez de
+        tener que agregarse al vuelo cada vez que se quiere ver por semana."""
+        birth_date = batch.birth_date
+        if not birth_date or target_date < birth_date:
+            return
+        week = (target_date - birth_date).days // 7
+        week_date_from = birth_date + timedelta(days=week * 7)
+        week_date_to = week_date_from + timedelta(days=6)
+
+        week_values = self.search([
+            ('batch_id', '=', batch.id),
+            ('indicator_id', '=', indicator.id),
+            ('date', '>=', week_date_from),
+            ('date', '<=', week_date_to),
+        ])
+        if not week_values:
+            return
+
+        if indicator.accumulation_type != 'none':
+            real_value = week_values.sorted('date')[-1].value
+        else:
+            total_denominator = sum(week_values.mapped('denominator'))
+            real_value = (sum(week_values.mapped('numerator')) / total_denominator
+                          if total_denominator else 0.0)
+
+        period = 'crianza' if week <= (batch.genetics_id.rearing_end_week or 17) else 'produccion'
+
+        Weekly = self.env['poultry.batch.indicator.weekly.value']
+        existing_weekly = Weekly.search([
+            ('batch_id', '=', batch.id),
+            ('indicator_id', '=', indicator.id),
+            ('week', '=', week),
+        ], limit=1)
+        weekly_vals = {
+            'period': period,
+            'real_value': real_value,
+            'week_date_from': week_date_from,
+            'week_date_to': week_date_to,
+        }
+        if existing_weekly:
+            existing_weekly.write(weekly_vals)
+        else:
+            weekly_vals.update({'batch_id': batch.id, 'indicator_id': indicator.id, 'week': week})
+            Weekly.create(weekly_vals)

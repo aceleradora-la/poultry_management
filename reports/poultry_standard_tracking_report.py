@@ -58,12 +58,49 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 periods.append((period_start, period_end, week, f'Semana {week}'))
         return periods
 
+    def _no_data_error(self, Value):
+        """Arma el mensaje de error cuando no hay valores reales en el rango elegido,
+        distinguiendo "no hay ninguno" de "hay, pero no en este rango"."""
+        any_value = Value.search([('batch_id', '=', self.batch_id.id)], order='date asc', limit=1)
+        if any_value:
+            return UserError(
+                f'El lote {self.batch_id.name} tiene valores reales calculados, pero '
+                f'ninguno entre {self.date_from} y {self.date_to}. El más antiguo '
+                f'disponible es del {any_value.date}. Ajuste el rango de fechas.'
+            )
+        return UserError(
+            f'El lote {self.batch_id.name} todavía no tiene ningún valor real '
+            f'calculado. Verifique que: haya al menos un Cierre de Galpón cuya Orden '
+            f'de Fabricación de Huevo sin Clasificar esté marcada como Hecha (eso es '
+            f'lo que dispara el cálculo), que los Indicadores (Consumo de Alimento/'
+            f'Agua, % Ave-Día, etc.) ya estén creados, y que la Lista de Materiales '
+            f'tenga sus líneas marcadas como Alimento/Agua. Si los Cierres son '
+            f'anteriores a haber creado los Indicadores, use "Recalcular Indicadores '
+            f'de Producción" (Configuración).'
+        )
+
+    def _get_standard_range(self, version, indicator, week):
+        period_type = 'crianza' if week <= (self.genetics_id.rearing_end_week or 17) else 'produccion'
+        standard = self.env['poultry.genetics.standard'].search([
+            ('version_id', '=', version.id),
+            ('indicator_id', '=', indicator.id),
+            ('week', '=', week),
+            ('period', '=', period_type),
+            ('active', '=', True),
+        ], limit=1)
+        value_low = standard.value_low if standard else 0.0
+        value_high = standard.value_high if standard else 0.0
+        return standard, value_low, value_high
+
     def action_generate(self):
         """(Re)genera las líneas del reporte: por cada período (día o semana) y cada
         indicador con datos reales cargados para este lote, compara el estándar
-        (Bajo/Alto) contra el valor real agregado correctamente según el tipo de
-        indicador (tasa: suma de numerador/suma de denominador; acumulado: último
-        valor con fecha dentro del período, no una suma ni un promedio)."""
+        (Bajo/Alto) contra el valor real.
+
+        Por semana lee directamente poultry.batch.indicator.weekly.value (ya agregado
+        correctamente al guardar cada valor diario: suma de numerador/suma de
+        denominador para tasas, último valor para acumulados — no promedio de
+        promedios). Por día lee el valor diario tal cual, sin agregar nada."""
         self.ensure_one()
         Line = self.env['poultry.standard.tracking.report.line']
         self.line_ids.unlink()
@@ -79,76 +116,73 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 f'Estándar para esta genética, o elíjala en el campo Versión de Estándar.'
             )
 
-        Value = self.env['poultry.batch.indicator.value']
-        all_values = Value.search([
-            ('batch_id', '=', self.batch_id.id),
-            ('date', '>=', self.date_from),
-            ('date', '<=', self.date_to),
-        ])
-        indicators = all_values.mapped('indicator_id')
-        if not indicators:
-            any_value = Value.search([('batch_id', '=', self.batch_id.id)], order='date asc', limit=1)
-            if any_value:
-                raise UserError(
-                    f'El lote {self.batch_id.name} tiene valores reales calculados, pero '
-                    f'ninguno entre {self.date_from} y {self.date_to}. El más antiguo '
-                    f'disponible es del {any_value.date}. Ajuste el rango de fechas.'
-                )
-            raise UserError(
-                f'El lote {self.batch_id.name} todavía no tiene ningún valor real '
-                f'calculado. Verifique que: haya al menos un Cierre de Galpón cuya Orden '
-                f'de Fabricación de Huevo sin Clasificar esté marcada como Hecha (eso es '
-                f'lo que dispara el cálculo), que los Indicadores (Consumo de Alimento/'
-                f'Agua, % Ave-Día, etc.) ya estén creados, y que la Lista de Materiales '
-                f'tenga sus líneas marcadas como Alimento/Agua. Si los Cierres son '
-                f'anteriores a haber creado los Indicadores, use "Recalcular Indicadores '
-                f'de Producción" (Configuración).'
-            )
-
         periods = self._get_periods()
         lines_vals = []
-        for period_start, period_end, week, label in periods:
-            for indicator in indicators:
-                period_values = all_values.filtered(
-                    lambda v, ind=indicator, ps=period_start, pe=period_end:
-                        v.indicator_id == ind and ps <= v.date <= pe
-                )
-                if not period_values:
-                    continue
 
-                period_type = 'crianza' if week <= (self.genetics_id.rearing_end_week or 17) else 'produccion'
-                standard = self.env['poultry.genetics.standard'].search([
-                    ('version_id', '=', version.id),
-                    ('indicator_id', '=', indicator.id),
-                    ('week', '=', week),
-                    ('period', '=', period_type),
-                    ('active', '=', True),
-                ], limit=1)
-                value_low = standard.value_low if standard else 0.0
-                value_high = standard.value_high if standard else 0.0
+        if self.granularity == 'week':
+            Weekly = self.env['poultry.batch.indicator.weekly.value']
+            weekly_values = Weekly.search([
+                ('batch_id', '=', self.batch_id.id),
+                ('week', 'in', [period[2] for period in periods]),
+            ])
+            indicators = weekly_values.mapped('indicator_id')
+            if not indicators:
+                raise self._no_data_error(self.env['poultry.batch.indicator.value'])
 
-                if indicator.accumulation_type != 'none':
-                    real_value = period_values.sorted('date')[-1].value
-                else:
-                    total_denominator = sum(period_values.mapped('denominator'))
-                    real_value = (sum(period_values.mapped('numerator')) / total_denominator
-                                  if total_denominator else 0.0)
+            for period_start, period_end, week, label in periods:
+                for indicator in indicators:
+                    weekly_value = weekly_values.filtered(
+                        lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk
+                    )
+                    if not weekly_value:
+                        continue
+                    standard, value_low, value_high = self._get_standard_range(version, indicator, week)
+                    real_value = weekly_value[0].real_value
+                    lines_vals.append({
+                        'wizard_id': self.id,
+                        'period_label': label,
+                        'period_date_from': period_start,
+                        'period_date_to': period_end,
+                        'week': week,
+                        'indicator_id': indicator.id,
+                        'value_low': value_low,
+                        'value_high': value_high,
+                        'real_value': real_value,
+                        'is_out_of_range': bool(standard) and (real_value < value_low or real_value > value_high),
+                    })
+        else:
+            Value = self.env['poultry.batch.indicator.value']
+            all_values = Value.search([
+                ('batch_id', '=', self.batch_id.id),
+                ('date', '>=', self.date_from),
+                ('date', '<=', self.date_to),
+            ])
+            indicators = all_values.mapped('indicator_id')
+            if not indicators:
+                raise self._no_data_error(Value)
 
-                lines_vals.append({
-                    'wizard_id': self.id,
-                    'period_label': label,
-                    'period_date_from': period_start,
-                    'period_date_to': period_end,
-                    'week': week,
-                    'indicator_id': indicator.id,
-                    'value_low': value_low,
-                    'value_high': value_high,
-                    'real_value': real_value,
-                    # Solo se marca fuera de rango si HAY estándar cargado para esa
-                    # semana/indicador; si no hay, no hay con qué comparar (no es una
-                    # alarma real, evita falsos positivos con Bajo=Alto=0).
-                    'is_out_of_range': bool(standard) and (real_value < value_low or real_value > value_high),
-                })
+            for period_start, period_end, week, label in periods:
+                for indicator in indicators:
+                    day_value = all_values.filtered(
+                        lambda v, ind=indicator, d=period_start: v.indicator_id == ind and v.date == d
+                    )
+                    if not day_value:
+                        continue
+                    standard, value_low, value_high = self._get_standard_range(version, indicator, week)
+                    real_value = day_value[0].value
+                    lines_vals.append({
+                        'wizard_id': self.id,
+                        'period_label': label,
+                        'period_date_from': period_start,
+                        'period_date_to': period_end,
+                        'week': week,
+                        'indicator_id': indicator.id,
+                        'value_low': value_low,
+                        'value_high': value_high,
+                        'real_value': real_value,
+                        'is_out_of_range': bool(standard) and (real_value < value_low or real_value > value_high),
+                    })
+
         if lines_vals:
             Line.create(lines_vals)
         return True
@@ -157,7 +191,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
 class PoultryStandardTrackingReportLine(models.TransientModel):
     _name = 'poultry.standard.tracking.report.line'
     _description = 'Línea de Reporte de Seguimiento de Estándares'
-    _order = 'period_date_from, indicator_id'
+    _order = 'indicator_id, period_date_from'
 
     wizard_id = fields.Many2one('poultry.standard.tracking.report.wizard', string='Reporte',
                                  required=True, ondelete='cascade')

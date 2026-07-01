@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 
 class PoultryIndicator(models.Model):
@@ -26,17 +27,23 @@ class PoultryIndicator(models.Model):
     sequence = fields.Integer(string='Secuencia', default=10)
     active = fields.Boolean(string='Activo', default=True)
     accumulation_type = fields.Selection([
-        ('none', 'Ninguno (tasa diaria/semanal)'),
-        ('live', 'Acumulado sobre Aves Vivas (Ave-Día)'),
-        ('housed', 'Acumulado sobre Aves Alojadas (Ave-Alojada)'),
+        ('none', 'Ninguno (valor independiente cada día)'),
+        ('live', 'Acumulado (suma corrida) sobre Aves Vivas'),
+        ('housed', 'Acumulado (suma corrida) sobre Aves Alojadas'),
     ], string='Tipo de Acumulación', default='none', required=True,
-        help='"Ninguno": el valor real es una tasa diaria (ej. Consumo de Alimento, '
-             '% Ave-Día); se agrega por semana como suma(numerador)/suma(denominador). '
-             '"Ave-Día": total acumulado desde el inicio de postura, sumando cada día '
-             'huevos/aves VIVAS ese día. "Ave-Alojada": igual, pero siempre divide por '
-             'la cantidad de aves alojadas al inicio de la postura (fija, no baja con la '
-             'mortalidad). Los acumulados no se suman ni promedian por semana: se muestra '
-             'el último valor con fecha dentro del período.'
+        help='OJO: esto NO indica si el cálculo divide por aves vivas o alojadas '
+             '(eso ya lo hace la fórmula de cada indicador, sea cual sea este campo). '
+             'Lo que distingue es si el valor de HOY se guarda solo, o se le SUMA al de '
+             'AYER y sigue creciendo día tras día. "Ninguno": valor independiente cada '
+             'día (ej. Consumo de Alimento, % Ave-Día: hoy puede dar más o menos que '
+             'ayer); se agrega por semana como suma(numerador)/suma(denominador). '
+             '"Acumulado sobre Aves Vivas": suma corrida desde el inicio de postura, '
+             'nunca baja. "Acumulado sobre Aves Alojadas": misma suma corrida, pero '
+             'usando como base la cantidad de aves alojadas al inicio (fija). Los '
+             'acumulados no se suman ni promedian por semana: se muestra el último valor '
+             'con fecha dentro del período. Solo puede haber UN indicador activo por '
+             'combinación de Categoría + Tipo de Acumulación (si no, el cálculo no '
+             'sabría a cuál de los dos escribirle).'
     )
     notes = fields.Text(string='Notas')
     real_value_source = fields.Char(
@@ -54,3 +61,24 @@ class PoultryIndicator(models.Model):
     def _compute_standard_count(self):
         for indicator in self:
             indicator.standard_count = len(indicator.standard_ids)
+
+    @api.constrains('category', 'accumulation_type', 'active')
+    def _check_unique_category_accumulation_type(self):
+        """El cálculo automático (mrp_production._poultry_compute_*) busca el
+        indicador de una categoría+tipo de acumulación con limit=1: si hay más de
+        uno activo, el resultado de esa búsqueda es arbitrario y silencioso, como
+        pasó con % Ave-Día y Huevos Acumulados Ave-Día compartiendo el mismo tipo."""
+        for indicator in self.filtered(lambda i: i.active and i.category):
+            others = self.search_count([
+                ('category', '=', indicator.category),
+                ('accumulation_type', '=', indicator.accumulation_type),
+                ('active', '=', True),
+                ('id', '!=', indicator.id),
+            ])
+            if others:
+                raise ValidationError(
+                    f'Ya existe otro indicador activo con la misma Categoría '
+                    f'({dict(indicator._fields["category"].selection).get(indicator.category)}) '
+                    f'y el mismo Tipo de Acumulación. El cálculo automático no podría '
+                    f'distinguir a cuál de los dos escribirle.'
+                )

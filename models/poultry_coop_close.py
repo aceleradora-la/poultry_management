@@ -270,6 +270,11 @@ class PoultryCoopClose(models.Model):
         No filtra por el estado MRP de la OF (Confirmada/Hecha/etc.): usa directamente
         product_qty y move_raw_ids, poblados desde que se crea la OF en
         _create_unclassified_production, sin importar si luego se marcó como Hecha.
+
+        Los agregados semanales (poultry.batch.indicator.weekly.value) se recalculan
+        solos como efecto secundario de poultry.batch.indicator.value._set_value; acá
+        solo se borran los del rango antes de recalcular, para no dejar semanas
+        obsoletas si algún día se les quita el dato diario que las sustentaba.
         """
         domain = [('unclassified_production_id', '!=', False)]
         if date_from:
@@ -294,6 +299,23 @@ class PoultryCoopClose(models.Model):
                 ('date', '>=', min(dates)),
                 ('date', '<=', max(dates)),
             ]).unlink()
+
+            # Limpia también los agregados semanales del rango, ya que se derivan de
+            # los valores diarios que se acaban de borrar y se van a recalcular. La
+            # semana se calcula por lote (ancla en birth_date), así que el rango de
+            # semanas a borrar puede variar de un lote a otro.
+            Weekly = self.env['poultry.batch.indicator.weekly.value']
+            for batch in affected_batches:
+                if not batch.birth_date:
+                    continue
+                week_from = max((min(dates) - batch.birth_date).days // 7, 0)
+                week_to = max((max(dates) - batch.birth_date).days // 7, 0)
+                Weekly.search([
+                    ('batch_id', '=', batch.id),
+                    ('indicator_id', 'in', indicators.ids),
+                    ('week', '>=', week_from),
+                    ('week', '<=', week_to),
+                ]).unlink()
 
         count = 0
         for close in closes:
