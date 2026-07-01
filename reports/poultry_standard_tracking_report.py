@@ -185,7 +185,17 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
 
         if lines_vals:
             Line.create(lines_vals)
-        return True
+
+        # Se devuelve una acción explícita (no True) apuntando al mismo wizard: en un
+        # diálogo (target=new) ya abierto, con Odoo 18 devolver True/None no siempre
+        # refresca el One2many de líneas recién creadas — ya nos pasó una vez.
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
 
 
 class PoultryStandardTrackingReportLine(models.TransientModel):
