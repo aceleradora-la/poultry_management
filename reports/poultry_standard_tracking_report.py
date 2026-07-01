@@ -24,9 +24,6 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         ('week', 'Semana'),
     ], string='Granularidad', required=True, default='week')
 
-    line_ids = fields.One2many('poultry.standard.tracking.report.line', 'wizard_id',
-                                string='Líneas del Reporte')
-
     @api.onchange('batch_id')
     def _onchange_batch_id(self):
         self.version_id = self.batch_id.genetics_id.default_standard_version_id if self.batch_id else False
@@ -58,9 +55,10 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 periods.append((period_start, period_end, week, f'Semana {week}'))
         return periods
 
-    def _no_data_error(self, Value):
+    def _no_data_error(self):
         """Arma el mensaje de error cuando no hay valores reales en el rango elegido,
         distinguiendo "no hay ninguno" de "hay, pero no en este rango"."""
+        Value = self.env['poultry.batch.indicator.value']
         any_value = Value.search([('batch_id', '=', self.batch_id.id)], order='date asc', limit=1)
         if any_value:
             return UserError(
@@ -92,21 +90,16 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         value_high = standard.value_high if standard else 0.0
         return standard, value_low, value_high
 
-    def action_generate(self):
-        """(Re)genera las líneas del reporte: por cada período (día o semana) y cada
-        indicador con datos reales cargados para este lote, compara el estándar
-        (Bajo/Alto) contra el valor real.
+    def _get_report_matrix(self):
+        """Arma la matriz para el reporte cruzado (semana/día en filas, un grupo de
+        3 columnas -Bajo/Alto/Real- por cada indicador con datos): a diferencia de
+        una lista plana, esto reproduce el formato de la guía de rendimiento del
+        proveedor de genética (edad en filas, indicadores en columnas).
 
-        Por semana lee directamente poultry.batch.indicator.weekly.value (ya agregado
-        correctamente al guardar cada valor diario: suma de numerador/suma de
-        denominador para tasas, último valor para acumulados — no promedio de
-        promedios). Por día lee el valor diario tal cual, sin agregar nada."""
+        Por semana lee poultry.batch.indicator.weekly.value (ya agregado
+        correctamente al guardar: suma de numerador/suma de denominador para tasas,
+        último valor para acumulados). Por día lee el valor diario tal cual."""
         self.ensure_one()
-        Line = self.env['poultry.standard.tracking.report.line']
-        self.line_ids.unlink()
-
-        if not self.batch_id:
-            raise UserError('Debe seleccionar un Lote de Aves antes de generar el reporte.')
 
         version = self.version_id or self.genetics_id.default_standard_version_id
         if not version:
@@ -117,7 +110,6 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             )
 
         periods = self._get_periods()
-        lines_vals = []
 
         if self.granularity == 'week':
             Weekly = self.env['poultry.batch.indicator.weekly.value']
@@ -125,31 +117,14 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 ('batch_id', '=', self.batch_id.id),
                 ('week', 'in', [period[2] for period in periods]),
             ])
-            indicators = weekly_values.mapped('indicator_id')
+            indicators = weekly_values.mapped('indicator_id').sorted('sequence')
             if not indicators:
-                raise self._no_data_error(self.env['poultry.batch.indicator.value'])
+                raise self._no_data_error()
 
-            for period_start, period_end, week, label in periods:
-                for indicator in indicators:
-                    weekly_value = weekly_values.filtered(
-                        lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk
-                    )
-                    if not weekly_value:
-                        continue
-                    standard, value_low, value_high = self._get_standard_range(version, indicator, week)
-                    real_value = weekly_value[0].real_value
-                    lines_vals.append({
-                        'wizard_id': self.id,
-                        'period_label': label,
-                        'period_date_from': period_start,
-                        'period_date_to': period_end,
-                        'week': week,
-                        'indicator_id': indicator.id,
-                        'value_low': value_low,
-                        'value_high': value_high,
-                        'real_value': real_value,
-                        'is_out_of_range': bool(standard) and (real_value < value_low or real_value > value_high),
-                    })
+            def get_real_value(indicator, period_start, week):
+                match = weekly_values.filtered(
+                    lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk)
+                return match[0].real_value if match else None
         else:
             Value = self.env['poultry.batch.indicator.value']
             all_values = Value.search([
@@ -157,60 +132,41 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 ('date', '>=', self.date_from),
                 ('date', '<=', self.date_to),
             ])
-            indicators = all_values.mapped('indicator_id')
+            indicators = all_values.mapped('indicator_id').sorted('sequence')
             if not indicators:
-                raise self._no_data_error(Value)
+                raise self._no_data_error()
 
-            for period_start, period_end, week, label in periods:
-                for indicator in indicators:
-                    day_value = all_values.filtered(
-                        lambda v, ind=indicator, d=period_start: v.indicator_id == ind and v.date == d
-                    )
-                    if not day_value:
-                        continue
-                    standard, value_low, value_high = self._get_standard_range(version, indicator, week)
-                    real_value = day_value[0].value
-                    lines_vals.append({
-                        'wizard_id': self.id,
-                        'period_label': label,
-                        'period_date_from': period_start,
-                        'period_date_to': period_end,
-                        'week': week,
-                        'indicator_id': indicator.id,
-                        'value_low': value_low,
-                        'value_high': value_high,
-                        'real_value': real_value,
-                        'is_out_of_range': bool(standard) and (real_value < value_low or real_value > value_high),
-                    })
+            def get_real_value(indicator, period_start, week):
+                match = all_values.filtered(
+                    lambda v, ind=indicator, d=period_start: v.indicator_id == ind and v.date == d)
+                return match[0].value if match else None
 
-        if lines_vals:
-            Line.create(lines_vals)
+        rows = []
+        for period_start, period_end, week, label in periods:
+            cells = []
+            for indicator in indicators:
+                real_value = get_real_value(indicator, period_start, week)
+                standard, value_low, value_high = self._get_standard_range(version, indicator, week)
+                out_of_range = bool(standard) and real_value is not None and (
+                    real_value < value_low or real_value > value_high)
+                cells.append({
+                    'value_low': value_low,
+                    'value_high': value_high,
+                    'real_value': real_value,
+                    'has_standard': bool(standard),
+                    'out_of_range': out_of_range,
+                })
+            rows.append({'label': label, 'week': week, 'cells': cells})
 
-        # Se devuelve una acción explícita (no True) apuntando al mismo wizard: en un
-        # diálogo (target=new) ya abierto, con Odoo 18 devolver True/None no siempre
-        # refresca el One2many de líneas recién creadas — ya nos pasó una vez.
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-        }
+        return {'indicators': indicators, 'rows': rows}
 
-
-class PoultryStandardTrackingReportLine(models.TransientModel):
-    _name = 'poultry.standard.tracking.report.line'
-    _description = 'Línea de Reporte de Seguimiento de Estándares'
-    _order = 'indicator_id, period_date_from'
-
-    wizard_id = fields.Many2one('poultry.standard.tracking.report.wizard', string='Reporte',
-                                 required=True, ondelete='cascade')
-    period_label = fields.Char(string='Período')
-    period_date_from = fields.Date(string='Desde')
-    period_date_to = fields.Date(string='Hasta')
-    week = fields.Integer(string='Semana de Vida')
-    indicator_id = fields.Many2one('poultry.indicator', string='Indicador')
-    value_low = fields.Float(string='Bajo', digits=(16, 4))
-    value_high = fields.Float(string='Alto', digits=(16, 4))
-    real_value = fields.Float(string='Valor Real', digits=(16, 4))
-    is_out_of_range = fields.Boolean(string='Fuera de Rango')
+    def action_generate(self):
+        self.ensure_one()
+        if not self.batch_id:
+            raise UserError('Debe seleccionar un Lote de Aves antes de generar el reporte.')
+        # Valida acá (antes de abrir el reporte) para que los errores de configuración
+        # se vean como un aviso normal, no como una falla al renderizar el PDF.
+        self._get_report_matrix()
+        return self.env.ref(
+            'poultry_management.action_report_poultry_standard_tracking'
+        ).report_action(self)

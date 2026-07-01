@@ -18,20 +18,9 @@
                             <field name="granularity" widget="radio" options="{'horizontal': true}"/>
                         </group>
                     </group>
-                    <button name="action_generate" string="Generar / Actualizar" type="object" class="oe_highlight"/>
-                    <field name="line_ids" nolabel="1" readonly="1">
-                        <list string="Seguimiento de Estándares" decoration-danger="is_out_of_range">
-                            <field name="period_label"/>
-                            <field name="week"/>
-                            <field name="indicator_id"/>
-                            <field name="value_low"/>
-                            <field name="value_high"/>
-                            <field name="real_value"/>
-                            <field name="is_out_of_range" column_invisible="1"/>
-                        </list>
-                    </field>
                 </sheet>
                 <footer>
+                    <button name="action_generate" string="Generar Reporte" type="object" class="oe_highlight"/>
                     <button string="Cerrar" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>
