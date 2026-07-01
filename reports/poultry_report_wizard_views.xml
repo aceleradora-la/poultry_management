@@ -11,6 +11,7 @@
                         <group>
                             <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="indicator_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="date_from"/>
                             <field name="date_to"/>
                             <field name="compare_with_standards"/>

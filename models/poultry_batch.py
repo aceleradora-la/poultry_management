@@ -36,8 +36,17 @@ class PoultryBatch(models.Model):
     
     # Edad del lote
     age_days = fields.Integer(string='Edad (días)', compute='_compute_age_days')
+    age_weeks = fields.Integer(string='Edad (semanas)', compute='_compute_age_weeks')
     days_in_coop = fields.Integer(string='Días en Galpón', compute='_compute_days_in_coop')
-    
+
+    # Período de Crianza del lote (Crianza / Producción)
+    period = fields.Selection([
+        ('crianza', 'Crianza'),
+        ('produccion', 'Producción'),
+    ], string='Período', compute='_compute_period',
+        help='Se calcula automáticamente según la Edad en Semanas y la Semana de '
+             'Transición a Producción configurada en la Genética del lote.')
+
     @api.depends('birth_date')
     def _compute_age_days(self):
         """Calcula la edad del lote en días"""
@@ -47,7 +56,25 @@ class PoultryBatch(models.Model):
                 batch.age_days = (today - batch.birth_date).days
             else:
                 batch.age_days = 0
-    
+
+    @api.depends('birth_date')
+    def _compute_age_weeks(self):
+        """Calcula la edad del lote en semanas cerradas (semana completa desde el nacimiento)"""
+        today = fields.Date.today()
+        for batch in self:
+            if batch.birth_date:
+                days = (today - batch.birth_date).days
+                batch.age_weeks = days // 7
+            else:
+                batch.age_weeks = 0
+
+    @api.depends('age_weeks', 'genetics_id.rearing_end_week')
+    def _compute_period(self):
+        """Determina el período (Crianza/Producción) según la edad y la genética"""
+        for batch in self:
+            rearing_end_week = batch.genetics_id.rearing_end_week or 17
+            batch.period = 'crianza' if batch.age_weeks <= rearing_end_week else 'produccion'
+
     @api.depends('assignment_date')
     def _compute_days_in_coop(self):
         """Calcula los días que lleva el lote en el galpón"""

@@ -67,18 +67,30 @@
               action="action_poultry_batch" 
               sequence="20"/>
 
-    <menuitem id="menu_poultry_genetics" 
-              name="Genéticas" 
-              parent="menu_poultry_configuration" 
-              action="action_poultry_genetics" 
+    <menuitem id="menu_poultry_genetics"
+              name="Genéticas"
+              parent="menu_poultry_configuration"
+              action="action_poultry_genetics"
               sequence="30"/>
 
-    <menuitem id="menu_poultry_genetics_standards" 
-              name="Estándares de Genética" 
-              parent="menu_poultry_configuration" 
-              action="action_poultry_genetics_standard" 
+    <menuitem id="menu_poultry_indicator"
+              name="Indicadores de Genética"
+              parent="menu_poultry_configuration"
+              action="action_poultry_indicator"
+              sequence="35"/>
+
+    <menuitem id="menu_poultry_genetics_standard_version"
+              name="Versiones de Estándar"
+              parent="menu_poultry_configuration"
+              action="action_poultry_genetics_standard_version"
+              sequence="38"/>
+
+    <menuitem id="menu_poultry_genetics_standards"
+              name="Estándares de Genética"
+              parent="menu_poultry_configuration"
+              action="action_poultry_genetics_standard"
               sequence="40"/>
-    
+
     <menuitem id="menu_poultry_uom" 
               name="Unidades de Medida" 
               parent="menu_poultry_configuration" 

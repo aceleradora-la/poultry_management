@@ -12,6 +12,10 @@ class PoultryMortalityReportWizard(models.TransientModel):
                                domain="[('active', '=', True)]")
     genetics_id = fields.Many2one('poultry.genetics', string='Genética',
                                    help='Genética específica para comparar con estándares')
+    indicator_id = fields.Many2one('poultry.indicator', string='Indicador de Mortalidad',
+                                    domain=[('category', '=', 'mortality')],
+                                    help='Indicador a comparar contra el estándar. Si se deja vacío, '
+                                         'se usa el primer indicador activo de categoría Mortalidad.')
     date_from = fields.Date(string='Fecha Desde', required=True,
                             default=lambda self: fields.Date.today() - timedelta(days=30))
     date_to = fields.Date(string='Fecha Hasta', required=True,
@@ -27,23 +31,26 @@ class PoultryMortalityReportWizard(models.TransientModel):
             ('date', '<=', self.date_to),
             ('active', '=', True),
         ]
-        
+
         if self.coop_id:
             domain.append(('coop_id', '=', self.coop_id.id))
         if self.genetics_id:
             domain.append(('genetics_id', '=', self.genetics_id.id))
-        
+
         mortalities = self.env['poultry.mortality'].search(domain, order='date desc, coop_id')
-        
+
         # Si se compara con estándares, agregar información de estándares
         if self.compare_with_standards and self.genetics_id:
-            for mortality in mortalities:
-                if mortality.batch_age_weeks > 0:
-                    standard_value = self.genetics_id.get_standard_value(
-                        mortality.batch_age_weeks, 'mortality'
-                    )
-                    # Aquí se podría calcular la diferencia con el estándar
-        
+            indicator = self.indicator_id or self.env['poultry.indicator'].search(
+                [('category', '=', 'mortality'), ('active', '=', True)], limit=1)
+            if indicator:
+                for mortality in mortalities:
+                    if mortality.batch_age_weeks > 0:
+                        value_low, value_high = self.genetics_id.get_standard_range(
+                            mortality.batch_age_weeks, indicator
+                        )
+                        # Aquí se podría calcular la diferencia con el estándar (Fase 2)
+
         return {
             'name': 'Reporte de Mortalidad',
             'type': 'ir.actions.act_window',

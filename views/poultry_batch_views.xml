@@ -13,6 +13,10 @@
                 <field name="assignment_date"/>
                 <field name="bird_count"/>
                 <field name="age_days"/>
+                <field name="age_weeks"/>
+                <field name="period" widget="badge"
+                       decoration-info="period == 'crianza'"
+                       decoration-success="period == 'produccion'"/>
                 <field name="days_in_coop"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
@@ -47,6 +51,10 @@
                     <group>
                         <group>
                             <field name="age_days" readonly="1"/>
+                            <field name="age_weeks" readonly="1"/>
+                            <field name="period" readonly="1" widget="badge"
+                                   decoration-info="period == 'crianza'"
+                                   decoration-success="period == 'produccion'"/>
                             <field name="days_in_coop" readonly="1"/>
                         </group>
                         <group>
