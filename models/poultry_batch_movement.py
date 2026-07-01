@@ -121,6 +121,16 @@ class PoultryBatchMovement(models.Model):
                         f'{live_count} aves vivas del lote {record.batch_id.name} '
                         f'en {record.origin_coop_id.name} a la fecha {record.date}.'
                     )
+
+            # Se confirma el estado ANTES de tocar las líneas de asignación: la
+            # cantidad de aves del lote (poultry.batch.bird_count) depende del estado
+            # de los movimientos, y las validaciones de poultry.batch.coop.line (suma
+            # de aves asignadas vs. cantidad de aves del lote) deben ver ya
+            # contabilizado este movimiento, o rechazan de más un Ingreso válido. Si
+            # algo falla más abajo, toda la transacción (incluido este write) se revierte.
+            record.state = 'done'
+
+            if record.movement_type == 'traslado':
                 remainder = live_count - record.bird_count
                 origin_line.write({'date_to': record.date})
                 replacement_line = self.env['poultry.batch.coop.line'].browse()
@@ -138,7 +148,6 @@ class PoultryBatchMovement(models.Model):
                     'origin_replacement_coop_line_id': replacement_line.id if replacement_line else False,
                     'dest_coop_line_id': dest_line.id,
                     'dest_coop_line_created': dest_created,
-                    'state': 'done',
                 })
             else:
                 dest_line, dest_created = record._apply_incoming(
@@ -146,7 +155,6 @@ class PoultryBatchMovement(models.Model):
                 record.write({
                     'dest_coop_line_id': dest_line.id,
                     'dest_coop_line_created': dest_created,
-                    'state': 'done',
                 })
         return True
 
