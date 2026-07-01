@@ -28,12 +28,8 @@
         <field name="arch" type="xml">
             <form string="Lote de Aves">
                 <header>
-                    <button name="action_confirm_housed_birds" string="Confirmar Aves Alojadas"
-                            type="object" class="oe_highlight"
-                            invisible="not production_start_date or housed_bird_count"/>
-                    <button name="action_reset_housed_birds" string="Reiniciar Aves Alojadas"
-                            type="object" confirm="¿Reiniciar la Cantidad de Aves Alojadas confirmada? Si ya se calcularon Huevos Acumulados Ave-Alojada con la base anterior, va a haber que recalcular indicadores después de volver a confirmar."
-                            invisible="not housed_bird_count"/>
+                    <button name="action_register_period_change" string="Registrar Cambio de Período"
+                            type="object" class="oe_highlight"/>
                     <field name="active" widget="boolean_toggle"/>
                 </header>
                 <sheet>
@@ -57,16 +53,30 @@
                         <group>
                             <field name="age_days" readonly="1"/>
                             <field name="age_weeks" readonly="1"/>
+                            <field name="period_suggested" readonly="1" widget="badge"/>
                             <field name="period" readonly="1" widget="badge"
                                    decoration-info="period == 'crianza'"
                                    decoration-success="period == 'produccion'"/>
                         </group>
                         <group string="Aves Alojadas (Ave-Alojada)">
-                            <field name="production_start_date" readonly="housed_bird_count != 0"/>
+                            <field name="production_start_date" readonly="1"/>
                             <field name="housed_bird_count" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
+                        <page string="Cambios de Período" name="period_changes">
+                            <field name="period_change_ids" nolabel="1" context="{'default_batch_id': id}">
+                                <list string="Cambios de Período" editable="bottom">
+                                    <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                                    <field name="date"/>
+                                    <field name="period" widget="badge"
+                                           decoration-info="period == 'crianza'"
+                                           decoration-success="period == 'produccion'"/>
+                                    <field name="housed_bird_count"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Asignaciones a Galpón" name="coop_lines">
                             <field name="coop_line_ids" nolabel="1" context="{'default_batch_id': id}">
                                 <list string="Asignaciones a Galpón" editable="bottom">

@@ -266,10 +266,12 @@ class MrpProduction(models.Model):
         Ave-Día ya calculado, se recalculan cada día desde los mismos datos crudos.
         Ave-Día acumulado suma cada día huevos/aves VIVAS ese día. Ave-Alojada
         acumulado suma cada día huevos/aves ALOJADAS AL INICIO (fija, no baja con la
-        mortalidad ni sube con nuevos Ingresos) — solo se calcula si el usuario ya
-        confirmó poultry.batch.housed_bird_count (action_confirm_housed_birds) y la
-        fecha es posterior a production_start_date; antes de eso no hay una base
-        fija válida, porque el lote puede seguir recibiendo Ingresos."""
+        mortalidad ni sube con nuevos Ingresos) — solo se calcula si el lote ya tiene
+        un Cambio de Período a Producción registrado (poultry.batch.period_change_ids,
+        que fija housed_bird_count/production_start_date) y la fecha es posterior a
+        esa Fecha de Entrada en Producción; antes de eso no hay una base fija
+        válida, porque el lote puede seguir recibiendo Ingresos o todavía no haber
+        cambiado de galpón/período."""
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
@@ -325,10 +327,10 @@ class MrpProduction(models.Model):
 
             if cumulative_housed_indicator:
                 batch = line.batch_id
-                # Solo se calcula si el usuario ya confirmó las Aves Alojadas
-                # (poultry.batch.action_confirm_housed_birds) y la fecha es posterior
-                # a la Fecha de Entrada en Producción: antes de eso no hay una base
-                # fija válida (el lote puede seguir recibiendo Ingresos).
+                # Solo se calcula si el lote ya tiene un Cambio de Período a
+                # Producción registrado (poultry.batch.period_change_ids) y la fecha
+                # es posterior a la Fecha de Entrada en Producción: antes de eso no
+                # hay una base fija válida (el lote puede seguir recibiendo Ingresos).
                 if (batch.housed_bird_count and batch.production_start_date
                         and target_date >= batch.production_start_date):
                     previous = Value.search([

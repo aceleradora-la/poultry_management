@@ -5,6 +5,8 @@ access_poultry_batch_manager,poultry.batch.manager,model_poultry_batch,poultry_m
 access_poultry_batch_user,poultry.batch.user,model_poultry_batch,poultry_management.poultry_user,1,0,0,0
 access_poultry_batch_coop_line_manager,poultry.batch.coop.line.manager,model_poultry_batch_coop_line,poultry_management.poultry_manager,1,1,1,1
 access_poultry_batch_coop_line_user,poultry.batch.coop.line.user,model_poultry_batch_coop_line,poultry_management.poultry_user,1,0,0,0
+access_poultry_batch_period_change_manager,poultry.batch.period.change.manager,model_poultry_batch_period_change,poultry_management.poultry_manager,1,1,1,1
+access_poultry_batch_period_change_user,poultry.batch.period.change.user,model_poultry_batch_period_change,poultry_management.poultry_user,1,0,0,0
 access_poultry_batch_indicator_value_manager,poultry.batch.indicator.value.manager,model_poultry_batch_indicator_value,poultry_management.poultry_manager,1,1,1,1
 access_poultry_batch_indicator_value_user,poultry.batch.indicator.value.user,model_poultry_batch_indicator_value,poultry_management.poultry_user,1,0,0,0
 access_poultry_batch_movement_manager,poultry.batch.movement.manager,model_poultry_batch_movement,poultry_management.poultry_manager,1,1,1,1

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import ValidationError
 
 
 class PoultryBatch(models.Model):
@@ -44,30 +44,33 @@ class PoultryBatch(models.Model):
     age_days = fields.Integer(string='Edad (días)', compute='_compute_age_days')
     age_weeks = fields.Integer(string='Edad (semanas)', compute='_compute_age_weeks')
 
-    # Período de Crianza del lote (Crianza / Producción)
+    # Período de Crianza del lote (Crianza / Producción). El cambio de galpón (Recría
+    # -> Productivo) y el cambio de Período son eventos independientes: un lote puede
+    # trasladarse de galpón sin cambiar todavía de Período. El Período "real" es el
+    # último Cambio de Período confirmado (poultry.batch.period.change); mientras no
+    # haya ninguno, se sugiere por edad (period_suggested), igual que antes.
+    period_change_ids = fields.One2many('poultry.batch.period.change', 'batch_id',
+                                         string='Cambios de Período')
+    period_suggested = fields.Selection([
+        ('crianza', 'Crianza'),
+        ('produccion', 'Producción'),
+    ], string='Período Sugerido (por edad)', compute='_compute_period_suggested',
+        help='Sugerencia automática según la Edad en Semanas y la Semana de Transición '
+             'a Producción configurada en la Genética. No es el Período confirmado.')
     period = fields.Selection([
         ('crianza', 'Crianza'),
         ('produccion', 'Producción'),
     ], string='Período', compute='_compute_period',
-        help='Se calcula automáticamente según la Edad en Semanas y la Semana de '
-             'Transición a Producción configurada en la Genética del lote.')
+        help='Último Cambio de Período confirmado para este lote. Si todavía no se '
+             'registró ninguno, se usa el Período Sugerido por edad como valor '
+             'provisorio.')
 
-    # Aves Alojadas: un lote puede recibir Ingresos en varios días, así que la base
-    # fija para Huevos Acumulados Ave-Alojada no puede inferirse sola del primer día
-    # con datos de producción. El usuario confirma explícitamente cuándo el lote
-    # está completo y entra en producción; desde ese momento queda fija.
-    production_start_date = fields.Date(
-        string='Fecha de Entrada en Producción',
-        help='Fecha en la que el lote se considera completo (ya recibió todos sus '
-             'Ingresos) y entra en producción. A partir de esta fecha se calcula '
-             'Huevos Acumulados Ave-Alojada, con la Cantidad de Aves Alojadas fija.'
-    )
-    housed_bird_count = fields.Integer(
-        string='Aves Alojadas', readonly=True, copy=False,
-        help='Cantidad de aves vivas del lote a la Fecha de Entrada en Producción, '
-             'fijada al confirmar. No se ajusta con ingresos posteriores ni con '
-             'mortalidad: es la base fija del indicador Huevos Acumulados Ave-Alojada.'
-    )
+    # Aves Alojadas: la base fija de Huevos Acumulados Ave-Alojada. Se toma del
+    # último Cambio de Período a Producción confirmado (ahí se calculó con la
+    # población viva de ese galpón a esa fecha, ingresos y mortandad incluidos).
+    production_start_date = fields.Date(string='Fecha de Entrada en Producción',
+                                         compute='_compute_housed_info')
+    housed_bird_count = fields.Integer(string='Aves Alojadas', compute='_compute_housed_info')
 
     @api.depends('birth_date')
     def _compute_age_days(self):
@@ -91,11 +94,37 @@ class PoultryBatch(models.Model):
                 batch.age_weeks = 0
 
     @api.depends('age_weeks', 'genetics_id.rearing_end_week')
-    def _compute_period(self):
-        """Determina el período (Crianza/Producción) según la edad y la genética"""
+    def _compute_period_suggested(self):
+        """Sugerencia de período según la edad y la genética (no confirmada)"""
         for batch in self:
             rearing_end_week = batch.genetics_id.rearing_end_week or 17
-            batch.period = 'crianza' if batch.age_weeks <= rearing_end_week else 'produccion'
+            batch.period_suggested = 'crianza' if batch.age_weeks <= rearing_end_week else 'produccion'
+
+    @api.depends('period_change_ids.period', 'period_change_ids.date', 'period_change_ids.active',
+                 'period_suggested')
+    def _compute_period(self):
+        """Período real: el último Cambio de Período confirmado; si no hay ninguno,
+        se usa la sugerencia por edad como valor provisorio."""
+        for batch in self:
+            changes = batch.period_change_ids.filtered('active').sorted(
+                key=lambda c: (c.date, c.id), reverse=True)
+            batch.period = changes[0].period if changes else batch.period_suggested
+
+    @api.depends('period_change_ids.period', 'period_change_ids.date', 'period_change_ids.active',
+                 'period_change_ids.housed_bird_count')
+    def _compute_housed_info(self):
+        """Fecha de Entrada en Producción y Aves Alojadas: del último Cambio de
+        Período a Producción confirmado para este lote."""
+        for batch in self:
+            changes = batch.period_change_ids.filtered(
+                lambda c: c.active and c.period == 'produccion'
+            ).sorted(key=lambda c: (c.date, c.id), reverse=True)
+            if changes:
+                batch.production_start_date = changes[0].date
+                batch.housed_bird_count = changes[0].housed_bird_count
+            else:
+                batch.production_start_date = False
+                batch.housed_bird_count = 0
 
     @api.depends('coop_line_ids.coop_id', 'coop_line_ids.date_to', 'coop_line_ids.active')
     def _compute_current_coop_ids(self):
@@ -149,41 +178,23 @@ class PoultryBatch(models.Model):
                 vals['name'] = f'{genetics_name} - {birth_date}'
         return super().create(vals_list)
 
-    def action_confirm_housed_birds(self):
-        """Congela la Cantidad de Aves Alojadas a la Fecha de Entrada en Producción
-        indicada, sumando la población viva (a esa fecha) de las asignaciones a
-        galpón vigentes en ese momento. Se usa una sola vez por lote: una vez
-        confirmado, ni nuevos Ingresos ni la mortalidad posterior lo modifican."""
-        for batch in self:
-            if not batch.production_start_date:
-                raise UserError(
-                    'Debe indicar la Fecha de Entrada en Producción antes de confirmar '
-                    'las Aves Alojadas.'
-                )
-            if batch.housed_bird_count:
-                raise UserError(
-                    f'Las Aves Alojadas del lote {batch.name} ya están confirmadas '
-                    f'({batch.housed_bird_count}). Reinícielas primero si necesita '
-                    f'corregirlas.'
-                )
-            lines = batch.coop_line_ids.filtered(
-                lambda l: l.active and l.date_from <= batch.production_start_date
-                and (not l.date_to or l.date_to >= batch.production_start_date)
-            )
-            housed = sum(line._get_live_bird_count_on(batch.production_start_date) for line in lines)
-            if housed <= 0:
-                raise UserError(
-                    f'No se encontraron aves vivas del lote {batch.name} asignadas a '
-                    f'un galpón en la Fecha de Entrada en Producción indicada.'
-                )
-            batch.housed_bird_count = housed
-
-    def action_reset_housed_birds(self):
-        """Permite corregir una confirmación errónea. Si ya se calcularon valores de
-        Huevos Acumulados Ave-Alojada con la base anterior, hay que volver a
-        confirmar y luego usar Recalcular Indicadores de Producción para que los
-        valores reales queden consistentes con la nueva base."""
-        self.write({'housed_bird_count': 0})
+    def action_register_period_change(self):
+        """Abre el formulario para registrar un Cambio de Período para este lote,
+        preseleccionando el galpón actual si el lote está en uno solo."""
+        self.ensure_one()
+        default_coop_id = self.current_coop_ids[0].id if len(self.current_coop_ids) == 1 else False
+        return {
+            'name': 'Registrar Cambio de Período',
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.batch.period.change',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_batch_id': self.id,
+                'default_coop_id': default_coop_id,
+                'default_period': 'produccion' if self.period_suggested == 'produccion' else 'crianza',
+            },
+        }
 
     def name_get(self):
         """Personaliza el nombre mostrado"""

@@ -69,7 +69,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
 
         version = self.version_id or self.genetics_id.default_standard_version_id
         if not self.batch_id or not self.genetics_id or not version:
-            return self._reopen_view()
+            return True
 
         Value = self.env['poultry.batch.indicator.value']
         all_values = Value.search([
@@ -79,7 +79,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         ])
         indicators = all_values.mapped('indicator_id')
         if not indicators:
-            return self._reopen_view()
+            return True
 
         periods = self._get_periods()
         lines_vals = []
@@ -92,8 +92,16 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 if not period_values:
                     continue
 
-                value_low, value_high = self.genetics_id.get_standard_range(
-                    week, indicator, version)
+                period_type = 'crianza' if week <= (self.genetics_id.rearing_end_week or 17) else 'produccion'
+                standard = self.env['poultry.genetics.standard'].search([
+                    ('version_id', '=', version.id),
+                    ('indicator_id', '=', indicator.id),
+                    ('week', '=', week),
+                    ('period', '=', period_type),
+                    ('active', '=', True),
+                ], limit=1)
+                value_low = standard.value_low if standard else 0.0
+                value_high = standard.value_high if standard else 0.0
 
                 if indicator.accumulation_type != 'none':
                     real_value = period_values.sorted('date')[-1].value
@@ -112,21 +120,14 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                     'value_low': value_low,
                     'value_high': value_high,
                     'real_value': real_value,
-                    'is_out_of_range': real_value < value_low or real_value > value_high,
+                    # Solo se marca fuera de rango si HAY estándar cargado para esa
+                    # semana/indicador; si no hay, no hay con qué comparar (no es una
+                    # alarma real, evita falsos positivos con Bajo=Alto=0).
+                    'is_out_of_range': bool(standard) and (real_value < value_low or real_value > value_high),
                 })
         if lines_vals:
             Line.create(lines_vals)
-        return self._reopen_view()
-
-    def _reopen_view(self):
-        self.ensure_one()
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-        }
+        return True
 
 
 class PoultryStandardTrackingReportLine(models.TransientModel):
