@@ -14,30 +14,32 @@ class PoultryBatch(models.Model):
     birth_date = fields.Date(string='Fecha de Nacimiento', required=True, default=fields.Date.today)
     genetics_id = fields.Many2one('poultry.genetics', string='Genética', required=True)
     genetics_name = fields.Char(string='Genética', related='genetics_id.name', readonly=True, store=True)
-    
-    # Asignación al galpón
-    coop_id = fields.Many2one('poultry.coop', string='Galpón Asignado', required=True, 
-                               domain="[('active', '=', True)]")
-    coop_name = fields.Char(string='Galpón', related='coop_id.name', readonly=True, store=True)
-    assignment_date = fields.Date(string='Fecha de Asignación', required=True, default=fields.Date.today)
-    
-    # Cantidad de aves
+
+    # Cantidad de aves (tamaño total del lote, independiente del galpón)
     bird_count = fields.Integer(string='Cantidad de Aves', required=True, default=0)
-    
+
     # Información adicional
-    supplier_id = fields.Many2one('res.partner', string='Proveedor', 
+    supplier_id = fields.Many2one('res.partner', string='Proveedor',
                                    domain="[('supplier_rank', '>', 0)]")
     notes = fields.Text(string='Notas')
     active = fields.Boolean(string='Activo', default=True)
-    
+
+    # Asignación a galpón(es): un lote puede no tener galpón asignado al darse de alta
+    # (todavía no manejamos el proceso de Recría) y luego asignarse a uno o más galpones
+    # con fecha y cantidad, incluso en simultáneo.
+    coop_line_ids = fields.One2many('poultry.batch.coop.line', 'batch_id',
+                                     string='Asignaciones a Galpón')
+    current_coop_ids = fields.Many2many('poultry.coop', string='Galpones Actuales',
+                                         compute='_compute_current_coop_ids', store=True)
+    live_bird_count = fields.Integer(string='Aves Vivas', compute='_compute_live_bird_count')
+
     # Relaciones con mortalidad
     mortality_ids = fields.One2many('poultry.mortality', 'batch_id', string='Registros de Mortalidad')
     mortality_count = fields.Integer(string='Registros de Mortalidad', compute='_compute_mortality_count')
-    
+
     # Edad del lote
     age_days = fields.Integer(string='Edad (días)', compute='_compute_age_days')
     age_weeks = fields.Integer(string='Edad (semanas)', compute='_compute_age_weeks')
-    days_in_coop = fields.Integer(string='Días en Galpón', compute='_compute_days_in_coop')
 
     # Período de Crianza del lote (Crianza / Producción)
     period = fields.Selection([
@@ -75,49 +77,33 @@ class PoultryBatch(models.Model):
             rearing_end_week = batch.genetics_id.rearing_end_week or 17
             batch.period = 'crianza' if batch.age_weeks <= rearing_end_week else 'produccion'
 
-    @api.depends('assignment_date')
-    def _compute_days_in_coop(self):
-        """Calcula los días que lleva el lote en el galpón"""
-        today = fields.Date.today()
+    @api.depends('coop_line_ids.coop_id', 'coop_line_ids.date_to', 'coop_line_ids.active')
+    def _compute_current_coop_ids(self):
+        """Galpones donde el lote tiene aves asignadas vigentes (sin fecha de baja/traslado)"""
         for batch in self:
-            if batch.assignment_date:
-                batch.days_in_coop = (today - batch.assignment_date).days
-            else:
-                batch.days_in_coop = 0
-    
+            active_lines = batch.coop_line_ids.filtered(lambda l: l.active and not l.date_to)
+            batch.current_coop_ids = active_lines.mapped('coop_id')
+
+    def _compute_live_bird_count(self):
+        """Aves vivas del lote: suma de aves vivas de todas sus asignaciones vigentes.
+        No se almacena porque depende de los registros de mortalidad (siempre al día)."""
+        for batch in self:
+            active_lines = batch.coop_line_ids.filtered(lambda l: l.active and not l.date_to)
+            batch.live_bird_count = sum(active_lines.mapped('live_bird_count'))
+
+    @api.depends('mortality_ids')
+    def _compute_mortality_count(self):
+        """Cuenta la cantidad de registros de mortalidad"""
+        for batch in self:
+            batch.mortality_count = len(batch.mortality_ids)
+
     @api.constrains('code')
     def _check_code_unique(self):
         """Valida que el código sea único"""
         for batch in self:
             if self.search_count([('code', '=', batch.code), ('id', '!=', batch.id)]) > 0:
                 raise ValidationError(f'El código {batch.code} ya existe. Debe ser único.')
-    
-    @api.constrains('assignment_date', 'birth_date')
-    def _check_dates(self):
-        """Valida que la fecha de asignación sea posterior a la fecha de nacimiento"""
-        for batch in self:
-            if batch.assignment_date and batch.birth_date:
-                if batch.assignment_date < batch.birth_date:
-                    raise ValidationError(
-                        'La fecha de asignación no puede ser anterior a la fecha de nacimiento.'
-                    )
-    
-    @api.constrains('bird_count', 'coop_id')
-    def _check_capacity(self):
-        """Valida que al asignar el lote no se exceda la capacidad del galpón"""
-        for batch in self:
-            if batch.coop_id and batch.bird_count > 0:
-                # Calculamos el total de aves si incluimos este lote
-                other_batches = batch.coop_id.batch_ids.filtered(lambda b: b.id != batch.id)
-                total_birds = sum(other_batches.mapped('bird_count')) + batch.bird_count
-                
-                if total_birds > batch.coop_id.capacity:
-                    raise ValidationError(
-                        f'No se puede asignar este lote al galpón {batch.coop_id.name}. '
-                        f'Se excedería la capacidad. Capacidad: {batch.coop_id.capacity}, '
-                        f'Aves totales: {total_birds}'
-                    )
-    
+
     @api.model_create_multi
     def create(self, vals_list):
         """Genera código y nombre automáticos si no se proporcionan."""
@@ -132,14 +118,14 @@ class PoultryBatch(models.Model):
                 birth_date = vals.get('birth_date', fields.Date.today())
                 vals['name'] = f'{genetics_name} - {birth_date}'
         return super().create(vals_list)
-    
+
     def name_get(self):
         """Personaliza el nombre mostrado"""
         result = []
         for batch in self:
             name = f'{batch.code} - {batch.name}'
-            if batch.coop_id:
-                name += f' [{batch.coop_id.name}]'
+            if batch.current_coop_ids:
+                coop_names = ', '.join(batch.current_coop_ids.mapped('name'))
+                name += f' [{coop_names}]'
             result.append((batch.id, name))
         return result
-

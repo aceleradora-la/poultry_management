@@ -160,5 +160,78 @@ class MrpProduction(models.Model):
             tmpl = mo.product_id.product_tmpl_id if mo.product_id else False
             if tmpl and getattr(tmpl, 'poultry_validate_kit_consumption', False):
                 mo._poultry_validate_kit_consumption_equals_finished()
-        return super().button_mark_done()
+        result = super().button_mark_done()
+        for mo in self:
+            if mo.coop_close_id:
+                mo._poultry_compute_consumption_indicator_values()
+        return result
+
+    def _poultry_get_consumption_uom(self, xml_id):
+        uom = self.env.ref(xml_id, raise_if_not_found=False)
+        return uom or self.env['uom.uom']
+
+    def _poultry_compute_consumption_indicator_values(self):
+        """Al cerrar (button_mark_done) la OF de Huevo sin Clasificar generada por un
+        Cierre de Galpón, calcula el consumo real de Alimento (g/ave-día) y Agua
+        (ml/ave-día) sumando las líneas de componentes marcadas como tales, y lo
+        reparte entre los lotes presentes en el galpón esa fecha según su población
+        viva ese día (poultry.batch.coop.line), guardando el resultado en
+        poultry.batch.indicator.value."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+
+        target_date = self.coop_close_id.date or self._get_scheduled_date()
+
+        kg_uom = self._poultry_get_consumption_uom('uom.product_uom_kgm')
+        liter_uom = self._poultry_get_consumption_uom('uom.product_uom_litre')
+
+        feed_qty_kg = 0.0
+        water_qty_l = 0.0
+        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel' and m.bom_line_id):
+            consumption_type = move.bom_line_id.poultry_consumption_type
+            if consumption_type not in ('feed', 'water'):
+                continue
+            qty = self._poultry_get_move_consumed_qty(move)
+            if consumption_type == 'feed':
+                feed_qty_kg += move.product_uom._compute_quantity(qty, kg_uom) if kg_uom else qty
+            else:
+                water_qty_l += move.product_uom._compute_quantity(qty, liter_uom) if liter_uom else qty
+
+        if feed_qty_kg <= 0 and water_qty_l <= 0:
+            return
+
+        lines = self.env['poultry.batch.coop.line'].search([
+            ('coop_id', '=', self.coop_id.id),
+            ('active', '=', True),
+            ('date_from', '<=', target_date),
+            '|', ('date_to', '=', False), ('date_to', '>=', target_date),
+        ])
+        if not lines:
+            return
+
+        birds_by_line = {line.id: line._get_live_bird_count_on(target_date) for line in lines}
+        total_birds = sum(birds_by_line.values())
+        if total_birds <= 0:
+            return
+
+        Indicator = self.env['poultry.indicator']
+        feed_indicator = Indicator.search(
+            [('category', '=', 'feed_consumption'), ('active', '=', True)], limit=1)
+        water_indicator = Indicator.search(
+            [('category', '=', 'water_consumption'), ('active', '=', True)], limit=1)
+
+        Value = self.env['poultry.batch.indicator.value']
+        feed_g_per_bird_day = (feed_qty_kg * 1000.0 / total_birds) if feed_qty_kg > 0 else 0.0
+        water_ml_per_bird_day = (water_qty_l * 1000.0 / total_birds) if water_qty_l > 0 else 0.0
+
+        for line in lines:
+            if birds_by_line[line.id] <= 0:
+                continue
+            if feed_indicator and feed_qty_kg > 0:
+                Value._set_value(line.batch_id, self.coop_id, target_date,
+                                  feed_indicator, feed_g_per_bird_day, self)
+            if water_indicator and water_qty_l > 0:
+                Value._set_value(line.batch_id, self.coop_id, target_date,
+                                  water_indicator, water_ml_per_bird_day, self)
 

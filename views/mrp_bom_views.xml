@@ -10,6 +10,11 @@
                 <field name="use_for_egg_production"
                        invisible="not product_is_egg_production"/>
             </field>
+            <xpath expr="//field[@name='bom_line_ids']/list" position="inside">
+                <field name="product_is_egg_production" column_invisible="1"/>
+                <field name="poultry_consumption_type" optional="show"
+                       invisible="not product_is_egg_production"/>
+            </xpath>
         </field>
     </record>
 </odoo>

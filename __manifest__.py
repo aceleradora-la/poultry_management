@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.12.0',
+    'version': '18.0.1.14.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -37,6 +37,8 @@
         'views/poultry_genetics_views.xml',
         'views/poultry_coop_views.xml',
         'views/poultry_batch_views.xml',
+        'views/poultry_batch_coop_line_views.xml',
+        'views/poultry_batch_indicator_value_views.xml',
         'views/poultry_coop_bom_views.xml',
         'report/poultry_egg_collection_report_templates.xml',
         'report/poultry_egg_collection_report.xml',

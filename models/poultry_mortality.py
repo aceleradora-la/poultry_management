@@ -13,8 +13,8 @@ class PoultryMortality(models.Model):
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, 
                                domain="[('active', '=', True)]", index=True)
     genetics_id = fields.Many2one('poultry.genetics', string='Genética', required=True)
-    batch_id = fields.Many2one('poultry.batch', string='Lote de Aves', 
-                                domain="[('coop_id', '=', coop_id), ('genetics_id', '=', genetics_id), ('active', '=', True)]",
+    batch_id = fields.Many2one('poultry.batch', string='Lote de Aves',
+                                domain="[('current_coop_ids', '=', coop_id), ('genetics_id', '=', genetics_id), ('active', '=', True)]",
                                 help='Lote específico de aves (opcional)')
     date = fields.Date(string='Fecha', required=True, default=fields.Date.today, index=True)
     

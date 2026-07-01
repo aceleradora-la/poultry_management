@@ -12,6 +12,7 @@
                 <field name="size"/>
                 <field name="capacity"/>
                 <field name="current_birds_count"/>
+                <field name="live_bird_count"/>
                 <field name="occupancy_percentage" widget="percentage"/>
                 <field name="batch_count"/>
                 <field name="active_bom_name"/>
@@ -51,6 +52,7 @@
                         </group>
                         <group>
                             <field name="current_birds_count" readonly="1"/>
+                            <field name="live_bird_count" readonly="1"/>
                             <field name="occupancy_percentage" widget="percentage" readonly="1"/>
                             <field name="active_bom_id" invisible="1"/>
                             <field name="active_bom_name" readonly="1" 
@@ -75,16 +77,15 @@
                     </group>
                     <notebook>
                         <page string="Lotes de Aves" name="batches">
-                            <field name="batch_ids" nolabel="1">
-                                <list string="Lotes Asignados" editable="bottom">
-                                    <field name="code"/>
-                                    <field name="name"/>
-                                    <field name="genetics_id"/>
-                                    <field name="birth_date"/>
-                                    <field name="assignment_date"/>
+                            <field name="coop_line_ids" nolabel="1" context="{'default_coop_id': id}">
+                                <list string="Asignaciones de Lotes" editable="bottom">
+                                    <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
                                     <field name="bird_count"/>
-                                    <field name="age_days"/>
-                                    <field name="days_in_coop"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
+                                    <field name="dead_count"/>
+                                    <field name="live_bird_count"/>
+                                    <field name="active" widget="boolean_toggle"/>
                                 </list>
                             </field>
                         </page>
