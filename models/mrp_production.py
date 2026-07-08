@@ -286,6 +286,7 @@ class MrpProduction(models.Model):
         self._poultry_compute_mortality_indicator_values()
         self._poultry_compute_egg_mass_and_weight_indicator_values()
         self._poultry_compute_viability_indicator_values()
+        self._poultry_compute_feed_conversion_indicator_values()
 
     def _poultry_compute_consumption_indicator_values(self):
         """Al cerrar la OF de Huevo sin Clasificar generada por un Cierre de Galpón,
@@ -653,5 +654,119 @@ class MrpProduction(models.Model):
                 Value._set_value(batch, self.coop_id, target_date, weight_indicator,
                                   avg_weight_g,
                                   numerator=total_mass_grams, denominator=total_eggs_with_weight,
+                                  production=self)
+
+    def _poultry_compute_feed_conversion_indicator_values(self):
+        """Indicadores reales de Conversión Alimenticia: kg de Alimento consumido por
+        Docena/Unidad de Huevos, y kg de Alimento por kg de Masa de Huevo -cada uno en
+        variante Semanal (tasa diaria que se agrega por semana como suma/suma) y
+        Acumulada desde Inicio de Producción (cociente de numerador y denominador
+        acumulados por separado, mismo criterio de fecha que los indicadores 'sobre
+        Aves Alojadas': solo corre desde production_start_date, nunca se suman
+        razones diarias entre sí porque el denominador cambia día a día).
+
+        Reutiliza el mismo consumo de alimento del galpón (kg) que
+        _poultry_compute_consumption_indicator_values y la misma masa de huevo del
+        galpón (kg) que _poultry_compute_egg_mass_and_weight_indicator_values,
+        recalculados acá de forma independiente para no depender del orden en que se
+        llamen los demás métodos de este mismo punto de entrada."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+        target_date = self.coop_close_id.date or self._get_scheduled_date()
+
+        kg_uom = self._poultry_get_consumption_uom('uom.product_uom_kgm')
+        feed_qty_kg = 0.0
+        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel' and m.bom_line_id):
+            if move.bom_line_id.poultry_consumption_type != 'feed':
+                continue
+            qty = self._poultry_get_move_consumed_qty(move)
+            feed_qty_kg += move.product_uom._compute_quantity(qty, kg_uom) if kg_uom else qty
+        if feed_qty_kg <= 0:
+            return
+
+        total_eggs = self.product_qty or 0.0
+
+        collections = self.coop_close_id.egg_collection_ids.filtered(lambda c: c.state == 'done')
+        total_mass_grams = 0.0
+        for line in collections.mapped('line_ids'):
+            if line.average_weight and line.total_produced_reference:
+                total_mass_grams += line.average_weight * line.total_produced_reference
+        total_mass_kg = total_mass_grams / 1000.0
+
+        lines, birds_by_line, total_birds = self._poultry_get_active_lines_and_birds(target_date)
+        if not lines or total_birds <= 0:
+            return
+
+        Indicator = self.env['poultry.indicator']
+        feed_rate_indicator = Indicator.search(
+            [('category', '=', 'feed_conversion'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
+        feed_cumulative_indicator = Indicator.search(
+            [('category', '=', 'feed_conversion'), ('accumulation_type', '=', 'ratio_cumulative'),
+             ('active', '=', True)], limit=1)
+        mass_rate_indicator = Indicator.search(
+            [('category', '=', 'feed_egg_mass_conversion'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
+        mass_cumulative_indicator = Indicator.search(
+            [('category', '=', 'feed_egg_mass_conversion'), ('accumulation_type', '=', 'ratio_cumulative'),
+             ('active', '=', True)], limit=1)
+        if not any((feed_rate_indicator, feed_cumulative_indicator,
+                    mass_rate_indicator, mass_cumulative_indicator)):
+            return
+
+        Value = self.env['poultry.batch.indicator.value']
+        feed_size_indicator = feed_rate_indicator or feed_cumulative_indicator
+        egg_group_size = (feed_size_indicator.egg_group_size or 12) if feed_size_indicator else 12
+
+        for line in lines:
+            birds = birds_by_line[line.id]
+            if birds <= 0:
+                continue
+            batch = line.batch_id
+            share = birds / total_birds
+            batch_feed_kg = feed_qty_kg * share
+            batch_eggs = total_eggs * share
+            batch_mass_kg = total_mass_kg * share
+            batch_units = batch_eggs / egg_group_size if egg_group_size else 0.0
+            in_production = (batch.housed_bird_count and batch.production_start_date
+                              and target_date >= batch.production_start_date)
+
+            if feed_rate_indicator and batch_units > 0:
+                Value._set_value(batch, self.coop_id, target_date, feed_rate_indicator,
+                                  batch_feed_kg / batch_units,
+                                  numerator=batch_feed_kg, denominator=batch_units,
+                                  production=self)
+
+            if feed_cumulative_indicator and batch_units > 0 and in_production:
+                previous = Value.search([
+                    ('batch_id', '=', batch.id),
+                    ('indicator_id', '=', feed_cumulative_indicator.id),
+                    ('date', '<', target_date),
+                ], order='date desc', limit=1)
+                new_num = (previous.numerator if previous else 0.0) + batch_feed_kg
+                new_denom = (previous.denominator if previous else 0.0) + batch_units
+                Value._set_value(batch, self.coop_id, target_date, feed_cumulative_indicator,
+                                  new_num / new_denom if new_denom else 0.0,
+                                  numerator=new_num, denominator=new_denom,
+                                  production=self)
+
+            if mass_rate_indicator and batch_mass_kg > 0:
+                Value._set_value(batch, self.coop_id, target_date, mass_rate_indicator,
+                                  batch_feed_kg / batch_mass_kg,
+                                  numerator=batch_feed_kg, denominator=batch_mass_kg,
+                                  production=self)
+
+            if mass_cumulative_indicator and batch_mass_kg > 0 and in_production:
+                previous = Value.search([
+                    ('batch_id', '=', batch.id),
+                    ('indicator_id', '=', mass_cumulative_indicator.id),
+                    ('date', '<', target_date),
+                ], order='date desc', limit=1)
+                new_num = (previous.numerator if previous else 0.0) + batch_feed_kg
+                new_denom = (previous.denominator if previous else 0.0) + batch_mass_kg
+                Value._set_value(batch, self.coop_id, target_date, mass_cumulative_indicator,
+                                  new_num / new_denom if new_denom else 0.0,
+                                  numerator=new_num, denominator=new_denom,
                                   production=self)
 
