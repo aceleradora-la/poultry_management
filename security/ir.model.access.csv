@@ -33,4 +33,6 @@ access_poultry_coop_close_manager,poultry.coop.close.manager,model_poultry_coop_
 access_poultry_coop_close_user,poultry.coop.close.user,model_poultry_coop_close,poultry_management.poultry_user,1,0,0,0
 access_poultry_coop_close_wizard_manager,poultry.coop.close.wizard.manager,model_poultry_coop_close_wizard,poultry_management.poultry_manager,1,1,1,1
 access_poultry_coop_close_wizard_user,poultry.coop.close.wizard.user,model_poultry_coop_close_wizard,poultry_management.poultry_user,1,1,1,0
+access_poultry_recompute_indicators_wizard_manager,poultry.recompute.indicators.wizard.manager,model_poultry_recompute_indicators_wizard,poultry_management.poultry_manager,1,1,1,1
+access_poultry_recompute_indicators_wizard_user,poultry.recompute.indicators.wizard.user,model_poultry_recompute_indicators_wizard,poultry_management.poultry_user,1,1,1,0
 

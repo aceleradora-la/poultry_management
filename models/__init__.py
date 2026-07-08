@@ -30,4 +30,5 @@ from . import poultry_stock_move
 from . import poultry_coop_close
 from . import poultry_coop_close_wizard
 from . import poultry_config_settings
+from . import poultry_recompute_indicators_wizard
 

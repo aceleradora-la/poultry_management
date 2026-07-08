@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_recompute_indicators_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.recompute.indicators.wizard.form</field>
+        <field name="model">poultry.recompute.indicators.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Recalcular Indicadores de Producción">
+                <sheet>
+                    <p>
+                        Recalcula desde cero (borra y reconstruye) los valores reales de
+                        Consumo de Alimento/Agua y Producción de Huevos (% Ave-Día, Huevos
+                        Acumulados Ave-Día) para los Cierres de Galpón del rango elegido.
+                        Útil después de cargar un nuevo Indicador, corregir una Lista de
+                        Materiales, o si se detecta algún valor incorrecto.
+                    </p>
+                    <group>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_recompute" string="Recalcular" type="object" class="oe_highlight"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_poultry_recompute_indicators_wizard" model="ir.actions.act_window">
+        <field name="name">Recalcular Indicadores de Producción</field>
+        <field name="res_model">poultry.recompute.indicators.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- El menú padre "Configuración" está definido en poultry_menus.xml -->
+    <menuitem id="menu_poultry_recompute_indicators_wizard"
+              name="Recalcular Indicadores de Producción"
+              parent="menu_poultry_configuration"
+              action="action_poultry_recompute_indicators_wizard"
+              sequence="60"/>
+</odoo>
