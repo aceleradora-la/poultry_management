@@ -28,6 +28,8 @@ class PoultryStandardTrackingReportController(http.Controller):
         buffer = io.BytesIO()
         workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
 
+        header = report_data.get('header', {})
+        info_label_format = workbook.add_format({'bold': True})
         header_format = workbook.add_format({
             'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1,
         })
@@ -43,22 +45,31 @@ class PoultryStandardTrackingReportController(http.Controller):
         for period, sheet_name in (('crianza', 'Recría'), ('produccion', 'Parámetros productivos')):
             period_data = report_data.get(period, {'indicators': [], 'rows': []})
             sheet = workbook.add_worksheet(sheet_name)
-            sheet.freeze_panes(2, 1)
+
+            sheet.write(0, 0, 'Lote: %s' % (header.get('batch_name') or ''), info_label_format)
+            sheet.write(1, 0, 'Genética: %s' % (header.get('genetics_name') or ''), info_label_format)
+            sheet.write(2, 0, 'Versión de Estándar: %s' % (header.get('version_name') or ''), info_label_format)
+            sheet.write(3, 0, 'Galpón: %s' % (header.get('coop_names') or '-'), info_label_format)
+            sheet.write(4, 0, 'Fecha de Ingreso a Galpón: %s' % (header.get('coop_date_from') or '-'),
+                        info_label_format)
+
+            header_row = 6
+            sheet.freeze_panes(header_row + 2, 1)
 
             indicators = period_data['indicators']
-            sheet.merge_range(0, 0, 1, 0, 'Semana', header_format)
+            sheet.merge_range(header_row, 0, header_row + 1, 0, 'Semana', header_format)
             col = 1
             for indicator in indicators:
-                sheet.merge_range(0, col, 0, col + 2, indicator['name'], header_format)
-                sheet.write(1, col, 'Bajo', sub_header_format)
-                sheet.write(1, col + 1, 'Alto', sub_header_format)
-                sheet.write(1, col + 2, 'Real', sub_header_format)
+                sheet.merge_range(header_row, col, header_row, col + 2, indicator['name'], header_format)
+                sheet.write(header_row + 1, col, 'Bajo', sub_header_format)
+                sheet.write(header_row + 1, col + 1, 'Alto', sub_header_format)
+                sheet.write(header_row + 1, col + 2, 'Real', sub_header_format)
                 col += 3
             sheet.set_column(0, 0, 12)
             if indicators:
                 sheet.set_column(1, col - 1, 10)
 
-            row = 2
+            row = header_row + 2
             for line in period_data['rows']:
                 sheet.write(row, 0, line['label'], header_format)
                 col = 1

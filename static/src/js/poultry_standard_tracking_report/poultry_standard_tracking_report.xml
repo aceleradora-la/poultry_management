@@ -6,6 +6,14 @@
             <div class="o_control_panel">
                 <div class="o_control_panel_main d-flex align-items-center flex-wrap gap-2 p-2">
                     <h5 class="mb-0 me-3">Seguimiento de Estándares</h5>
+                    <select class="form-select form-select-sm w-auto me-2" t-on-change="onBatchChange">
+                        <t t-foreach="state.batches" t-as="batch" t-key="batch.id">
+                            <option t-att-value="batch.id"
+                                    t-att-selected="header and header.batch_id === batch.id">
+                                <t t-esc="batch.name"/>
+                            </option>
+                        </t>
+                    </select>
                     <div class="btn-group me-2" role="group">
                         <button class="btn btn-sm"
                                 t-att-class="state.period === 'crianza' ? 'btn-primary' : 'btn-outline-primary'"
@@ -24,6 +32,17 @@
                     <button class="btn btn-sm btn-secondary" t-on-click="exportXlsx">
                         Exportar Excel
                     </button>
+                </div>
+                <div class="o_control_panel_secondary p-2 border-top small text-muted" t-if="header">
+                    <span class="me-3"><strong>Genética:</strong> <t t-esc="header.genetics_name"/></span>
+                    <span class="me-3"><strong>Versión de Estándar:</strong> <t t-esc="header.version_name"/></span>
+                    <span class="me-3"><strong>Galpón:</strong> <t t-esc="header.coop_names or '-'"/></span>
+                    <span class="me-3">
+                        <strong>Fecha de Ingreso a Galpón:</strong>
+                        <t t-esc="header.coop_date_from or '-'"/>
+                    </span>
+                    <span class="me-3"><strong>Fecha de Nacimiento:</strong> <t t-esc="header.birth_date or '-'"/></span>
+                    <span><strong>Aves:</strong> <t t-esc="header.bird_count"/></span>
                 </div>
             </div>
 

@@ -15,16 +15,24 @@ export class PoultryStandardTrackingReport extends Component {
         this.state = useState({
             period: "crianza",
             data: null,
+            batches: [],
             loading: true,
             error: null,
         });
         onWillStart(async () => {
             try {
-                this.state.data = await this.orm.call(
-                    "poultry.standard.tracking.report.wizard",
-                    "get_report_data",
-                    [this.wizardId]
-                );
+                const [data, batches] = await Promise.all([
+                    this.orm.call(
+                        "poultry.standard.tracking.report.wizard",
+                        "get_report_data",
+                        [this.wizardId]
+                    ),
+                    this.orm.searchRead(
+                        "poultry.batch", [], ["id", "name"], { order: "birth_date desc" }
+                    ),
+                ]);
+                this.state.data = data;
+                this.state.batches = batches;
             } catch (error) {
                 this.state.error = (error && error.data && error.data.message) || String(error);
             } finally {
@@ -39,6 +47,27 @@ export class PoultryStandardTrackingReport extends Component {
 
     get currentData() {
         return this.state.data ? this.state.data[this.state.period] : null;
+    }
+
+    get header() {
+        return this.state.data ? this.state.data.header : null;
+    }
+
+    async onBatchChange(ev) {
+        const batchId = parseInt(ev.target.value, 10);
+        this.state.loading = true;
+        this.state.error = null;
+        try {
+            this.state.data = await this.orm.call(
+                "poultry.standard.tracking.report.wizard",
+                "update_batch",
+                [this.wizardId, batchId]
+            );
+        } catch (error) {
+            this.state.error = (error && error.data && error.data.message) || String(error);
+        } finally {
+            this.state.loading = false;
+        }
     }
 
     async exportPdf() {

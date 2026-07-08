@@ -23,6 +23,14 @@
                                 <strong>Versión de Estándar:</strong>
                                 <span t-esc="(doc.version_id or doc.genetics_id.default_standard_version_id).name"/>
                             </div>
+                            <div class="col-4">
+                                <strong>Galpón:</strong>
+                                <span t-esc="doc.current_coop_names or '-'"/>
+                            </div>
+                            <div class="col-4">
+                                <strong>Fecha de Ingreso a Galpón:</strong>
+                                <span t-esc="doc.current_coop_date_from or '-'"/>
+                            </div>
                         </div>
 
                         <t t-set="report_data" t-value="doc.get_report_data()"/>

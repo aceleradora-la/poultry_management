@@ -24,9 +24,29 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         ('week', 'Semana'),
     ], string='Granularidad', required=True, default='week')
 
+    current_coop_names = fields.Char(string='Galpón Actual', compute='_compute_current_coop_info')
+    current_coop_date_from = fields.Date(string='Fecha de Ingreso a Galpón',
+                                          compute='_compute_current_coop_info')
+
+    @api.depends('batch_id')
+    def _compute_current_coop_info(self):
+        for wizard in self:
+            active_lines = wizard.batch_id.coop_line_ids.filtered(lambda l: l.active and not l.date_to)
+            wizard.current_coop_names = ', '.join(active_lines.mapped('coop_id.name')) or False
+            wizard.current_coop_date_from = min(active_lines.mapped('date_from')) if active_lines else False
+
     @api.onchange('batch_id')
     def _onchange_batch_id(self):
         self.version_id = self.batch_id.genetics_id.default_standard_version_id if self.batch_id else False
+
+    def update_batch(self, batch_id):
+        """Cambia el Lote de Aves de un reporte ya abierto (llamado desde el
+        componente en pantalla al elegir otro lote en el selector de filtros,
+        sin necesidad de cerrar y volver a abrir el asistente)."""
+        self.ensure_one()
+        self.batch_id = self.env['poultry.batch'].browse(batch_id)
+        self.version_id = self.batch_id.genetics_id.default_standard_version_id
+        return self.get_report_data()
 
     def _get_relevant_indicators(self, period):
         """Unión: indicadores con al menos un poultry.batch.indicator.weekly.value
@@ -111,6 +131,16 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 ],
                 'rows': rows,
             }
+        result['header'] = {
+            'batch_id': self.batch_id.id,
+            'batch_name': self.batch_id.name,
+            'genetics_name': self.genetics_id.name,
+            'version_name': version.name,
+            'birth_date': str(self.batch_id.birth_date) if self.batch_id.birth_date else False,
+            'coop_names': self.current_coop_names,
+            'coop_date_from': str(self.current_coop_date_from) if self.current_coop_date_from else False,
+            'bird_count': self.batch_id.bird_count,
+        }
         return result
 
     def _get_standard_range(self, version, indicator, week):
