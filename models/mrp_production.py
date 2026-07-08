@@ -87,25 +87,22 @@ class MrpProduction(models.Model):
         return (self.coop_close_id.date if self.coop_close_id else False) or self._get_scheduled_date()
 
     def _poultry_get_coop_batches_and_birds(self, target_date):
-        """Devuelve (batches, birds_by_batch, total_birds): los lotes activos del galpón
-        y su población viva a la fecha (cantidad de aves menos mortandad acumulada, sin
-        contar los registros de esta misma OF). Usa los lotes actualmente asignados al
-        galpón (poultry.coop.current_batch_ids, vía poultry.batch.coop.line); la migración
-        al cálculo histórico real por fecha (_get_live_bird_count_on) llega en la fase de
-        indicadores de producción."""
+        """Devuelve (batches, birds_by_batch, total_birds): los lotes con asignación
+        vigente al galpón en target_date (poultry.batch.coop.line) y su población viva
+        esa fecha (_get_live_bird_count_on, la misma lógica histórica de Aves Vivas de
+        todo el módulo). Compartido por mortandad, consumo y producción de huevos."""
         self.ensure_one()
-        Mortality = self.env['poultry.mortality']
-        batches = self.coop_id.current_batch_ids.filtered(lambda b: b.active and b.bird_count > 0)
+        lines = self.env['poultry.batch.coop.line'].search([
+            ('coop_id', '=', self.coop_id.id),
+            ('active', '=', True),
+            ('date_from', '<=', target_date),
+            '|', ('date_to', '=', False), ('date_to', '>=', target_date),
+        ])
         birds_by_batch = {}
-        for batch in batches:
-            deaths = Mortality.search([
-                ('batch_id', '=', batch.id),
-                ('active', '=', True),
-                ('date', '<=', target_date),
-                ('production_id', '!=', self.id),
-            ])
-            live = max(batch.bird_count - sum(deaths.mapped('dead_count')), 0)
-            birds_by_batch[batch.id] = live
+        for line in lines:
+            birds_by_batch[line.batch_id.id] = (birds_by_batch.get(line.batch_id.id, 0)
+                                                 + line._get_live_bird_count_on(target_date))
+        batches = lines.mapped('batch_id')
         return batches, birds_by_batch, sum(birds_by_batch.values())
 
     def _poultry_distribute_integer(self, total, batches, birds_by_batch):
@@ -233,8 +230,170 @@ class MrpProduction(models.Model):
         result = super().button_mark_done()
         # La mortandad se guarda en la tabla recién al confirmar/producir la OF de Huevo
         # sin Clasificar. El reparto valida contra las aves vivas del galpón; si no cierra,
-        # levanta UserError y toda la operación (incluido el producido) se revierte.
+        # levanta UserError y toda la operación (incluido el producido) se revierte. Se
+        # sincroniza ANTES de calcular los indicadores para que las Aves Vivas del día
+        # reflejen la mortandad recién registrada.
         for mo in self.filtered(lambda m: m.coop_close_id):
             mo._poultry_sync_mortality()
+            mo._poultry_compute_all_indicator_values()
         return result
+
+    def _poultry_get_consumption_uom(self, xml_id):
+        uom = self.env.ref(xml_id, raise_if_not_found=False)
+        return uom or self.env['uom.uom']
+
+    def _poultry_compute_all_indicator_values(self):
+        """Punto de entrada único para calcular todos los indicadores reales derivados
+        de esta OF de Huevo sin Clasificar (consumo + producción de huevos). Se llama
+        tanto desde button_mark_done() (tiempo real) como desde el recálculo histórico
+        (poultry.coop.close._poultry_rebuild_all_indicator_values)."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+        self._poultry_compute_consumption_indicator_values()
+        self._poultry_compute_egg_production_indicator_values()
+
+    def _poultry_compute_consumption_indicator_values(self):
+        """Al cerrar la OF de Huevo sin Clasificar generada por un Cierre de Galpón,
+        calcula el consumo real de Alimento (g/ave-día) y Agua (ml/ave-día) sumando
+        las líneas de componentes marcadas como tales, y lo reparte entre los lotes
+        presentes en el galpón esa fecha según su población viva ese día
+        (poultry.batch.coop.line), guardando el resultado en
+        poultry.batch.indicator.value."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+
+        target_date = self.coop_close_id.date or self._get_scheduled_date()
+
+        kg_uom = self._poultry_get_consumption_uom('uom.product_uom_kgm')
+        liter_uom = self._poultry_get_consumption_uom('uom.product_uom_litre')
+
+        feed_qty_kg = 0.0
+        water_qty_l = 0.0
+        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel' and m.bom_line_id):
+            consumption_type = move.bom_line_id.poultry_consumption_type
+            if consumption_type not in ('feed', 'water'):
+                continue
+            qty = self._poultry_get_move_consumed_qty(move)
+            if consumption_type == 'feed':
+                feed_qty_kg += move.product_uom._compute_quantity(qty, kg_uom) if kg_uom else qty
+            else:
+                water_qty_l += move.product_uom._compute_quantity(qty, liter_uom) if liter_uom else qty
+
+        if feed_qty_kg <= 0 and water_qty_l <= 0:
+            return
+
+        batches, birds_by_batch, total_birds = self._poultry_get_coop_batches_and_birds(target_date)
+        if not batches or total_birds <= 0:
+            return
+
+        Indicator = self.env['poultry.indicator']
+        feed_indicator = Indicator.search(
+            [('category', '=', 'feed_consumption'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
+        water_indicator = Indicator.search(
+            [('category', '=', 'water_consumption'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
+
+        Value = self.env['poultry.batch.indicator.value']
+        feed_g_per_bird_day = (feed_qty_kg * 1000.0 / total_birds) if feed_qty_kg > 0 else 0.0
+        water_ml_per_bird_day = (water_qty_l * 1000.0 / total_birds) if water_qty_l > 0 else 0.0
+
+        for batch in batches:
+            birds = birds_by_batch[batch.id]
+            if birds <= 0:
+                continue
+            if feed_indicator and feed_qty_kg > 0:
+                Value._set_value(batch, self.coop_id, target_date, feed_indicator,
+                                  feed_g_per_bird_day,
+                                  numerator=feed_g_per_bird_day * birds, denominator=birds,
+                                  production=self)
+            if water_indicator and water_qty_l > 0:
+                Value._set_value(batch, self.coop_id, target_date, water_indicator,
+                                  water_ml_per_bird_day,
+                                  numerator=water_ml_per_bird_day * birds, denominator=birds,
+                                  production=self)
+
+    def _poultry_compute_egg_production_indicator_values(self):
+        """Al cerrar la OF de Huevo sin Clasificar: % Ave-Día, Huevos Acumulados
+        Ave-Día y Huevos Acumulados Ave-Alojada por lote, repartiendo el total de
+        huevos del día (self.product_qty) entre los lotes presentes en el galpón
+        según su población viva ese día.
+
+        % Ave-Día es una tasa diaria (huevos de este lote ese día / aves vivas ese
+        día). Los dos acumulados son independientes entre sí: NO se derivan del %
+        Ave-Día ya calculado, se recalculan cada día desde los mismos datos crudos.
+        Ave-Día acumulado suma cada día huevos/aves VIVAS ese día. Ave-Alojada
+        acumulado suma cada día huevos/aves ALOJADAS AL INICIO (fija, no baja con la
+        mortalidad ni sube con nuevos Ingresos) — solo se calcula si el lote ya tiene
+        un Cambio de Período a Producción registrado y la fecha es posterior a esa
+        Fecha de Entrada en Producción."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+        target_date = self.coop_close_id.date or self._get_scheduled_date()
+        total_eggs = self.product_qty or 0.0
+        if total_eggs <= 0:
+            return
+
+        batches, birds_by_batch, total_birds = self._poultry_get_coop_batches_and_birds(target_date)
+        if not batches or total_birds <= 0:
+            return
+
+        Indicator = self.env['poultry.indicator']
+        rate_indicator = Indicator.search(
+            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
+        cumulative_live_indicator = Indicator.search(
+            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'live'),
+             ('active', '=', True)], limit=1)
+        cumulative_housed_indicator = Indicator.search(
+            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'housed'),
+             ('active', '=', True)], limit=1)
+        if not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator:
+            return
+
+        Value = self.env['poultry.batch.indicator.value']
+        # Uniforme por ave: mismo huevos/ave para todos los lotes que comparten el galpón.
+        eggs_per_bird_day = total_eggs / total_birds
+
+        for batch in batches:
+            birds = birds_by_batch[batch.id]
+            if birds <= 0:
+                continue
+            batch_egg_share = eggs_per_bird_day * birds
+
+            if rate_indicator:
+                Value._set_value(batch, self.coop_id, target_date, rate_indicator,
+                                  eggs_per_bird_day * 100.0,
+                                  numerator=batch_egg_share * 100.0, denominator=birds,
+                                  production=self)
+
+            if cumulative_live_indicator:
+                previous = Value.search([
+                    ('batch_id', '=', batch.id),
+                    ('indicator_id', '=', cumulative_live_indicator.id),
+                    ('date', '<', target_date),
+                ], order='date desc', limit=1)
+                previous_total = previous.value if previous else 0.0
+                Value._set_value(batch, self.coop_id, target_date, cumulative_live_indicator,
+                                  previous_total + eggs_per_bird_day,
+                                  numerator=batch_egg_share, denominator=birds,
+                                  production=self)
+
+            if cumulative_housed_indicator:
+                if (batch.housed_bird_count and batch.production_start_date
+                        and target_date >= batch.production_start_date):
+                    previous = Value.search([
+                        ('batch_id', '=', batch.id),
+                        ('indicator_id', '=', cumulative_housed_indicator.id),
+                        ('date', '<', target_date),
+                    ], order='date desc', limit=1)
+                    previous_total = previous.value if previous else 0.0
+                    eggs_per_housed_bird = batch_egg_share / batch.housed_bird_count
+                    Value._set_value(batch, self.coop_id, target_date, cumulative_housed_indicator,
+                                      previous_total + eggs_per_housed_bird,
+                                      numerator=batch_egg_share, denominator=batch.housed_bird_count,
+                                      production=self)
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.8.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -38,6 +38,7 @@
         'views/poultry_coop_views.xml',
         'views/poultry_batch_views.xml',
         'views/poultry_batch_coop_line_views.xml',
+        'views/poultry_batch_indicator_value_views.xml',
         'views/poultry_coop_bom_views.xml',
         'report/poultry_egg_collection_report_templates.xml',
         'report/poultry_egg_collection_report.xml',
@@ -49,10 +50,12 @@
         'views/poultry_coop_close_wizard_views.xml',
         'views/poultry_mortality_views.xml',
         'views/poultry_genetics_standard_views.xml',
+        'views/mrp_bom_views.xml',
         'views/mrp_production_views.xml',
         'views/poultry_batch_movement_views.xml',
         'views/poultry_menus.xml',
         'views/poultry_batch_period_change_views.xml',
+        'views/poultry_batch_indicator_weekly_value_views.xml',
         'reports/poultry_report_wizard_views.xml',
         'reports/poultry_reports.xml',
     ],

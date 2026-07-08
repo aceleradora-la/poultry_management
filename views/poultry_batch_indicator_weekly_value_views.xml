@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_batch_indicator_weekly_value_tree" model="ir.ui.view">
+        <field name="name">poultry.batch.indicator.weekly.value.tree</field>
+        <field name="model">poultry.batch.indicator.weekly.value</field>
+        <field name="arch" type="xml">
+            <list string="Valores Reales Semanales de Indicadores" default_order="week desc">
+                <field name="batch_id"/>
+                <field name="indicator_id"/>
+                <field name="week"/>
+                <field name="period" widget="badge"
+                       decoration-info="period == 'crianza'"
+                       decoration-success="period == 'produccion'"/>
+                <field name="week_date_from"/>
+                <field name="week_date_to"/>
+                <field name="value_low"/>
+                <field name="value_high"/>
+                <field name="real_value"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_indicator_weekly_value_pivot" model="ir.ui.view">
+        <field name="name">poultry.batch.indicator.weekly.value.pivot</field>
+        <field name="model">poultry.batch.indicator.weekly.value</field>
+        <field name="arch" type="xml">
+            <pivot string="Valores Reales Semanales de Indicadores">
+                <field name="week" type="row"/>
+                <field name="indicator_id" type="col"/>
+                <field name="value_low" type="measure"/>
+                <field name="value_high" type="measure"/>
+                <field name="real_value" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_indicator_weekly_value_search" model="ir.ui.view">
+        <field name="name">poultry.batch.indicator.weekly.value.search</field>
+        <field name="model">poultry.batch.indicator.weekly.value</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Valores Reales Semanales">
+                <field name="batch_id"/>
+                <field name="indicator_id"/>
+                <field name="week"/>
+                <separator/>
+                <filter string="Crianza" name="crianza" domain="[('period', '=', 'crianza')]"/>
+                <filter string="Producción" name="produccion" domain="[('period', '=', 'produccion')]"/>
+                <separator/>
+                <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
+                <filter string="Por Indicador" name="by_indicator" context="{'group_by': 'indicator_id'}"/>
+                <filter string="Por Semana" name="by_week" context="{'group_by': 'week'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_batch_indicator_weekly_value" model="ir.actions.act_window">
+        <field name="name">Valores Reales Semanales de Indicadores</field>
+        <field name="res_model">poultry.batch.indicator.weekly.value</field>
+        <field name="view_mode">pivot,list</field>
+        <field name="help" type="html">
+            <p>
+                Valores reales agregados por Semana de Vida (no semana calendario),
+                ya calculados correctamente al guardar cada valor diario: suma de
+                numerador/denominador para indicadores de tasa, último valor para
+                acumulados. Incluye el Bajo/Alto del estándar (versión predeterminada
+                de la genética) como medidas, para comparar Real vs. Estándar directo
+                en el pivot. Explorá libremente agrupando por lote, indicador o semana.
+            </p>
+        </field>
+    </record>
+
+    <!-- El menú padre "Reportes" está definido en poultry_menus.xml -->
+    <menuitem id="menu_poultry_batch_indicator_weekly_value"
+              name="Valores Reales Semanales"
+              parent="menu_poultry_reports"
+              action="action_poultry_batch_indicator_weekly_value"
+              sequence="17"/>
+</odoo>
