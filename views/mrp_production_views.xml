@@ -8,9 +8,40 @@
         <field name="arch" type="xml">
             <!-- Buscar el campo product_id dentro de un group dentro del sheet -->
             <xpath expr="//sheet//group//field[@name='product_id']" position="after">
-                <field name="coop_id" 
-                       options="{'no_create': False, 'no_create_edit': False}" 
+                <field name="coop_id"
+                       options="{'no_create': False, 'no_create_edit': False}"
                        readonly="state == 'done' or state == 'cancel'"/>
+                <!-- Necesario para el modificador invisible de la solapa Aves Muertas. -->
+                <field name="coop_close_id" invisible="1"/>
+            </xpath>
+
+            <!-- Solapa Aves Muertas: solo en la OF de Huevo sin Clasificar
+                 (generada por un Cierre de Galpón, identificada por coop_close_id).
+                 Se agrega al final del notebook, que en el formulario estándar de mrp
+                 queda justo después de la página Miscelánea (última página). -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Aves Muertas" name="poultry_mortality"
+                      invisible="not coop_close_id">
+                    <group>
+                        <group>
+                            <field name="coop_id" readonly="1"/>
+                            <field name="poultry_dead_count_total"
+                                   readonly="state == 'cancel'"/>
+                        </group>
+                    </group>
+                    <separator string="Reparto por lote"/>
+                    <field name="poultry_mortality_ids" readonly="1">
+                        <list string="Mortandad por lote" create="false" edit="false" delete="false">
+                            <field name="batch_id"/>
+                            <field name="genetics_id"/>
+                            <field name="batch_age_weeks"/>
+                            <field name="assigned_bird_count"/>
+                            <field name="dead_count"/>
+                            <field name="live_bird_count"/>
+                            <field name="mortality_pct"/>
+                        </list>
+                    </field>
+                </page>
             </xpath>
         </field>
     </record>
