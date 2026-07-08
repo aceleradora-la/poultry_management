@@ -33,6 +33,7 @@
                             <field name="uom_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="category"/>
                             <field name="accumulation_type"/>
+                            <field name="egg_group_size" invisible="category != 'feed_conversion'"/>
                             <field name="sequence"/>
                         </group>
                         <group>
