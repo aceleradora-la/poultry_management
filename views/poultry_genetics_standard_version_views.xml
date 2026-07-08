@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_genetics_standard_version_tree" model="ir.ui.view">
+        <field name="name">poultry.genetics.standard.version.tree</field>
+        <field name="model">poultry.genetics.standard.version</field>
+        <field name="arch" type="xml">
+            <list string="Versiones de Estándar">
+                <field name="genetics_id"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="is_default" widget="boolean_toggle"/>
+                <field name="standard_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_genetics_standard_version_form" model="ir.ui.view">
+        <field name="name">poultry.genetics.standard.version.form</field>
+        <field name="model">poultry.genetics.standard.version</field>
+        <field name="arch" type="xml">
+            <form string="Versión de Estándar de Genética">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="name" placeholder="Ej: Guía de Rendimiento Abril 2026"/>
+                            <field name="code"/>
+                            <field name="is_default"/>
+                        </group>
+                        <group>
+                            <field name="notes" placeholder="Información adicional sobre esta versión..."/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Estándares" name="standards">
+                            <field name="standard_ids" nolabel="1" context="{'default_version_id': id}">
+                                <list string="Estándares por Semana" editable="bottom">
+                                    <field name="indicator_id"/>
+                                    <field name="period" widget="badge"
+                                           decoration-info="period == 'crianza'"
+                                           decoration-success="period == 'produccion'"/>
+                                    <field name="week"/>
+                                    <field name="value_low"/>
+                                    <field name="value_high"/>
+                                    <field name="notes"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_genetics_standard_version_search" model="ir.ui.view">
+        <field name="name">poultry.genetics.standard.version.search</field>
+        <field name="model">poultry.genetics.standard.version</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Versiones de Estándar">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="genetics_id"/>
+                <separator/>
+                <filter string="Predeterminadas" name="is_default" domain="[('is_default', '=', True)]"/>
+                <filter string="Activas" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivas" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_genetics_standard_version" model="ir.actions.act_window">
+        <field name="name">Versiones de Estándar</field>
+        <field name="res_model">poultry.genetics.standard.version</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear una nueva versión de estándar
+            </p>
+            <p>
+                Cada genética puede tener varias versiones de estándar (ej. distintas
+                ediciones de la guía de rendimiento). Marque una como Predeterminada
+                para usarla automáticamente en los reportes de comparación.
+            </p>
+        </field>
+    </record>
+</odoo>

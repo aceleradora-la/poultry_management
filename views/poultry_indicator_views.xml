@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_indicator_tree" model="ir.ui.view">
+        <field name="name">poultry.indicator.tree</field>
+        <field name="model">poultry.indicator</field>
+        <field name="arch" type="xml">
+            <list string="Indicadores de Genética">
+                <field name="sequence" widget="handle"/>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="accumulation_type"/>
+                <field name="uom_id"/>
+                <field name="standard_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_indicator_form" model="ir.ui.view">
+        <field name="name">poultry.indicator.form</field>
+        <field name="model">poultry.indicator</field>
+        <field name="arch" type="xml">
+            <form string="Indicador de Genética">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="Ej: PESO_CORP"/>
+                            <field name="name" placeholder="Ej: Peso Corporal"/>
+                            <field name="uom_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="category"/>
+                            <field name="accumulation_type"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group>
+                            <field name="real_value_source" placeholder="Ej: poultry.egg.collection:average_weight_elaborated"/>
+                            <field name="notes" placeholder="Información adicional sobre este indicador..."/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_indicator_search" model="ir.ui.view">
+        <field name="name">poultry.indicator.search</field>
+        <field name="model">poultry.indicator</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Indicadores">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="category"/>
+                <separator/>
+                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Por Categoría" name="by_category" context="{'group_by': 'category'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_indicator" model="ir.actions.act_window">
+        <field name="name">Indicadores de Genética</field>
+        <field name="res_model">poultry.indicator</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear un nuevo indicador de genética
+            </p>
+            <p>
+                Los indicadores definen qué se mide en los estándares de genética
+                (ej. Mortalidad, Peso Corporal, Consumo de Alimento) y su Unidad de Medida.
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -4,14 +4,17 @@
         <field name="name">poultry.genetics.standard.tree</field>
         <field name="model">poultry.genetics.standard</field>
         <field name="arch" type="xml">
-            <list string="Estándares" decoration-info="standard_type == 'mortality'" 
-                  decoration-success="standard_type == 'production'">
+            <list string="Estándares" decoration-info="period == 'crianza'"
+                  decoration-success="period == 'produccion'">
                 <field name="genetics_id"/>
+                <field name="version_id"/>
+                <field name="indicator_id"/>
+                <field name="period" widget="badge"
+                       decoration-info="period == 'crianza'"
+                       decoration-success="period == 'produccion'"/>
                 <field name="week"/>
-                <field name="standard_type" widget="badge" 
-                       decoration-info="standard_type == 'mortality'"
-                       decoration-success="standard_type == 'production'"/>
-                <field name="standard_value" widget="percentage"/>
+                <field name="value_low"/>
+                <field name="value_high"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
@@ -28,12 +31,15 @@
                 <sheet>
                     <group>
                         <group>
-                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="version_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="genetics_id" readonly="1"/>
+                            <field name="indicator_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="period" widget="radio" options="{'horizontal': true}"/>
                             <field name="week"/>
-                            <field name="standard_type" widget="radio" options="{'horizontal': true}"/>
-                            <field name="standard_value" widget="percentage"/>
                         </group>
                         <group>
+                            <field name="value_low"/>
+                            <field name="value_high"/>
                             <field name="notes" placeholder="Información adicional sobre este estándar..."/>
                         </group>
                     </group>
@@ -48,15 +54,19 @@
         <field name="arch" type="xml">
             <search string="Buscar Estándares">
                 <field name="genetics_id"/>
+                <field name="version_id"/>
+                <field name="indicator_id"/>
                 <field name="week"/>
-                <field name="standard_type"/>
                 <separator/>
-                <filter string="Mortalidad" name="mortality" domain="[('standard_type', '=', 'mortality')]"/>
-                <filter string="Producción" name="production" domain="[('standard_type', '=', 'production')]"/>
+                <filter string="Crianza" name="crianza" domain="[('period', '=', 'crianza')]"/>
+                <filter string="Producción" name="produccion" domain="[('period', '=', 'produccion')]"/>
                 <separator/>
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <separator/>
                 <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
+                <filter string="Por Versión" name="by_version" context="{'group_by': 'version_id'}"/>
+                <filter string="Por Indicador" name="by_indicator" context="{'group_by': 'indicator_id'}"/>
+                <filter string="Por Período" name="by_period" context="{'group_by': 'period'}"/>
                 <filter string="Por Semana" name="by_week" context="{'group_by': 'week'}"/>
             </search>
         </field>
@@ -68,4 +78,3 @@
         <field name="view_mode">list,form</field>
     </record>
 </odoo>
-

@@ -9,6 +9,8 @@ from . import uom_uom
 from . import poultry_coop
 from . import poultry_batch
 from . import poultry_coop_bom
+from . import poultry_indicator
+from . import poultry_genetics_standard_version
 from . import poultry_genetics
 from . import poultry_genetics_standard
 from . import poultry_mortality
