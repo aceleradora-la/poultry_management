@@ -34,6 +34,38 @@
                             Producción
                         </button>
                     </div>
+                    <div class="dropdown me-2" t-if="currentData">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                            Indicadores
+                        </button>
+                        <ul class="dropdown-menu p-2" style="max-height: 320px; overflow-y: auto; min-width: 260px;">
+                            <li>
+                                <a class="dropdown-item" href="#" t-on-click.prevent="showAllIndicators">
+                                    Mostrar todos
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" t-on-click.prevent="hideAllIndicators">
+                                    Ocultar todos
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"/></li>
+                            <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                <li>
+                                    <div class="dropdown-item form-check mb-0">
+                                        <input type="checkbox" class="form-check-input"
+                                               t-att-id="'indicator_toggle_' + indicator.id"
+                                               t-att-checked="!state.hiddenIndicatorIds[indicator.id]"
+                                               t-on-change="() => this.toggleIndicatorVisibility(indicator.id)"/>
+                                        <label class="form-check-label" t-att-for="'indicator_toggle_' + indicator.id">
+                                            <t t-esc="indicator.name"/>
+                                        </label>
+                                    </div>
+                                </li>
+                            </t>
+                        </ul>
+                    </div>
                     <button class="btn btn-sm btn-secondary" t-on-click="exportPdf">
                         Exportar PDF
                     </button>
@@ -73,14 +105,14 @@
                             <tr>
                                 <th rowspan="2" class="align-middle text-center">Edad</th>
                                 <th rowspan="2" class="align-middle text-center">Fecha</th>
-                                <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
                                     <th colspan="3" class="text-center">
                                         <t t-esc="indicator.name"/>
                                     </th>
                                 </t>
                             </tr>
                             <tr>
-                                <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
                                     <th class="text-center fw-normal">Bajo</th>
                                     <th class="text-center fw-normal">Alto</th>
                                     <th class="text-center fw-bold">Real</th>
@@ -95,7 +127,7 @@
                                 <td class="text-center text-nowrap">
                                     <t t-esc="row.date"/>
                                 </td>
-                                <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
                                     <t t-set="cell" t-value="row.cells[indicator.id]"/>
                                     <td class="text-center">
                                         <t t-if="cell.has_standard" t-esc="cell.value_low.toFixed(2)"/>
