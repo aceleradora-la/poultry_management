@@ -1,38 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_poultry_standard_tracking_report_wizard_form" model="ir.ui.view">
-        <field name="name">poultry.standard.tracking.report.wizard.form</field>
-        <field name="model">poultry.standard.tracking.report.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Reporte de Seguimiento de Estándares">
-                <sheet>
-                    <group>
-                        <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                        <field name="genetics_id" readonly="1"/>
-                        <field name="version_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                    </group>
-                    <field name="date_from" invisible="1"/>
-                    <field name="date_to" invisible="1"/>
-                    <field name="granularity" invisible="1"/>
-                </sheet>
-                <footer>
-                    <button name="action_generate" string="Generar Reporte" type="object" class="oe_highlight"/>
-                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <record id="action_poultry_standard_tracking_report" model="ir.actions.act_window">
+    <!-- El reporte en pantalla ya permite elegir Lote y Versión de Estándar desde sus
+         propios selectores, así que el menú abre directamente el componente para el
+         primer lote activo en vez de pasar por un formulario de selección previo. -->
+    <record id="action_poultry_standard_tracking_report_open" model="ir.actions.server">
         <field name="name">Seguimiento de Estándares</field>
-        <field name="res_model">poultry.standard.tracking.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
+        <field name="model_id" ref="model_poultry_standard_tracking_report_wizard"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_direct()</field>
     </record>
 
     <menuitem id="menu_poultry_standard_tracking_report"
               name="Seguimiento de Estándares"
               parent="menu_poultry_reports"
-              action="action_poultry_standard_tracking_report"
+              action="action_poultry_standard_tracking_report_open"
               sequence="25"/>
 </odoo>

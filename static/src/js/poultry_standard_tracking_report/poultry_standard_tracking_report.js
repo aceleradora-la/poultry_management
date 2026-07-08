@@ -55,13 +55,22 @@ export class PoultryStandardTrackingReport extends Component {
 
     async onBatchChange(ev) {
         const batchId = parseInt(ev.target.value, 10);
+        await this._reload("update_batch", batchId);
+    }
+
+    async onVersionChange(ev) {
+        const versionId = parseInt(ev.target.value, 10);
+        await this._reload("update_version", versionId);
+    }
+
+    async _reload(method, arg) {
         this.state.loading = true;
         this.state.error = null;
         try {
             this.state.data = await this.orm.call(
                 "poultry.standard.tracking.report.wizard",
-                "update_batch",
-                [this.wizardId, batchId]
+                method,
+                [this.wizardId, arg]
             );
         } catch (error) {
             this.state.error = (error && error.data && error.data.message) || String(error);

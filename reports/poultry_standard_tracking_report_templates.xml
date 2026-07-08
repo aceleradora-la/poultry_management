@@ -44,7 +44,10 @@
                                     <thead>
                                         <tr>
                                             <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
-                                                Semana
+                                                Edad
+                                            </th>
+                                            <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
+                                                Fecha
                                             </th>
                                             <t t-foreach="period_data['indicators']" t-as="indicator">
                                                 <th colspan="3" style="text-align: center; background: none !important; color: #333 !important; border-bottom: 1px solid #333;">
@@ -63,7 +66,10 @@
                                     <tbody>
                                         <tr t-foreach="period_data['rows']" t-as="row">
                                             <td style="text-align: center; font-weight: bold; white-space: nowrap;">
-                                                <t t-esc="row['label']"/>
+                                                <t t-esc="row['week']"/>
+                                            </td>
+                                            <td style="text-align: center; white-space: nowrap;">
+                                                <t t-esc="row['date']"/>
                                             </td>
                                             <t t-foreach="period_data['indicators']" t-as="indicator">
                                                 <t t-set="cell" t-value="row['cells'][indicator['id']]"/>
