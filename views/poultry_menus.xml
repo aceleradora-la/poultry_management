@@ -48,6 +48,12 @@
               sequence="12"
               groups="stock.group_stock_user"/>
 
+    <menuitem id="menu_poultry_batch_indicator_value"
+              name="Valores Reales de Indicadores"
+              parent="menu_poultry_reports"
+              action="action_poultry_batch_indicator_value"
+              sequence="15"/>
+
     <!-- Menú: Configuración -->
     <menuitem id="menu_poultry_configuration" 
               name="Configuración" 
