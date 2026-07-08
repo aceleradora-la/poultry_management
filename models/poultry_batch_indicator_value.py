@@ -11,6 +11,11 @@ class PoultryBatchIndicatorValue(models.Model):
     _order = 'date desc'
     _rec_name = 'display_name'
 
+    # Tipos de acumulación cuyo Valor Real es una TASA diaria independiente (se agrega
+    # por semana como suma(numerador)/suma(denominador)). Cualquier otro tipo se trata
+    # como acumulado/estado del lote (se muestra el último valor de la semana).
+    _RATE_ACCUMULATION_TYPES = ('none', 'original_rate')
+
     batch_id = fields.Many2one('poultry.batch', string='Lote de Aves', required=True,
                                 index=True, ondelete='cascade')
     coop_id = fields.Many2one('poultry.coop', string='Galpón', required=True, index=True)
@@ -102,7 +107,7 @@ class PoultryBatchIndicatorValue(models.Model):
         if not week_values:
             return
 
-        if indicator.accumulation_type != 'none':
+        if indicator.accumulation_type not in self._RATE_ACCUMULATION_TYPES:
             real_value = week_values.sorted('date')[-1].value
         else:
             total_denominator = sum(week_values.mapped('denominator'))
