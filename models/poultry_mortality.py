@@ -22,7 +22,7 @@ class PoultryMortality(models.Model):
                                domain="[('active', '=', True)]", index=True)
     genetics_id = fields.Many2one('poultry.genetics', string='Genética', required=True)
     batch_id = fields.Many2one('poultry.batch', string='Lote de Aves',
-                                domain="[('coop_id', '=', coop_id), ('genetics_id', '=', genetics_id), ('active', '=', True)]",
+                                domain="[('current_coop_ids', '=', coop_id), ('genetics_id', '=', genetics_id), ('active', '=', True)]",
                                 help='Lote específico de aves')
     date = fields.Date(string='Fecha', required=True, default=fields.Date.today, index=True)
 
@@ -32,10 +32,8 @@ class PoultryMortality(models.Model):
     # Información calculada
     batch_age_weeks = fields.Integer(string='Edad del Lote (semanas)', compute='_compute_batch_age', store=True)
 
-    # Campos de reporte (no almacenados): Aves Alojadas, Aves Vivas y % de mortandad del
-    # lote a la fecha del registro. En 19.0 el lote pertenece a un galpón (poultry.batch.coop_id)
-    # y no hay conteo por fecha, así que las aves vivas se calculan como la cantidad de aves
-    # del lote menos la mortandad acumulada hasta la fecha.
+    # Campos de reporte (no almacenados): se calculan a partir de la asignación
+    # (poultry.batch.coop.line) del lote en el galpón vigente a la fecha del registro.
     assigned_bird_count = fields.Integer(string='Aves Alojadas', compute='_compute_report_values')
     live_bird_count = fields.Integer(string='Aves Vivas', compute='_compute_report_values')
     mortality_pct = fields.Float(string='% Mortandad', compute='_compute_report_values', digits=(16, 4))
@@ -54,32 +52,34 @@ class PoultryMortality(models.Model):
             else:
                 record.batch_age_weeks = 0
 
-    def _get_cumulative_dead(self, batch, date):
-        """Aves muertas acumuladas del lote hasta la fecha (inclusive), según los
-        registros activos de poultry.mortality."""
-        if not (batch and date):
-            return 0
-        deaths = self.search([
-            ('batch_id', '=', batch.id),
+    def _get_coop_line(self):
+        """Asignación (poultry.batch.coop.line) del lote en el galpón vigente a la fecha
+        del registro. Es la misma asignación que alimenta el cálculo de Aves Vivas."""
+        self.ensure_one()
+        if not (self.batch_id and self.coop_id and self.date):
+            return self.env['poultry.batch.coop.line']
+        return self.env['poultry.batch.coop.line'].search([
+            ('batch_id', '=', self.batch_id.id),
+            ('coop_id', '=', self.coop_id.id),
             ('active', '=', True),
-            ('date', '<=', date),
-        ])
-        return sum(deaths.mapped('dead_count'))
+            ('date_from', '<=', self.date),
+            '|', ('date_to', '=', False), ('date_to', '>=', self.date),
+        ], limit=1)
 
     def _compute_report_values(self):
         """Columnas de reporte: Aves Alojadas, Aves Vivas y % de mortandad del lote a la
-        fecha del registro. % mortandad diaria = muertas del día / aves vivas al inicio
-        del día * 100 (base = vivas al cierre del día + muertas del día)."""
+        fecha del registro. Reusa poultry.batch.coop.line._get_live_bird_count_on (misma
+        lógica de Aves Vivas de todo el módulo). % mortandad diaria = muertas del día /
+        aves vivas al inicio del día * 100 (base = vivas al cierre del día + muertas)."""
         for record in self:
-            batch = record.batch_id
-            if not batch:
+            line = record._get_coop_line()
+            if not line:
                 record.assigned_bird_count = 0
                 record.live_bird_count = 0
                 record.mortality_pct = 0.0
                 continue
-            record.assigned_bird_count = batch.bird_count
-            dead_cumulative = record._get_cumulative_dead(batch, record.date)
-            live = max(batch.bird_count - dead_cumulative, 0)
+            record.assigned_bird_count = line.bird_count
+            live = line._get_live_bird_count_on(record.date)
             record.live_bird_count = live
             base = live + record.dead_count
             record.mortality_pct = (record.dead_count / base * 100.0) if base > 0 else 0.0

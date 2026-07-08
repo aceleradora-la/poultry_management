@@ -9,11 +9,11 @@
                 <field name="name"/>
                 <field name="genetics_id"/>
                 <field name="birth_date"/>
-                <field name="coop_id"/>
-                <field name="assignment_date"/>
+                <field name="current_coop_ids" widget="many2many_tags"/>
                 <field name="bird_count"/>
+                <field name="live_bird_count"/>
                 <field name="age_days"/>
-                <field name="days_in_coop"/>
+                <field name="age_weeks"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
@@ -28,7 +28,7 @@
                     <field name="active" widget="boolean_toggle"/>
                 </header>
                 <sheet>
-                    <widget name="web_ribbon" title="Activo" bg_color="text-success" 
+                    <widget name="web_ribbon" title="Activo" bg_color="text-success"
                             invisible="not active"/>
                     <group>
                         <group>
@@ -38,45 +38,32 @@
                             <field name="birth_date"/>
                         </group>
                         <group>
-                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="assignment_date"/>
                             <field name="bird_count"/>
                             <field name="supplier_id" domain="[('supplier_rank', '>', 0)]"/>
+                            <field name="current_coop_ids" widget="many2many_tags" readonly="1"/>
+                            <field name="live_bird_count" readonly="1"/>
                         </group>
                     </group>
                     <group>
                         <group>
                             <field name="age_days" readonly="1"/>
-                            <field name="days_in_coop" readonly="1"/>
-                        </group>
-                        <group>
-                            <field name="coop_id" invisible="1"/>
-                            <field name="genetics_id" invisible="1"/>
-                        </group>
-                    </group>
-                    <group string="Información del Galpón" invisible="not coop_id">
-                        <group>
-                            <field name="coop_id" readonly="1" invisible="1"/>
-                            <field name="coop_id" readonly="1" widget="statinfo" 
-                                   string="Capacidad del Galpón" 
-                                   invisible="not coop_id">
-                                <list>
-                                    <field name="capacity"/>
-                                </list>
-                            </field>
-                        </group>
-                        <group>
-                            <field name="coop_id" readonly="1" invisible="1"/>
-                            <field name="coop_id" readonly="1" widget="statinfo" 
-                                   string="Ocupación Actual" 
-                                   invisible="not coop_id">
-                                <list>
-                                    <field name="occupancy_percentage" widget="percentage"/>
-                                </list>
-                            </field>
+                            <field name="age_weeks" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
+                        <page string="Asignaciones a Galpón" name="coop_lines">
+                            <field name="coop_line_ids" nolabel="1" context="{'default_batch_id': id}">
+                                <list string="Asignaciones a Galpón" editable="bottom">
+                                    <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                                    <field name="bird_count"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
+                                    <field name="dead_count"/>
+                                    <field name="live_bird_count"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Notas" name="notes">
                             <field name="notes" placeholder="Información adicional sobre el lote..."/>
                         </page>
@@ -94,15 +81,14 @@
                 <field name="name" string="Nombre" filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
                 <field name="code"/>
                 <field name="genetics_id"/>
-                <field name="coop_id"/>
+                <field name="current_coop_ids"/>
                 <separator/>
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
                 <separator/>
-                <filter string="Sin Asignar" name="no_coop" domain="[('coop_id', '=', False)]"/>
+                <filter string="Sin Asignar" name="no_coop" domain="[('current_coop_ids', '=', False)]"/>
                 <separator/>
                 <filter string="Por Fecha de Nacimiento" name="by_birth_date" context="{'group_by': 'birth_date'}"/>
-                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
                 <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
             </search>
         </field>
@@ -118,9 +104,10 @@
             </p>
             <p>
                 Los lotes de aves representan grupos de aves con características comunes
-                como fecha de nacimiento y genética. Cada lote puede ser asignado a un galpón.
+                como fecha de nacimiento y genética. Un lote puede darse de alta sin
+                asignarlo todavía a un galpón, y asignarse luego a uno o más galpones
+                con fecha y cantidad.
             </p>
         </field>
     </record>
 </odoo>
-

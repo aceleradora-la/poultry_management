@@ -14,11 +14,22 @@ class PoultryCoop(models.Model):
     size = fields.Float(string='Tamaño (m²)', required=True, help='Tamaño del galpón en metros cuadrados')
     capacity = fields.Integer(string='Capacidad de Aves', required=True, help='Capacidad máxima de aves que puede albergar')
     active = fields.Boolean(string='Activo', default=True)
-    
-    # Relaciones con lotes de aves
-    batch_ids = fields.One2many('poultry.batch', 'coop_id', string='Lotes de Aves Asignados')
+
+    coop_type = fields.Selection([
+        ('recria', 'Recría'),
+        ('produccion', 'Producción'),
+    ], string='Tipo de Galpón',
+        help='Permite distinguir galpones de recría (donde ingresan las pollitas) de '
+             'galpones productivos, para el Movimiento de Aves de traslado entre ellos.')
+
+    # Relaciones con lotes de aves (vía asignaciones lote-galpón, un lote puede repartirse
+    # entre varios galpones y cambiar de galpón a lo largo de su vida)
+    coop_line_ids = fields.One2many('poultry.batch.coop.line', 'coop_id',
+                                     string='Historial de Asignaciones de Lotes')
+    current_batch_ids = fields.Many2many('poultry.batch', string='Lotes Actuales',
+                                          compute='_compute_current_batch_ids')
     batch_count = fields.Integer(string='Cantidad de Lotes', compute='_compute_batch_count')
-    
+
     # Relaciones con recolecciones de producción
     egg_collection_ids = fields.One2many('poultry.egg.collection', 'coop_id', string='Recolecciones de Producción')
     egg_collection_count = fields.Integer(string='Recolecciones', compute='_compute_egg_collection_count')
@@ -57,24 +68,37 @@ class PoultryCoop(models.Model):
     sequence_prefix = fields.Char(string='Prefijo de Secuencia', default='REC',
                                   help='Prefijo para la numeración de partes de producción de este galpón (ej: REC, GP1, etc.)')
     
-    # Total de aves actualmente en el galpón
-    current_birds_count = fields.Integer(string='Total de Aves Actuales', 
+    # Total de aves asignadas actualmente al galpón (asignaciones vigentes, sin descontar mortalidad)
+    current_birds_count = fields.Integer(string='Total de Aves Asignadas',
                                          compute='_compute_current_birds_count',
                                          store=True)
-    
+
+    # Aves realmente vivas hoy (asignadas menos mortalidad registrada). No se almacena:
+    # siempre se recalcula al leer, para reflejar la mortalidad cargada hasta el momento.
+    live_bird_count = fields.Integer(string='Aves Vivas', compute='_compute_live_bird_count')
+
     # Porcentaje de ocupación
-    occupancy_percentage = fields.Float(string='% Ocupación', 
+    occupancy_percentage = fields.Float(string='% Ocupación',
                                         compute='_compute_occupancy_percentage',
                                         store=True)
-    
+
     notes = fields.Text(string='Notas')
-    
-    @api.depends('batch_ids', 'batch_ids.bird_count')
+
+    def _get_active_coop_lines(self):
+        self.ensure_one()
+        return self.coop_line_ids.filtered(lambda l: l.active and not l.date_to)
+
+    @api.depends('coop_line_ids.bird_count', 'coop_line_ids.date_to', 'coop_line_ids.active')
     def _compute_current_birds_count(self):
-        """Calcula el total de aves actualmente asignadas al galpón"""
+        """Calcula el total de aves asignadas vigentes al galpón (sin descontar mortalidad)"""
         for coop in self:
-            coop.current_birds_count = sum(coop.batch_ids.mapped('bird_count'))
-    
+            coop.current_birds_count = sum(coop._get_active_coop_lines().mapped('bird_count'))
+
+    def _compute_live_bird_count(self):
+        """Calcula el total de aves vivas hoy en el galpón (asignadas menos mortalidad)"""
+        for coop in self:
+            coop.live_bird_count = sum(coop._get_active_coop_lines().mapped('live_bird_count'))
+
     @api.depends('current_birds_count', 'capacity')
     def _compute_occupancy_percentage(self):
         """Calcula el porcentaje de ocupación del galpón"""
@@ -84,11 +108,17 @@ class PoultryCoop(models.Model):
             else:
                 coop.occupancy_percentage = 0.0
     
-    @api.depends('batch_ids')
-    def _compute_batch_count(self):
-        """Cuenta la cantidad de lotes asignados al galpón"""
+    @api.depends('coop_line_ids.batch_id', 'coop_line_ids.date_to', 'coop_line_ids.active')
+    def _compute_current_batch_ids(self):
+        """Lotes con aves actualmente asignadas (vigentes) a este galpón"""
         for coop in self:
-            coop.batch_count = len(coop.batch_ids)
+            coop.current_batch_ids = coop._get_active_coop_lines().mapped('batch_id')
+
+    @api.depends('current_batch_ids')
+    def _compute_batch_count(self):
+        """Cuenta la cantidad de lotes actualmente asignados al galpón"""
+        for coop in self:
+            coop.batch_count = len(coop.current_batch_ids)
     
     @api.depends('egg_collection_ids')
     def _compute_egg_collection_count(self):
@@ -210,14 +240,14 @@ class PoultryCoop(models.Model):
         return result
     
     def action_view_batches(self):
-        """Abre la vista de lotes asignados a este galpón"""
+        """Abre la vista de lotes actualmente asignados a este galpón"""
+        self.ensure_one()
         action = {
             'name': f'Lotes de Aves - {self.name}',
             'type': 'ir.actions.act_window',
             'res_model': 'poultry.batch',
             'view_mode': 'list,form',
-            'domain': [('coop_id', '=', self.id)],
-            'context': {'default_coop_id': self.id},
+            'domain': [('id', 'in', self.current_batch_ids.ids)],
         }
         return action
     

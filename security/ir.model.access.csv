@@ -3,6 +3,8 @@ access_poultry_coop_manager,poultry.coop.manager,model_poultry_coop,poultry_mana
 access_poultry_coop_user,poultry.coop.user,model_poultry_coop,poultry_management.poultry_user,1,0,0,0
 access_poultry_batch_manager,poultry.batch.manager,model_poultry_batch,poultry_management.poultry_manager,1,1,1,1
 access_poultry_batch_user,poultry.batch.user,model_poultry_batch,poultry_management.poultry_user,1,0,0,0
+access_poultry_batch_coop_line_manager,poultry.batch.coop.line.manager,model_poultry_batch_coop_line,poultry_management.poultry_manager,1,1,1,1
+access_poultry_batch_coop_line_user,poultry.batch.coop.line.user,model_poultry_batch_coop_line,poultry_management.poultry_user,1,0,0,0
 access_poultry_coop_bom_manager,poultry.coop.bom.manager,model_poultry_coop_bom,poultry_management.poultry_manager,1,1,1,1
 access_poultry_coop_bom_user,poultry.coop.bom.user,model_poultry_coop_bom,poultry_management.poultry_user,1,0,0,0
 access_poultry_egg_collection_manager,poultry.egg.collection.manager,model_poultry_egg_collection,poultry_management.poultry_manager,1,1,1,1

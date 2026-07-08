@@ -8,6 +8,7 @@ from . import product_product
 from . import uom_uom
 from . import poultry_coop
 from . import poultry_batch
+from . import poultry_batch_coop_line
 from . import poultry_coop_bom
 from . import poultry_indicator
 from . import poultry_genetics_standard_version

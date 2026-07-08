@@ -4,14 +4,16 @@
         <field name="name">poultry.coop.tree</field>
         <field name="model">poultry.coop</field>
         <field name="arch" type="xml">
-            <list string="Galpones" decoration-success="occupancy_percentage &lt; 0.8" 
+            <list string="Galpones" decoration-success="occupancy_percentage &lt; 0.8"
                   decoration-warning="occupancy_percentage &gt;= 0.8 and occupancy_percentage &lt; 1.0"
                   decoration-danger="occupancy_percentage &gt;= 1.0">
                 <field name="code"/>
                 <field name="name"/>
+                <field name="coop_type"/>
                 <field name="size"/>
                 <field name="capacity"/>
                 <field name="current_birds_count"/>
+                <field name="live_bird_count"/>
                 <field name="occupancy_percentage" widget="percentage"/>
                 <field name="batch_count"/>
                 <field name="active_bom_name"/>
@@ -46,11 +48,13 @@
                         <group>
                             <field name="code" placeholder="Ej: GAL-001"/>
                             <field name="name" placeholder="Ej: Galpón Principal"/>
+                            <field name="coop_type"/>
                             <field name="size"/>
                             <field name="capacity"/>
                         </group>
                         <group>
                             <field name="current_birds_count" readonly="1"/>
+                            <field name="live_bird_count" readonly="1"/>
                             <field name="occupancy_percentage" widget="percentage" readonly="1"/>
                             <field name="active_bom_id" invisible="1"/>
                             <field name="active_bom_name" readonly="1" 
@@ -75,16 +79,15 @@
                     </group>
                     <notebook>
                         <page string="Lotes de Aves" name="batches">
-                            <field name="batch_ids" nolabel="1">
-                                <list string="Lotes Asignados" editable="bottom">
-                                    <field name="code"/>
-                                    <field name="name"/>
-                                    <field name="genetics_id"/>
-                                    <field name="birth_date"/>
-                                    <field name="assignment_date"/>
+                            <field name="coop_line_ids" nolabel="1" context="{'default_coop_id': id}">
+                                <list string="Asignaciones de Lotes" editable="bottom">
+                                    <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
                                     <field name="bird_count"/>
-                                    <field name="age_days"/>
-                                    <field name="days_in_coop"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
+                                    <field name="dead_count"/>
+                                    <field name="live_bird_count"/>
+                                    <field name="active" widget="boolean_toggle"/>
                                 </list>
                             </field>
                         </page>
@@ -142,7 +145,12 @@
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
                 <separator/>
-                <filter string="Con Capacidad Disponible" name="available_capacity" 
+                <filter string="Recría" name="type_recria" domain="[('coop_type', '=', 'recria')]"/>
+                <filter string="Producción" name="type_produccion" domain="[('coop_type', '=', 'produccion')]"/>
+                <separator/>
+                <filter string="Por Tipo de Galpón" name="by_coop_type" context="{'group_by': 'coop_type'}"/>
+                <separator/>
+                <filter string="Con Capacidad Disponible" name="available_capacity"
                         domain="[('current_birds_count', '&lt;', 'capacity')]"/>
                 <filter string="Capacidad Llena" name="full_capacity" 
                         domain="[('current_birds_count', '&gt;=', 'capacity')]"/>
