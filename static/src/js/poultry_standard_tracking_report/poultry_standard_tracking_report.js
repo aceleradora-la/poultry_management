@@ -18,6 +18,7 @@ export class PoultryStandardTrackingReport extends Component {
             batches: [],
             loading: true,
             error: null,
+            hiddenIndicatorIds: {},
         });
         onWillStart(async () => {
             try {
@@ -51,6 +52,31 @@ export class PoultryStandardTrackingReport extends Component {
 
     get header() {
         return this.state.data ? this.state.data.header : null;
+    }
+
+    get visibleIndicators() {
+        if (!this.currentData) {
+            return [];
+        }
+        return this.currentData.indicators.filter(
+            (indicator) => !this.state.hiddenIndicatorIds[indicator.id]
+        );
+    }
+
+    toggleIndicatorVisibility(indicatorId) {
+        this.state.hiddenIndicatorIds[indicatorId] = !this.state.hiddenIndicatorIds[indicatorId];
+    }
+
+    showAllIndicators() {
+        this.state.hiddenIndicatorIds = {};
+    }
+
+    hideAllIndicators() {
+        const hidden = {};
+        (this.currentData ? this.currentData.indicators : []).forEach((indicator) => {
+            hidden[indicator.id] = true;
+        });
+        this.state.hiddenIndicatorIds = hidden;
     }
 
     async onBatchChange(ev) {
