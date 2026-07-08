@@ -26,6 +26,17 @@ def migrate(cr, version):
     if not cr.fetchone()[0]:
         return
 
+    # Respaldo de las columnas viejas antes de tocarlas, por las dudas -no se puede
+    # revertir un ALTER TABLE ... DROP COLUMN una vez aplicado.
+    cr.execute("""
+        CREATE TABLE IF NOT EXISTS poultry_batch_pre_19_0_1_6_0_backup AS
+        SELECT id, coop_id, bird_count, assignment_date FROM poultry_batch
+    """)
+    cr.execute("SELECT count(*) FROM poultry_batch_pre_19_0_1_6_0_backup")
+    _logger.info('Poultry: respaldadas %s filas de poultry_batch (coop_id, bird_count, '
+                 'assignment_date) en poultry_batch_pre_19_0_1_6_0_backup antes de '
+                 'migrar al historial poultry.batch.coop.line.', cr.fetchone()[0])
+
     env = api.Environment(cr, SUPERUSER_ID, {})
     cr.execute("""
         SELECT id, coop_id, bird_count, assignment_date
