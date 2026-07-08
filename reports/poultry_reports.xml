@@ -1,22 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Reportes de Mortalidad -->
-    <record id="action_poultry_mortality_report_wizard" model="ir.actions.act_window">
-        <field name="name">Reporte de Mortalidad</field>
-        <field name="res_model">poultry.mortality.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Reportes Comparativos -->
-    <record id="action_poultry_comparison_report_wizard" model="ir.actions.act_window">
-        <field name="name">Reporte Comparativo (Real vs Estándar)</field>
-        <field name="res_model">poultry.comparison.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-
     <!-- Acción directa para Reporte de Producción con Pivot (basado en líneas) -->
     <record id="action_poultry_production_report_direct" model="ir.actions.act_window">
         <field name="name">Reporte de Producción</field>
@@ -79,16 +62,10 @@
               action="action_poultry_stock_move_report" 
               sequence="15"/>
 
-    <menuitem id="menu_poultry_mortality_report" 
-              name="Mortalidad" 
-              parent="menu_poultry_reports" 
-              action="action_poultry_mortality_report_wizard" 
+    <menuitem id="menu_poultry_mortality_report"
+              name="Mortalidad"
+              parent="menu_poultry_reports"
+              action="action_poultry_mortality_report"
               sequence="20"/>
-
-    <menuitem id="menu_poultry_comparison_report" 
-              name="Comparativo (Real vs Estándar)" 
-              parent="menu_poultry_reports" 
-              action="action_poultry_comparison_report_wizard" 
-              sequence="30"/>
 </odoo>
 
