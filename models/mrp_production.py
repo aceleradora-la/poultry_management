@@ -254,6 +254,7 @@ class MrpProduction(models.Model):
         self._poultry_compute_egg_production_indicator_values()
         self._poultry_compute_mortality_indicator_values()
         self._poultry_compute_egg_mass_and_weight_indicator_values()
+        self._poultry_compute_viability_indicator_values()
 
     def _poultry_compute_consumption_indicator_values(self):
         """Al cerrar la OF de Huevo sin Clasificar generada por un Cierre de Galpón,
@@ -353,7 +354,11 @@ class MrpProduction(models.Model):
         cumulative_housed_indicator = Indicator.search(
             [('category', '=', 'egg_production'), ('accumulation_type', '=', 'housed'),
              ('active', '=', True)], limit=1)
-        if not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator:
+        rate_original_indicator = Indicator.search(
+            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'original_rate'),
+             ('active', '=', True)], limit=1)
+        if (not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator
+                and not rate_original_indicator):
             return
 
         Value = self.env['poultry.batch.indicator.value']
@@ -399,6 +404,16 @@ class MrpProduction(models.Model):
                                       numerator=batch_egg_share, denominator=batch.housed_bird_count,
                                       production=self)
 
+            if rate_original_indicator and batch.bird_count:
+                # % Postura sobre Aves Originales del Lote: misma cantidad de huevos
+                # de hoy que arriba, pero contra la Cantidad de Aves del lote (fija,
+                # no la población viva de hoy).
+                postura_original_pct = (batch_egg_share / batch.bird_count) * 100.0
+                Value._set_value(batch, self.coop_id, target_date, rate_original_indicator,
+                                  postura_original_pct,
+                                  numerator=batch_egg_share * 100.0, denominator=batch.bird_count,
+                                  production=self)
+
     def _poultry_compute_mortality_indicator_values(self):
         """Indicadores reales de Mortandad (% diario y/o acumulados), a partir de los
         registros de poultry.mortality que generó esta OF (_poultry_sync_mortality).
@@ -424,7 +439,11 @@ class MrpProduction(models.Model):
         cumulative_housed_indicator = Indicator.search(
             [('category', '=', 'mortality'), ('accumulation_type', '=', 'housed'),
              ('active', '=', True)], limit=1)
-        if not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator:
+        cumulative_original_indicator = Indicator.search(
+            [('category', '=', 'mortality'), ('accumulation_type', '=', 'original_cumulative'),
+             ('active', '=', True)], limit=1)
+        if (not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator
+                and not cumulative_original_indicator):
             return
 
         Value = self.env['poultry.batch.indicator.value']
@@ -466,6 +485,51 @@ class MrpProduction(models.Model):
                                       previous_total + dead_pct_housed,
                                       numerator=dead * 100.0, denominator=batch.housed_bird_count,
                                       production=self)
+
+            if cumulative_original_indicator and batch.bird_count:
+                previous = Value.search([
+                    ('batch_id', '=', batch.id),
+                    ('indicator_id', '=', cumulative_original_indicator.id),
+                    ('date', '<', target_date),
+                ], order='date desc', limit=1)
+                previous_total = previous.value if previous else 0.0
+                dead_pct_original = dead / batch.bird_count * 100.0
+                Value._set_value(batch, self.coop_id, target_date, cumulative_original_indicator,
+                                  previous_total + dead_pct_original,
+                                  numerator=dead * 100.0, denominator=batch.bird_count,
+                                  production=self)
+
+    def _poultry_compute_viability_indicator_values(self):
+        """% de Viabilidad Acumulada (aves vivas hoy / aves originales del lote x 100).
+        A diferencia de los indicadores de mortandad (que suman contribuciones diarias),
+        se calcula como una foto directa del estado del lote a la fecha -no depende del
+        valor del día anterior- pero se guarda con tipo de acumulación 'original_cumulative'
+        para que el agregado semanal tome el último valor de la semana (estado), no un
+        promedio de tasas diarias."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+        target_date = self._poultry_target_mortality_date()
+        Indicator = self.env['poultry.indicator']
+        viability_indicator = Indicator.search(
+            [('category', '=', 'viability'), ('accumulation_type', '=', 'original_cumulative'),
+             ('active', '=', True)], limit=1)
+        if not viability_indicator:
+            return
+
+        batches, birds_by_batch, total_birds = self._poultry_get_coop_batches_and_birds(target_date)
+        if not batches:
+            return
+
+        Value = self.env['poultry.batch.indicator.value']
+        for batch in batches:
+            if not batch.bird_count:
+                continue
+            live_today = birds_by_batch.get(batch.id, 0)
+            viability_pct = live_today / batch.bird_count * 100.0
+            Value._set_value(batch, self.coop_id, target_date, viability_indicator,
+                              viability_pct, numerator=live_today * 100.0, denominator=batch.bird_count,
+                              production=self)
 
     def _poultry_compute_egg_mass_and_weight_indicator_values(self):
         """Indicadores reales de Masa de Huevo y Peso del Huevo Promedio, a partir de
