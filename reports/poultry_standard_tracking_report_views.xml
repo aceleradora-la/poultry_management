@@ -7,17 +7,13 @@
             <form string="Reporte de Seguimiento de Estándares">
                 <sheet>
                     <group>
-                        <group>
-                            <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="genetics_id" readonly="1"/>
-                            <field name="version_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                        </group>
-                        <group>
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                            <field name="granularity" widget="radio" options="{'horizontal': true}"/>
-                        </group>
+                        <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                        <field name="genetics_id" readonly="1"/>
+                        <field name="version_id" options="{'no_create': False, 'no_create_edit': False}"/>
                     </group>
+                    <field name="date_from" invisible="1"/>
+                    <field name="date_to" invisible="1"/>
+                    <field name="granularity" invisible="1"/>
                 </sheet>
                 <footer>
                     <button name="action_generate" string="Generar Reporte" type="object" class="oe_highlight"/>

@@ -23,59 +23,58 @@
                                 <strong>Versión de Estándar:</strong>
                                 <span t-esc="(doc.version_id or doc.genetics_id.default_standard_version_id).name"/>
                             </div>
-                            <div class="col-4">
-                                <strong>Desde:</strong>
-                                <span t-field="doc.date_from"/>
-                                <strong> Hasta:</strong>
-                                <span t-field="doc.date_to"/>
-                            </div>
-                            <div class="col-4">
-                                <strong>Granularidad:</strong>
-                                <span t-esc="'Semana' if doc.granularity == 'week' else 'Día'"/>
-                            </div>
                         </div>
 
-                        <t t-set="matrix" t-value="doc._get_report_matrix()"/>
-                        <table class="table table-bordered table-sm" style="font-size: 0.8rem;">
-                            <thead>
-                                <tr>
-                                    <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
-                                        <t t-esc="'Semana' if doc.granularity == 'week' else 'Fecha'"/>
-                                    </th>
-                                    <t t-foreach="matrix['indicators']" t-as="indicator">
-                                        <th colspan="3" style="text-align: center; background: none !important; color: #333 !important; border-bottom: 1px solid #333;">
-                                            <t t-esc="indicator.name"/>
-                                        </th>
-                                    </t>
-                                </tr>
-                                <tr>
-                                    <t t-foreach="matrix['indicators']" t-as="indicator">
-                                        <th style="text-align: center; background: none !important; color: #333 !important; font-weight: normal;">Bajo</th>
-                                        <th style="text-align: center; background: none !important; color: #333 !important; font-weight: normal;">Alto</th>
-                                        <th style="text-align: center; background: none !important; color: #333 !important; font-weight: bold;">Real</th>
-                                    </t>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="matrix['rows']" t-as="row">
-                                    <td style="text-align: center; font-weight: bold; white-space: nowrap;">
-                                        <t t-esc="row['label']"/>
-                                    </td>
-                                    <t t-foreach="row['cells']" t-as="cell">
-                                        <td style="text-align: center;">
-                                            <t t-if="cell['has_standard']" t-esc="'%.2f' % cell['value_low']"/>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <t t-if="cell['has_standard']" t-esc="'%.2f' % cell['value_high']"/>
-                                        </td>
-                                        <td style="text-align: center;"
-                                            t-attf-class="#{'text-danger font-weight-bold' if cell['out_of_range'] else ''}">
-                                            <t t-if="cell['real_value'] is not None" t-esc="'%.2f' % cell['real_value']"/>
-                                        </td>
-                                    </t>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <t t-set="report_data" t-value="doc.get_report_data()"/>
+                        <t t-foreach="[('crianza', 'Crianza'), ('produccion', 'Producción')]" t-as="period_entry">
+                            <t t-set="period_key" t-value="period_entry[0]"/>
+                            <t t-set="period_label" t-value="period_entry[1]"/>
+                            <t t-set="period_data" t-value="report_data[period_key]"/>
+                            <t t-if="period_data['rows']">
+                                <h4 style="margin-top: 20px;"><t t-esc="period_label"/></h4>
+                                <table class="table table-bordered table-sm" style="font-size: 0.75rem;">
+                                    <thead>
+                                        <tr>
+                                            <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
+                                                Semana
+                                            </th>
+                                            <t t-foreach="period_data['indicators']" t-as="indicator">
+                                                <th colspan="3" style="text-align: center; background: none !important; color: #333 !important; border-bottom: 1px solid #333;">
+                                                    <t t-esc="indicator['name']"/>
+                                                </th>
+                                            </t>
+                                        </tr>
+                                        <tr>
+                                            <t t-foreach="period_data['indicators']" t-as="indicator">
+                                                <th style="text-align: center; background: none !important; color: #333 !important; font-weight: normal;">Bajo</th>
+                                                <th style="text-align: center; background: none !important; color: #333 !important; font-weight: normal;">Alto</th>
+                                                <th style="text-align: center; background: none !important; color: #333 !important; font-weight: bold;">Real</th>
+                                            </t>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="period_data['rows']" t-as="row">
+                                            <td style="text-align: center; font-weight: bold; white-space: nowrap;">
+                                                <t t-esc="row['label']"/>
+                                            </td>
+                                            <t t-foreach="period_data['indicators']" t-as="indicator">
+                                                <t t-set="cell" t-value="row['cells'][indicator['id']]"/>
+                                                <td style="text-align: center;">
+                                                    <t t-if="cell['has_standard']" t-esc="'%.2f' % cell['value_low']"/>
+                                                </td>
+                                                <td style="text-align: center;">
+                                                    <t t-if="cell['has_standard']" t-esc="'%.2f' % cell['value_high']"/>
+                                                </td>
+                                                <td style="text-align: center;"
+                                                    t-attf-class="#{'text-danger font-weight-bold' if cell['out_of_range'] else ''}">
+                                                    <t t-if="cell['real_value'] is not None" t-esc="'%.2f' % cell['real_value']"/>
+                                                </td>
+                                            </t>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </t>
+                        </t>
                     </div>
                 </t>
             </t>

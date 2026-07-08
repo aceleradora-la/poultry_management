@@ -2,6 +2,7 @@
 
 from . import models
 from . import reports
+from . import controllers
 
 
 def post_init_renumber_collections(env):

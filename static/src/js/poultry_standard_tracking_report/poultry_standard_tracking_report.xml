@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="poultry_management.PoultryStandardTrackingReport" owl="1">
+        <div class="o_action o_poultry_standard_tracking_report">
+            <div class="o_control_panel">
+                <div class="o_control_panel_main d-flex align-items-center flex-wrap gap-2 p-2">
+                    <h5 class="mb-0 me-3">Seguimiento de Estándares</h5>
+                    <div class="btn-group me-2" role="group">
+                        <button class="btn btn-sm"
+                                t-att-class="state.period === 'crianza' ? 'btn-primary' : 'btn-outline-primary'"
+                                t-on-click="() => this.setPeriod('crianza')">
+                            Crianza
+                        </button>
+                        <button class="btn btn-sm"
+                                t-att-class="state.period === 'produccion' ? 'btn-primary' : 'btn-outline-primary'"
+                                t-on-click="() => this.setPeriod('produccion')">
+                            Producción
+                        </button>
+                    </div>
+                    <button class="btn btn-sm btn-secondary" t-on-click="exportPdf">
+                        Exportar PDF
+                    </button>
+                    <button class="btn btn-sm btn-secondary" t-on-click="exportXlsx">
+                        Exportar Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="o_content p-3">
+                <t t-if="state.loading">
+                    <p class="text-muted">Cargando...</p>
+                </t>
+                <t t-elif="state.error">
+                    <div class="alert alert-danger" t-esc="state.error"/>
+                </t>
+                <t t-elif="!currentData or !currentData.rows.length">
+                    <p class="text-muted">
+                        No hay datos para el período
+                        <t t-esc="state.period === 'crianza' ? 'Crianza' : 'Producción'"/>.
+                    </p>
+                </t>
+                <t t-else="">
+                    <table class="table table-bordered table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" class="align-middle text-center">Semana</th>
+                                <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                    <th colspan="3" class="text-center">
+                                        <t t-esc="indicator.name"/>
+                                    </th>
+                                </t>
+                            </tr>
+                            <tr>
+                                <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                    <th class="text-center fw-normal">Bajo</th>
+                                    <th class="text-center fw-normal">Alto</th>
+                                    <th class="text-center fw-bold">Real</th>
+                                </t>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="currentData.rows" t-as="row" t-key="row.week">
+                                <td class="text-center fw-bold text-nowrap">
+                                    <t t-esc="row.label"/>
+                                </td>
+                                <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                    <t t-set="cell" t-value="row.cells[indicator.id]"/>
+                                    <td class="text-center">
+                                        <t t-if="cell.has_standard" t-esc="cell.value_low.toFixed(2)"/>
+                                    </td>
+                                    <td class="text-center">
+                                        <t t-if="cell.has_standard" t-esc="cell.value_high.toFixed(2)"/>
+                                    </td>
+                                    <td class="text-center"
+                                        t-att-class="cell.out_of_range ? 'text-danger fw-bold' : ''">
+                                        <t t-if="cell.real_value !== null" t-esc="cell.real_value.toFixed(2)"/>
+                                    </td>
+                                </t>
+                            </tr>
+                        </tbody>
+                    </table>
+                </t>
+            </div>
+        </div>
+    </t>
+
+</templates>

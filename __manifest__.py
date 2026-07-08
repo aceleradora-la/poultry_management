@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '18.0.1.21.1',
+    'version': '18.0.1.22.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -18,6 +18,8 @@
         'web.assets_backend': [
             'poultry_management/static/src/css/poultry_stock_cover_dashboard.css',
             'poultry_management/static/src/js/poultry_dynamic_columns.js',
+            'poultry_management/static/src/js/poultry_standard_tracking_report/poultry_standard_tracking_report.js',
+            'poultry_management/static/src/js/poultry_standard_tracking_report/poultry_standard_tracking_report.xml',
         ],
     },
     'data': [
@@ -67,6 +69,9 @@
     'application': True,
     'auto_install': False,
     'license': 'LGPL-3',
+    'external_dependencies': {
+        'python': ['xlsxwriter'],
+    },
     'images': ['static/description/icon.svg'],
     'post_init_hook': 'post_init_renumber_collections',
 }
