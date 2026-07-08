@@ -284,6 +284,7 @@ class MrpProduction(models.Model):
         self._poultry_compute_consumption_indicator_values()
         self._poultry_compute_egg_production_indicator_values()
         self._poultry_compute_mortality_indicator_values()
+        self._poultry_compute_egg_mass_and_weight_indicator_values()
 
     def _poultry_compute_consumption_indicator_values(self):
         """Al cerrar la OF de Huevo sin Clasificar generada por un Cierre de Galpón,
@@ -505,4 +506,87 @@ class MrpProduction(models.Model):
                                       previous_total + dead_pct_housed,
                                       numerator=dead * 100.0, denominator=batch.housed_bird_count,
                                       production=self)
+
+    def _poultry_compute_egg_mass_and_weight_indicator_values(self):
+        """Indicadores reales de Masa de Huevo y Peso del Huevo Promedio, a partir de
+        los Partes de Producción (poultry.egg.collection) incluidos en el Cierre de
+        Galpón que generó esta OF -no de la OF en sí, que solo tiene el total de
+        huevos sin distinguir peso por variante.
+
+        Masa de Huevo Ave-Alojada Acumulada (kg): masa total del galpón (suma por
+        variante de peso medio × cantidad producida, igual que
+        poultry.egg.collection.total_weight pero agregado a nivel de todos los
+        partes del cierre) repartida entre los lotes según su población viva ese
+        día, acumulada en kg de masa de huevo por ave alojada -mismo patrón que
+        Huevos Acumulados Ave-Alojada.
+
+        Peso del Huevo Promedio (g/huevo): promedio ponderado del galpón ese día
+        (por variante: peso medio × cantidad de huevos de esa variante, igual que
+        poultry.egg.collection.average_weight_elaborated). No se reparte por
+        población -es un atributo del huevo, no de cuántas aves hay-, así que se
+        guarda el mismo valor para cada lote presente, con el mismo numerador/
+        denominador (gramos totales / huevos con peso), para que el agregado
+        semanal por lote siga siendo el promedio ponderado correcto (nunca
+        promedio de promedios)."""
+        self.ensure_one()
+        if not self.coop_close_id or not self.coop_id:
+            return
+        target_date = self.coop_close_id.date or self._get_scheduled_date()
+
+        collections = self.coop_close_id.egg_collection_ids.filtered(lambda c: c.state == 'done')
+        total_mass_grams = 0.0
+        total_eggs_with_weight = 0.0
+        for line in collections.mapped('line_ids'):
+            if line.average_weight and line.total_produced_reference:
+                total_mass_grams += line.average_weight * line.total_produced_reference
+                total_eggs_with_weight += line.total_produced_reference
+        if total_mass_grams <= 0:
+            return
+        total_mass_kg = total_mass_grams / 1000.0
+        avg_weight_g = total_mass_grams / total_eggs_with_weight if total_eggs_with_weight else 0.0
+
+        lines, birds_by_line, total_birds = self._poultry_get_active_lines_and_birds(target_date)
+        if not lines or total_birds <= 0:
+            return
+
+        Indicator = self.env['poultry.indicator']
+        mass_housed_indicator = Indicator.search(
+            [('category', '=', 'egg_mass'), ('accumulation_type', '=', 'housed'),
+             ('active', '=', True)], limit=1)
+        weight_indicator = Indicator.search(
+            [('category', '=', 'egg_weight'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
+        if not mass_housed_indicator and not weight_indicator:
+            return
+
+        Value = self.env['poultry.batch.indicator.value']
+        mass_kg_per_bird_day = total_mass_kg / total_birds
+
+        for line in lines:
+            birds = birds_by_line[line.id]
+            if birds <= 0:
+                continue
+            batch = line.batch_id
+
+            if mass_housed_indicator:
+                if (batch.housed_bird_count and batch.production_start_date
+                        and target_date >= batch.production_start_date):
+                    batch_mass_kg = mass_kg_per_bird_day * birds
+                    previous = Value.search([
+                        ('batch_id', '=', batch.id),
+                        ('indicator_id', '=', mass_housed_indicator.id),
+                        ('date', '<', target_date),
+                    ], order='date desc', limit=1)
+                    previous_total = previous.value if previous else 0.0
+                    kg_per_housed_bird = batch_mass_kg / batch.housed_bird_count
+                    Value._set_value(batch, self.coop_id, target_date, mass_housed_indicator,
+                                      previous_total + kg_per_housed_bird,
+                                      numerator=batch_mass_kg, denominator=batch.housed_bird_count,
+                                      production=self)
+
+            if weight_indicator:
+                Value._set_value(batch, self.coop_id, target_date, weight_indicator,
+                                  avg_weight_g,
+                                  numerator=total_mass_grams, denominator=total_eggs_with_weight,
+                                  production=self)
 
