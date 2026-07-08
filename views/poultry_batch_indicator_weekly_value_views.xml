@@ -25,9 +25,8 @@
         <field name="model">poultry.batch.indicator.weekly.value</field>
         <field name="arch" type="xml">
             <pivot string="Valores Reales Semanales de Indicadores">
-                <field name="batch_id" type="row"/>
-                <field name="week" type="col"/>
-                <field name="indicator_id" type="row"/>
+                <field name="week" type="row"/>
+                <field name="indicator_id" type="col"/>
                 <field name="value_low" type="measure"/>
                 <field name="value_high" type="measure"/>
                 <field name="real_value" type="measure"/>
