@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Reporte de Mortandad (solo lectura). El alta se hace desde la solapa
-         "Aves Muertas" de la OF de Huevo sin Clasificar; acá solo se consulta. -->
+         "Aves Muertas" de la OF de Huevo sin Clasificar; acá solo se consulta.
+         Aves Vivas y % Mortandad son valores puntuales por (lote, fecha), calculados
+         (no almacenados): se muestran por fila en la lista, no se agregan en el pivot. -->
     <record id="view_poultry_mortality_tree" model="ir.ui.view">
         <field name="name">poultry.mortality.report.tree</field>
         <field name="model">poultry.mortality</field>
@@ -12,10 +14,10 @@
                 <field name="batch_id"/>
                 <field name="genetics_id"/>
                 <field name="batch_age_weeks"/>
-                <field name="assigned_bird_count" sum="Alojadas"/>
+                <field name="assigned_bird_count"/>
                 <field name="dead_count" sum="Muertas"/>
-                <field name="live_bird_count" sum="Vivas"/>
-                <field name="mortality_pct" avg="% Mortandad" digits="[16,2]"/>
+                <field name="live_bird_count"/>
+                <field name="mortality_pct" digits="[16,2]"/>
                 <field name="production_id" optional="show"/>
             </list>
         </field>
@@ -30,8 +32,6 @@
                 <field name="batch_id" type="row"/>
                 <field name="date" interval="week" type="col"/>
                 <field name="dead_count" type="measure"/>
-                <field name="live_bird_count" type="measure"/>
-                <field name="mortality_pct" type="measure"/>
             </pivot>
         </field>
     </record>
@@ -63,7 +63,7 @@
     <record id="action_poultry_mortality_report" model="ir.actions.act_window">
         <field name="name">Mortandad</field>
         <field name="res_model">poultry.mortality</field>
-        <field name="view_mode">pivot,list</field>
+        <field name="view_mode">list,pivot</field>
         <field name="search_view_id" ref="view_poultry_mortality_search"/>
         <field name="domain">[('active', '=', True)]</field>
         <field name="context">{'search_default_by_coop': 1}</field>
