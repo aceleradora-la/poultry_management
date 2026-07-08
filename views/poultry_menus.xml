@@ -12,8 +12,15 @@
               action="action_poultry_egg_collection" 
               sequence="10"/>
 
+    <!-- Menú: Movimiento de Aves -->
+    <menuitem id="menu_poultry_batch_movement"
+              name="Movimiento de Aves"
+              parent="menu_poultry_management_root"
+              action="action_poultry_batch_movement"
+              sequence="25"/>
+
     <!-- Menú: Cierres -->
-    <menuitem id="menu_poultry_closes" 
+    <menuitem id="menu_poultry_closes"
               name="Cierres" 
               parent="menu_poultry_management_root" 
               sequence="20"/>

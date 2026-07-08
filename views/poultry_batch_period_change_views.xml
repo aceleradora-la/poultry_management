@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_batch_period_change_tree" model="ir.ui.view">
+        <field name="name">poultry.batch.period.change.tree</field>
+        <field name="model">poultry.batch.period.change</field>
+        <field name="arch" type="xml">
+            <list string="Cambios de Período" decoration-muted="not active">
+                <field name="batch_id"/>
+                <field name="coop_id"/>
+                <field name="date"/>
+                <field name="period" widget="badge"
+                       decoration-info="period == 'crianza'"
+                       decoration-success="period == 'produccion'"/>
+                <field name="housed_bird_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_period_change_form" model="ir.ui.view">
+        <field name="name">poultry.batch.period.change.form</field>
+        <field name="model">poultry.batch.period.change</field>
+        <field name="arch" type="xml">
+            <form string="Cambio de Período">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="date"/>
+                        </group>
+                        <group>
+                            <field name="period" widget="radio" options="{'horizontal': true}"/>
+                            <field name="housed_bird_count" readonly="1"
+                                   invisible="period != 'produccion'"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes" placeholder="Notas adicionales..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_period_change_search" model="ir.ui.view">
+        <field name="name">poultry.batch.period.change.search</field>
+        <field name="model">poultry.batch.period.change</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Cambios de Período">
+                <field name="batch_id"/>
+                <field name="coop_id"/>
+                <separator/>
+                <filter string="A Crianza" name="crianza" domain="[('period', '=', 'crianza')]"/>
+                <filter string="A Producción" name="produccion" domain="[('period', '=', 'produccion')]"/>
+                <separator/>
+                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
+                <separator/>
+                <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_batch_period_change" model="ir.actions.act_window">
+        <field name="name">Cambios de Período</field>
+        <field name="res_model">poultry.batch.period.change</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Registrar un nuevo Cambio de Período
+            </p>
+            <p>
+                Registra cuándo un lote pasa de Crianza a Producción, en qué galpón
+                está en ese momento (puede ya haberse trasladado antes, son eventos
+                independientes) y fija la Cantidad de Aves Alojadas para Huevos
+                Acumulados Ave-Alojada.
+            </p>
+        </field>
+    </record>
+
+    <!-- El menú padre "Configuración" está definido en poultry_menus.xml -->
+    <menuitem id="menu_poultry_batch_period_change"
+              name="Cambios de Período"
+              parent="menu_poultry_configuration"
+              action="action_poultry_batch_period_change"
+              sequence="27"/>
+</odoo>

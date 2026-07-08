@@ -30,6 +30,16 @@ class PoultryCoop(models.Model):
                                           compute='_compute_current_batch_ids')
     batch_count = fields.Integer(string='Cantidad de Lotes', compute='_compute_batch_count')
 
+    # Movimientos de Aves (Ingreso/Traslado) donde este galpón participa, como origen o destino
+    movement_ids = fields.Many2many('poultry.batch.movement', string='Movimientos de Aves',
+                                     compute='_compute_movement_ids')
+
+    def _compute_movement_ids(self):
+        for coop in self:
+            coop.movement_ids = self.env['poultry.batch.movement'].search([
+                '|', ('origin_coop_id', '=', coop.id), ('dest_coop_id', '=', coop.id),
+            ])
+
     # Relaciones con recolecciones de producción
     egg_collection_ids = fields.One2many('poultry.egg.collection', 'coop_id', string='Recolecciones de Producción')
     egg_collection_count = fields.Integer(string='Recolecciones', compute='_compute_egg_collection_count')

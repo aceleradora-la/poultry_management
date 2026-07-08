@@ -91,6 +91,25 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Movimientos de Aves" name="movements">
+                            <field name="movement_ids" nolabel="1" readonly="1">
+                                <list string="Movimientos de Aves" default_order="date desc">
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="movement_type" widget="badge"
+                                           decoration-info="movement_type == 'ingreso'"
+                                           decoration-success="movement_type == 'traslado'"/>
+                                    <field name="batch_id"/>
+                                    <field name="origin_coop_id"/>
+                                    <field name="dest_coop_id"/>
+                                    <field name="bird_count"/>
+                                    <field name="state" widget="badge"
+                                           decoration-muted="state == 'draft'"
+                                           decoration-success="state == 'done'"
+                                           decoration-danger="state == 'cancel'"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Listas de Materiales" name="boms">
                             <field name="coop_bom_ids" nolabel="1" context="{'skip_coop_bom_overlap_check': True}">
                                 <list string="Historial de Listas de Materiales">
