@@ -257,8 +257,8 @@ class PoultryCoopClose(models.Model):
     @api.model
     def _poultry_rebuild_all_indicator_values(self, date_from=None, date_to=None):
         """Reconstruye desde cero (borra y recalcula) los valores reales derivados de
-        Cierres de Galpón: Consumo (Alimento/Agua) y Producción de Huevos (% Ave-Día,
-        Huevos Acumulados Ave-Día).
+        Cierres de Galpón: Consumo (Alimento/Agua), Producción de Huevos (% Ave-Día,
+        Huevos Acumulados Ave-Día) y Mortandad.
 
         Siempre hace un rebuild completo del rango, nunca un recálculo incremental:
         el indicador acumulado depende del valor anterior guardado, así que recalcular
@@ -286,7 +286,7 @@ class PoultryCoopClose(models.Model):
             return 0
 
         indicators = self.env['poultry.indicator'].search([
-            ('category', 'in', ('feed_consumption', 'water_consumption', 'egg_production')),
+            ('category', 'in', ('feed_consumption', 'water_consumption', 'egg_production', 'mortality')),
         ])
         affected_batches = self.env['poultry.batch.coop.line'].search([
             ('coop_id', 'in', closes.mapped('coop_id').ids),

@@ -54,25 +54,27 @@ class PoultryStandardTrackingReportController(http.Controller):
                         info_label_format)
 
             header_row = 6
-            sheet.freeze_panes(header_row + 2, 1)
+            sheet.freeze_panes(header_row + 2, 2)
 
             indicators = period_data['indicators']
-            sheet.merge_range(header_row, 0, header_row + 1, 0, 'Semana', header_format)
-            col = 1
+            sheet.merge_range(header_row, 0, header_row + 1, 0, 'Edad', header_format)
+            sheet.merge_range(header_row, 1, header_row + 1, 1, 'Fecha', header_format)
+            col = 2
             for indicator in indicators:
                 sheet.merge_range(header_row, col, header_row, col + 2, indicator['name'], header_format)
                 sheet.write(header_row + 1, col, 'Bajo', sub_header_format)
                 sheet.write(header_row + 1, col + 1, 'Alto', sub_header_format)
                 sheet.write(header_row + 1, col + 2, 'Real', sub_header_format)
                 col += 3
-            sheet.set_column(0, 0, 12)
+            sheet.set_column(0, 1, 12)
             if indicators:
-                sheet.set_column(1, col - 1, 10)
+                sheet.set_column(2, col - 1, 10)
 
             row = header_row + 2
             for line in period_data['rows']:
-                sheet.write(row, 0, line['label'], header_format)
-                col = 1
+                sheet.write(row, 0, line['week'], header_format)
+                sheet.write(row, 1, line['date'], header_format)
+                col = 2
                 for indicator in indicators:
                     cell = line['cells'].get(indicator['id']) or line['cells'].get(str(indicator['id']))
                     if cell and cell.get('has_standard'):

@@ -14,6 +14,14 @@
                             </option>
                         </t>
                     </select>
+                    <select class="form-select form-select-sm w-auto me-2" t-on-change="onVersionChange" t-if="header">
+                        <t t-foreach="header.version_options" t-as="v" t-key="v.id">
+                            <option t-att-value="v.id"
+                                    t-att-selected="header.version_id === v.id">
+                                <t t-esc="v.name"/>
+                            </option>
+                        </t>
+                    </select>
                     <div class="btn-group me-2" role="group">
                         <button class="btn btn-sm"
                                 t-att-class="state.period === 'crianza' ? 'btn-primary' : 'btn-outline-primary'"
@@ -63,7 +71,8 @@
                     <table class="table table-bordered table-sm table-hover">
                         <thead>
                             <tr>
-                                <th rowspan="2" class="align-middle text-center">Semana</th>
+                                <th rowspan="2" class="align-middle text-center">Edad</th>
+                                <th rowspan="2" class="align-middle text-center">Fecha</th>
                                 <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
                                     <th colspan="3" class="text-center">
                                         <t t-esc="indicator.name"/>
@@ -81,7 +90,10 @@
                         <tbody>
                             <tr t-foreach="currentData.rows" t-as="row" t-key="row.week">
                                 <td class="text-center fw-bold text-nowrap">
-                                    <t t-esc="row.label"/>
+                                    <t t-esc="row.week"/>
+                                </td>
+                                <td class="text-center text-nowrap">
+                                    <t t-esc="row.date"/>
                                 </td>
                                 <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
                                     <t t-set="cell" t-value="row.cells[indicator.id]"/>

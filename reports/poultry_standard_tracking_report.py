@@ -48,6 +48,13 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         self.version_id = self.batch_id.genetics_id.default_standard_version_id
         return self.get_report_data()
 
+    def update_version(self, version_id):
+        """Cambia la Versión de Estándar de un reporte ya abierto (selector de
+        filtros en pantalla), sin tocar el Lote."""
+        self.ensure_one()
+        self.version_id = self.env['poultry.genetics.standard.version'].browse(version_id) if version_id else False
+        return self.get_report_data()
+
     def _get_relevant_indicators(self, period):
         """Unión: indicadores con al menos un poultry.batch.indicator.weekly.value
         para este lote+período, O al menos un poultry.genetics.standard para esta
@@ -122,7 +129,13 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         'out_of_range': has_standard and real_value is not None and (
                             real_value < value_low or real_value > value_high),
                     }
-                rows.append({'week': week, 'label': f'Semana {week}', 'cells': cells})
+                week_date = (self.batch_id.birth_date + timedelta(days=week * 7)
+                             if self.batch_id.birth_date else None)
+                rows.append({
+                    'week': week,
+                    'date': str(week_date) if week_date else None,
+                    'cells': cells,
+                })
 
             result[period] = {
                 'indicators': [
@@ -135,7 +148,12 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             'batch_id': self.batch_id.id,
             'batch_name': self.batch_id.name,
             'genetics_name': self.genetics_id.name,
+            'version_id': version.id,
             'version_name': version.name,
+            'version_options': [
+                {'id': v.id, 'name': v.name}
+                for v in self.genetics_id.standard_version_ids.filtered('active')
+            ],
             'birth_date': str(self.batch_id.birth_date) if self.batch_id.birth_date else False,
             'coop_names': self.current_coop_names,
             'coop_date_from': str(self.current_coop_date_from) if self.current_coop_date_from else False,
@@ -169,3 +187,15 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             'tag': 'poultry_standard_tracking_report',
             'params': {'wizard_id': self.id},
         }
+
+    @api.model
+    def action_open_direct(self):
+        """Abre el reporte directamente para el primer lote activo, sin pasar
+        por un formulario de selección previo: el propio componente en pantalla
+        ya permite elegir Lote y Versión de Estándar desde sus selectores."""
+        batch = self.env['poultry.batch'].search(
+            [('active', '=', True)], order='birth_date desc', limit=1)
+        if not batch:
+            raise UserError('No hay Lotes de Aves activos. Cree un lote antes de abrir este reporte.')
+        wizard = self.create({'batch_id': batch.id})
+        return wizard.action_generate()
