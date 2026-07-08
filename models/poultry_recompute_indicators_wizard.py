@@ -28,5 +28,7 @@ class PoultryRecomputeIndicatorsWizard(models.TransientModel):
                 'message': f'Se recalcularon los indicadores de {count} Cierres de Galpón.',
                 'type': 'success',
                 'sticky': False,
+                # Cierra el diálogo del wizard una vez ejecutado el recálculo.
+                'next': {'type': 'ir.actions.act_window_close'},
             }
         }

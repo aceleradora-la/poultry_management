@@ -465,8 +465,25 @@ class MrpProduction(models.Model):
         if not self.coop_close_id or not self.coop_id:
             return
         target_date = self._poultry_target_mortality_date()
-        mortalities = self.env['poultry.mortality'].search([('production_id', '=', self.id)])
+        # Incluye tanto los registros generados por esta OF (_poultry_sync_mortality) como
+        # los cargados a mano (production_id vacío) para este galpón en la fecha: la
+        # mortandad del día de un lote es la suma de ambos.
+        mortalities = self.env['poultry.mortality'].search([
+            ('coop_id', '=', self.coop_id.id),
+            ('date', '=', target_date),
+            ('active', '=', True),
+        ])
         if not mortalities:
+            return
+        # Agrupa por lote: suma de muertas del día y aves vivas al cierre del día
+        # (live_bird_count es igual para todos los registros del mismo lote/fecha, porque
+        # acumula toda la mortandad hasta la fecha).
+        dead_by_batch = {}
+        live_by_batch = {}
+        for m in mortalities.filtered('batch_id'):
+            dead_by_batch[m.batch_id] = dead_by_batch.get(m.batch_id, 0) + m.dead_count
+            live_by_batch[m.batch_id] = m.live_bird_count
+        if not dead_by_batch:
             return
 
         Indicator = self.env['poultry.indicator']
@@ -487,13 +504,11 @@ class MrpProduction(models.Model):
             return
 
         Value = self.env['poultry.batch.indicator.value']
-        for mortality in mortalities:
-            batch = mortality.batch_id
-            dead = mortality.dead_count
-            base = mortality.live_bird_count + dead
+        for batch, dead in dead_by_batch.items():
+            base = live_by_batch[batch] + dead
             if base <= 0:
                 continue
-            daily_pct = mortality.mortality_pct
+            daily_pct = (dead / base * 100.0)
 
             if rate_indicator:
                 Value._set_value(batch, self.coop_id, target_date, rate_indicator,
