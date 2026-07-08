@@ -82,10 +82,10 @@
         </field>
     </record>
 
-    <!-- El menú padre "Configuración" está definido en poultry_menus.xml -->
+    <!-- El menú padre "Lotes" (dentro de Configuración) está definido en poultry_menus.xml -->
     <menuitem id="menu_poultry_batch_period_change"
               name="Cambios de Período"
-              parent="menu_poultry_configuration"
+              parent="menu_poultry_configuration_batches"
               action="action_poultry_batch_period_change"
-              sequence="27"/>
+              sequence="30"/>
 </odoo>

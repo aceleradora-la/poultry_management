@@ -33,10 +33,10 @@
         <field name="target">new</field>
     </record>
 
-    <!-- El menú padre "Configuración" está definido en poultry_menus.xml -->
+    <!-- El menú padre "Configuración General" (dentro de Configuración) está definido en poultry_menus.xml -->
     <menuitem id="menu_poultry_recompute_indicators_wizard"
               name="Recalcular Indicadores de Producción"
-              parent="menu_poultry_configuration"
+              parent="menu_poultry_configuration_general"
               action="action_poultry_recompute_indicators_wizard"
-              sequence="60"/>
+              sequence="30"/>
 </odoo>
