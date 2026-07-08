@@ -59,7 +59,14 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         """Unión: indicadores con al menos un poultry.batch.indicator.weekly.value
         para este lote+período, O al menos un poultry.genetics.standard para esta
         genética+versión+período. Así una columna puede aparecer (con Bajo/Alto)
-        aunque todavía no calculemos el valor real de esa métrica."""
+        aunque todavía no calculemos el valor real de esa métrica.
+
+        Al final se filtra por applicable_version_ids: si el indicador tiene
+        Versiones de Estándar Aplicables cargadas, solo se muestra cuando la
+        Versión elegida está entre ellas (si no tiene ninguna cargada, se
+        considera aplicable a todas, por compatibilidad con indicadores
+        existentes). Esto evita que un indicador con datos históricos de OTRA
+        versión quede pegado como columna al cambiar de Versión en el reporte."""
         self.ensure_one()
         version = self.version_id or self.genetics_id.default_standard_version_id
         Weekly = self.env['poultry.batch.indicator.weekly.value']
@@ -73,7 +80,11 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             ('period', '=', period),
             ('active', '=', True),
         ]).mapped('indicator_id') if version else self.env['poultry.indicator']
-        return (from_weekly | from_standard).sorted('sequence')
+        indicators = (from_weekly | from_standard).sorted('sequence')
+        if version:
+            indicators = indicators.filtered(
+                lambda i: not i.applicable_version_ids or version in i.applicable_version_ids)
+        return indicators
 
     def get_report_data(self):
         """Arma los datos del reporte (usado tanto por el componente en pantalla
