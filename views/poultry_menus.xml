@@ -55,58 +55,76 @@
               sequence="15"/>
 
     <!-- Menú: Configuración -->
-    <menuitem id="menu_poultry_configuration" 
-              name="Configuración" 
-              parent="menu_poultry_management_root" 
+    <menuitem id="menu_poultry_configuration"
+              name="Configuración"
+              parent="menu_poultry_management_root"
               sequence="50"/>
 
-    <!-- Submenús de Configuración -->
-    <menuitem id="menu_poultry_coop" 
-              name="Galpones" 
-              parent="menu_poultry_configuration" 
-              action="action_poultry_coop" 
+    <!-- Subgrupos de Configuración (sin acción: solo agrupan visualmente los submenús) -->
+    <menuitem id="menu_poultry_configuration_genetics"
+              name="Genética"
+              parent="menu_poultry_configuration"
               sequence="10"/>
 
-    <menuitem id="menu_poultry_batch"
-              name="Lotes de Aves"
+    <menuitem id="menu_poultry_configuration_batches"
+              name="Lotes"
               parent="menu_poultry_configuration"
-              action="action_poultry_batch"
               sequence="20"/>
 
-    <menuitem id="menu_poultry_batch_coop_line"
-              name="Asignaciones de Lotes a Galpones"
+    <menuitem id="menu_poultry_configuration_general"
+              name="Configuración General"
               parent="menu_poultry_configuration"
-              action="action_poultry_batch_coop_line"
-              sequence="25"/>
+              sequence="30"/>
 
+    <!-- Genética -->
     <menuitem id="menu_poultry_genetics"
               name="Genéticas"
-              parent="menu_poultry_configuration"
+              parent="menu_poultry_configuration_genetics"
               action="action_poultry_genetics"
-              sequence="30"/>
+              sequence="10"/>
 
     <menuitem id="menu_poultry_indicator"
               name="Indicadores de Genética"
-              parent="menu_poultry_configuration"
+              parent="menu_poultry_configuration_genetics"
               action="action_poultry_indicator"
-              sequence="35"/>
+              sequence="20"/>
 
     <menuitem id="menu_poultry_genetics_standard_version"
               name="Versiones de Estándar"
-              parent="menu_poultry_configuration"
+              parent="menu_poultry_configuration_genetics"
               action="action_poultry_genetics_standard_version"
-              sequence="38"/>
+              sequence="30"/>
 
     <menuitem id="menu_poultry_genetics_standards"
               name="Estándares de Genética"
-              parent="menu_poultry_configuration"
+              parent="menu_poultry_configuration_genetics"
               action="action_poultry_genetics_standard"
               sequence="40"/>
 
+    <!-- Lotes -->
+    <menuitem id="menu_poultry_batch"
+              name="Lotes de Aves"
+              parent="menu_poultry_configuration_batches"
+              action="action_poultry_batch"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_batch_coop_line"
+              name="Asignaciones de Lotes a Galpones"
+              parent="menu_poultry_configuration_batches"
+              action="action_poultry_batch_coop_line"
+              sequence="20"/>
+
+    <!-- Configuración General -->
+    <menuitem id="menu_poultry_coop"
+              name="Galpones"
+              parent="menu_poultry_configuration_general"
+              action="action_poultry_coop"
+              sequence="10"/>
+
     <menuitem id="menu_poultry_uom"
               name="Unidades de Medida"
-              parent="menu_poultry_configuration"
+              parent="menu_poultry_configuration_general"
               action="action_uom_poultry"
-              sequence="50"/>
+              sequence="20"/>
 </odoo>
 
