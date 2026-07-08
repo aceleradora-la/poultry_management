@@ -77,21 +77,8 @@ class MrpProduction(models.Model):
         return warning
 
     # -- Mortandad de aves (solo OF de Huevo sin Clasificar) --------------------
-
-    @api.model_create_multi
-    def create(self, vals_list):
-        productions = super().create(vals_list)
-        for production, vals in zip(productions, vals_list):
-            if ('poultry_dead_count_total' in vals or 'coop_id' in vals) and production.coop_close_id:
-                production._poultry_sync_mortality()
-        return productions
-
-    def write(self, vals):
-        result = super().write(vals)
-        if 'poultry_dead_count_total' in vals or 'coop_id' in vals:
-            for production in self.filtered(lambda p: p.coop_close_id):
-                production._poultry_sync_mortality()
-        return result
+    # El registro se materializa al confirmar/producir la OF (button_mark_done), no en
+    # cada guardado del total; y se elimina al desmantelar la OF (ver mrp_unbuild.py).
 
     def _poultry_target_mortality_date(self):
         """Fecha a la que se imputa la mortandad: la del Cierre de Galpón, o en su
@@ -256,7 +243,15 @@ class MrpProduction(models.Model):
             if tmpl and getattr(tmpl, 'poultry_validate_kit_consumption', False):
                 mo._poultry_validate_kit_consumption_equals_finished()
         result = super().button_mark_done()
+        # La mortandad se guarda en la tabla recién al confirmar/producir la OF de Huevo
+        # sin Clasificar (no en cada guardado del total). Se sincroniza ANTES de calcular
+        # los indicadores para que las Aves Vivas del día reflejen la mortandad registrada,
+        # igual que en el recálculo histórico (_poultry_rebuild_all_indicator_values). Si
+        # el total supera las aves vivas, _poultry_sync_mortality levanta UserError y toda
+        # la operación (incluido el producido) se revierte.
         for mo in self:
+            if mo.coop_close_id:
+                mo._poultry_sync_mortality()
             mo._poultry_compute_all_indicator_values()
         return result
 
