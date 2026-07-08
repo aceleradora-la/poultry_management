@@ -67,5 +67,13 @@
               parent="menu_poultry_reports"
               action="action_poultry_mortality_report"
               sequence="20"/>
+
+    <!-- Carga manual de mortandad: visible solo para el grupo con permiso especial. -->
+    <menuitem id="menu_poultry_mortality_manual"
+              name="Carga Manual de Mortandad"
+              parent="menu_poultry_reports"
+              action="action_poultry_mortality_manual"
+              groups="poultry_management.group_poultry_mortality_manual"
+              sequence="21"/>
 </odoo>
 

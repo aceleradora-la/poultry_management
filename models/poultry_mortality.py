@@ -100,3 +100,19 @@ class PoultryMortality(models.Model):
         for record in self:
             if record.dead_count < 0:
                 raise ValidationError('La cantidad de aves muertas no puede ser negativa.')
+
+    # -- Carga manual (grupo Mortandad: Carga Manual) --------------------------
+    # Al cargar a mano día por día y por lote, ayudan a mantener coherente el
+    # (galpón, genética, lote) reseteando el lote cuando cambia el galpón/genética.
+
+    @api.onchange('coop_id')
+    def _onchange_coop_id(self):
+        """Al cambiar el galpón, limpiar genética y lote."""
+        self.genetics_id = False
+        self.batch_id = False
+
+    @api.onchange('genetics_id', 'coop_id')
+    def _onchange_genetics_coop(self):
+        """Al cambiar genética o galpón, resetear el lote para respetar el dominio."""
+        if self.coop_id and self.genetics_id:
+            self.batch_id = False
