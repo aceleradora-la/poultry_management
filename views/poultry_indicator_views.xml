@@ -41,6 +41,10 @@
                             <field name="notes" placeholder="Información adicional sobre este indicador..."/>
                         </group>
                     </group>
+                    <group>
+                        <field name="applicable_version_ids" widget="many2many_tags"
+                               placeholder="Vacío = aplica a todas las Versiones de Estándar"/>
+                    </group>
                 </sheet>
             </form>
         </field>

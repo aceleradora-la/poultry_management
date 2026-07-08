@@ -79,6 +79,14 @@ class PoultryIndicator(models.Model):
 
     standard_ids = fields.One2many('poultry.genetics.standard', 'indicator_id', string='Estándares')
     standard_count = fields.Integer(string='Cantidad de Estándares', compute='_compute_standard_count')
+    applicable_version_ids = fields.Many2many(
+        'poultry.genetics.standard.version', string='Versiones de Estándar Aplicables',
+        help='En qué Versiones de Estándar de Genética aplica este indicador (puede ser '
+             'más de una, incluso de genéticas distintas). El Reporte de Seguimiento de '
+             'Estándares usa esto para decidir qué columnas mostrar al elegir una Versión: '
+             'si se deja vacío, el indicador se considera aplicable a TODAS las versiones '
+             '(compatibilidad con indicadores ya existentes que no se etiquetaron).'
+    )
 
     @api.depends('standard_ids')
     def _compute_standard_count(self):
