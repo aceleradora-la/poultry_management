@@ -26,7 +26,7 @@
                         <group>
                             <field name="coop_id" readonly="1"/>
                             <field name="poultry_dead_count_total"
-                                   readonly="state == 'cancel'"/>
+                                   readonly="state in ('done', 'cancel')"/>
                         </group>
                     </group>
                     <separator string="Reparto por lote"/>
