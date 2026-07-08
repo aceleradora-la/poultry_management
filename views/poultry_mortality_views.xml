@@ -63,7 +63,8 @@
     <record id="action_poultry_mortality_report" model="ir.actions.act_window">
         <field name="name">Mortandad</field>
         <field name="res_model">poultry.mortality</field>
-        <field name="view_mode">list,pivot,form</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="view_id" ref="view_poultry_mortality_tree"/>
         <field name="search_view_id" ref="view_poultry_mortality_search"/>
         <field name="domain">[('active', '=', True)]</field>
         <field name="context">{'search_default_by_coop': 1}</field>
@@ -111,19 +112,44 @@
         </field>
     </record>
 
-    <!-- Habilita crear/editar/eliminar dentro del Reporte de Mortandad solo para el grupo
-         de carga manual (la vista base es de solo lectura). -->
-    <record id="view_poultry_mortality_tree_manual" model="ir.ui.view">
-        <field name="name">poultry.mortality.report.tree.manual</field>
+    <!-- Lista editable para la carga manual (día por día y por lote). Se abre desde el
+         menú "Carga Manual de Mortandad", gateado al grupo "Mortandad: Carga Manual".
+         Las reglas de registro (ir.rule) son la barrera real a nivel de datos. -->
+    <record id="view_poultry_mortality_manual_tree" model="ir.ui.view">
+        <field name="name">poultry.mortality.manual.tree</field>
         <field name="model">poultry.mortality</field>
-        <field name="inherit_id" ref="view_poultry_mortality_tree"/>
-        <field name="groups_id" eval="[(4, ref('poultry_management.group_poultry_mortality_manual'))]"/>
         <field name="arch" type="xml">
-            <list position="attributes">
-                <attribute name="create">true</attribute>
-                <attribute name="edit">true</attribute>
-                <attribute name="delete">true</attribute>
+            <list string="Carga Manual de Mortandad" editable="bottom">
+                <field name="date"/>
+                <field name="coop_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                <field name="genetics_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                <field name="batch_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                <field name="dead_count"/>
+                <field name="assigned_bird_count" readonly="1" optional="show"/>
+                <field name="live_bird_count" readonly="1" optional="show"/>
+                <field name="mortality_pct" digits="[16,2]" readonly="1" optional="show"/>
+                <field name="production_id" readonly="1" optional="hide"/>
             </list>
+        </field>
+    </record>
+
+    <!-- Acción de carga manual (lista editable + formulario). El menú que la abre está
+         gateado al grupo "Mortandad: Carga Manual" (ver reports/poultry_reports.xml). -->
+    <record id="action_poultry_mortality_manual" model="ir.actions.act_window">
+        <field name="name">Carga Manual de Mortandad</field>
+        <field name="res_model">poultry.mortality</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_poultry_mortality_manual_tree"/>
+        <field name="search_view_id" ref="view_poultry_mortality_search"/>
+        <field name="context">{'search_default_by_coop': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Cargá mortandad a mano
+            </p>
+            <p>
+                Registrá aves muertas por día y por lote para fechas anteriores. Requiere el
+                permiso <strong>Mortandad: Carga Manual</strong>.
+            </p>
         </field>
     </record>
 </odoo>
