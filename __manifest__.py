@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.28.0',
+    'version': '19.0.1.29.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -51,6 +51,12 @@
         'views/poultry_coop_close_views.xml',
         'views/poultry_coop_close_wizard_views.xml',
         'views/poultry_mortality_views.xml',
+        'views/poultry_cage_views.xml',
+        'views/poultry_weight_record_views.xml',
+        'views/poultry_vaccine_views.xml',
+        'views/poultry_vaccination_plan_views.xml',
+        'views/poultry_vaccination_views.xml',
+        'views/poultry_vaccination_compliance_views.xml',
         'views/poultry_genetics_standard_views.xml',
         'views/mrp_bom_views.xml',
         'views/mrp_production_views.xml',

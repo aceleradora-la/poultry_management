@@ -47,6 +47,10 @@ class PoultryCoop(models.Model):
     # Relaciones con mortalidad
     mortality_ids = fields.One2many('poultry.mortality', 'coop_id', string='Registros de Mortalidad')
     mortality_count = fields.Integer(string='Registros de Mortalidad', compute='_compute_mortality_count')
+
+    # Jaulas de muestreo para el Parte de Registro de Peso (siempre se pesan las mismas)
+    cage_ids = fields.One2many('poultry.cage', 'coop_id', string='Jaulas de Muestreo')
+    cage_count = fields.Integer(string='Jaulas de Muestreo', compute='_compute_cage_count')
     
     # Relación con listas de materiales (BOM)
     coop_bom_ids = fields.One2many('poultry.coop.bom', 'coop_id', string='Historial de Listas de Materiales')
@@ -141,6 +145,22 @@ class PoultryCoop(models.Model):
         """Cuenta la cantidad de registros de mortalidad del galpón"""
         for coop in self:
             coop.mortality_count = len(coop.mortality_ids)
+
+    @api.depends('cage_ids')
+    def _compute_cage_count(self):
+        for coop in self:
+            coop.cage_count = len(coop.cage_ids)
+
+    def action_view_cages(self):
+        self.ensure_one()
+        return {
+            'name': 'Jaulas de Muestreo - %s' % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.cage',
+            'view_mode': 'list,form',
+            'domain': [('coop_id', '=', self.id)],
+            'context': {'default_coop_id': self.id},
+        }
     
     @api.depends('coop_bom_ids', 'coop_bom_ids.active', 'coop_bom_ids.start_date', 'coop_bom_ids.end_date')
     def _compute_active_bom(self):

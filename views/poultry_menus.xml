@@ -12,12 +12,12 @@
               action="action_poultry_egg_collection" 
               sequence="10"/>
 
-    <!-- Menú: Movimiento de Aves -->
-    <menuitem id="menu_poultry_batch_movement"
-              name="Movimiento de Aves"
+    <!-- Menú: Pesaje de Aves -->
+    <menuitem id="menu_poultry_weight_record"
+              name="Pesaje de Aves"
               parent="menu_poultry_management_root"
-              action="action_poultry_batch_movement"
-              sequence="25"/>
+              action="action_poultry_weight_record"
+              sequence="15"/>
 
     <!-- Menú: Cierres -->
     <menuitem id="menu_poultry_closes"
@@ -35,8 +35,31 @@
               action="action_poultry_coop_close" 
               sequence="20"/>
 
+    <!-- Menú: Movimiento de Aves -->
+    <menuitem id="menu_poultry_batch_movement"
+              name="Movimiento de Aves"
+              parent="menu_poultry_management_root"
+              action="action_poultry_batch_movement"
+              sequence="25"/>
+
+    <!-- Menú: Sanidad -->
+    <menuitem id="menu_poultry_health"
+              name="Sanidad"
+              parent="menu_poultry_management_root"
+              sequence="30"/>
+    <menuitem id="menu_poultry_vaccination"
+              name="Aplicaciones de Vacunas"
+              parent="menu_poultry_health"
+              action="action_poultry_vaccination"
+              sequence="10"/>
+    <menuitem id="menu_poultry_vaccination_compliance"
+              name="Cumplimiento de Vacunación"
+              parent="menu_poultry_health"
+              action="action_poultry_vaccination_compliance"
+              sequence="20"/>
+
     <!-- Menú: Reportes -->
-    <menuitem id="menu_poultry_reports" 
+    <menuitem id="menu_poultry_reports"
               name="Reportes" 
               parent="menu_poultry_management_root" 
               sequence="40"/>
@@ -70,6 +93,11 @@
               name="Lotes"
               parent="menu_poultry_configuration"
               sequence="20"/>
+
+    <menuitem id="menu_poultry_configuration_health"
+              name="Sanidad"
+              parent="menu_poultry_configuration"
+              sequence="25"/>
 
     <menuitem id="menu_poultry_configuration_general"
               name="Configuración General"
@@ -114,12 +142,37 @@
               action="action_poultry_batch_coop_line"
               sequence="20"/>
 
+    <!-- Sanidad (Configuración) -->
+    <menuitem id="menu_poultry_vaccine"
+              name="Vacunas"
+              parent="menu_poultry_configuration_health"
+              action="action_poultry_vaccine"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_vaccination_plan"
+              name="Planes de Vacunación"
+              parent="menu_poultry_configuration_health"
+              action="action_poultry_vaccination_plan"
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_batch_vaccination_plan"
+              name="Asignaciones de Planes"
+              parent="menu_poultry_configuration_health"
+              action="action_poultry_batch_vaccination_plan"
+              sequence="30"/>
+
     <!-- Configuración General -->
     <menuitem id="menu_poultry_coop"
               name="Galpones"
               parent="menu_poultry_configuration_general"
               action="action_poultry_coop"
               sequence="10"/>
+
+    <menuitem id="menu_poultry_cage"
+              name="Jaulas de Muestreo"
+              parent="menu_poultry_configuration_general"
+              action="action_poultry_cage"
+              sequence="15"/>
 
     <menuitem id="menu_poultry_uom"
               name="Unidades de Medida"

@@ -54,6 +54,24 @@
         <field name="number_next">1</field>
     </record>
 
+    <record id="sequence_poultry_weight_record" model="ir.sequence">
+        <field name="name">Secuencia de Parte de Registro de Peso</field>
+        <field name="code">poultry.weight.record</field>
+        <field name="prefix">PES-</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+    </record>
+
+    <record id="sequence_poultry_vaccination" model="ir.sequence">
+        <field name="name">Secuencia de Aplicación de Vacuna</field>
+        <field name="code">poultry.vaccination</field>
+        <field name="prefix">VAC-</field>
+        <field name="padding">4</field>
+        <field name="number_increment">1</field>
+        <field name="number_next">1</field>
+    </record>
+
     <record id="sequence_poultry_batch_movement" model="ir.sequence">
         <field name="name">Secuencia de Movimiento de Aves</field>
         <field name="code">poultry.batch.movement</field>
