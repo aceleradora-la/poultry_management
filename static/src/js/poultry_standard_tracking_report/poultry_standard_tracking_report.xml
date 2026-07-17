@@ -6,14 +6,24 @@
             <div class="o_control_panel">
                 <div class="o_control_panel_main d-flex align-items-center flex-wrap gap-2 p-2">
                     <h5 class="mb-0 me-3"><t t-esc="title"/></h5>
-                    <select class="form-select form-select-sm w-auto me-2" t-on-change="onBatchChange">
-                        <t t-foreach="state.batches" t-as="batch" t-key="batch.id">
-                            <option t-att-value="batch.id"
-                                    t-att-selected="header and header.batch_id === batch.id">
-                                <t t-esc="batch.name"/>
-                            </option>
+                    <div class="d-flex align-items-center flex-wrap gap-1 me-2 border rounded px-2 py-1"
+                         t-if="header" style="min-height: 31px;">
+                        <t t-foreach="selectedBatches" t-as="b" t-key="b.id">
+                            <span class="badge rounded-pill text-bg-light border">
+                                <t t-esc="b.name"/>
+                                <a href="#" class="ms-1 text-decoration-none text-secondary"
+                                   t-if="selectedBatches.length > 1"
+                                   t-on-click.prevent="() => this.onRemoveBatch(b.id)">×</a>
+                            </span>
                         </t>
-                    </select>
+                        <select class="form-select form-select-sm w-auto border-0 py-0"
+                                t-if="addableBatches.length" t-on-change="onAddBatch">
+                            <option value="">+ Lote</option>
+                            <t t-foreach="addableBatches" t-as="batch" t-key="batch.id">
+                                <option t-att-value="batch.id"><t t-esc="batch.name"/></option>
+                            </t>
+                        </select>
+                    </div>
                     <select class="form-select form-select-sm w-auto me-2" t-on-change="onVersionChange" t-if="header">
                         <t t-foreach="header.version_options" t-as="v" t-key="v.id">
                             <option t-att-value="v.id"
@@ -103,6 +113,7 @@
                     <table class="table table-bordered table-sm table-hover">
                         <thead>
                             <tr>
+                                <th rowspan="2" t-if="isComparison" style="width: 28px;"/>
                                 <th rowspan="2" class="align-middle text-center">Edad</th>
                                 <th rowspan="2" class="align-middle text-center">Fecha</th>
                                 <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
@@ -120,28 +131,59 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr t-foreach="currentData.rows" t-as="row" t-key="row.week">
-                                <td class="text-center fw-bold text-nowrap">
-                                    <t t-esc="row.week"/>
-                                </td>
-                                <td class="text-center text-nowrap">
-                                    <t t-esc="row.date"/>
-                                </td>
-                                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
-                                    <t t-set="cell" t-value="row.cells[indicator.id]"/>
-                                    <td class="text-center">
-                                        <t t-if="cell.has_standard" t-esc="cell.value_low.toFixed(2)"/>
+                            <t t-foreach="currentData.rows" t-as="row" t-key="row.week">
+                                <tr t-att-style="isComparison ? 'cursor: pointer;' : ''"
+                                    t-on-click="() => this.onRowClick(row.week)">
+                                    <td class="text-center align-middle text-muted" t-if="isComparison">
+                                        <i t-att-class="'fa ' + (state.expandedWeeks[row.week] ? 'fa-caret-down' : 'fa-caret-right')"/>
                                     </td>
-                                    <td class="text-center">
-                                        <t t-if="cell.has_standard" t-esc="cell.value_high.toFixed(2)"/>
+                                    <td class="text-center fw-bold text-nowrap">
+                                        <t t-esc="row.week"/>
                                     </td>
-                                    <td class="text-center"
-                                        t-att-class="cell.out_of_range ? 'fw-bold' : ''"
-                                        t-att-style="cell.real_color ? ('color: ' + cell.real_color + ';') : ''">
-                                        <t t-if="cell.real_value !== null" t-esc="cell.real_value.toFixed(2)"/>
+                                    <td class="text-center text-nowrap">
+                                        <t t-esc="row.date"/>
                                     </td>
+                                    <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                                        <t t-set="cell" t-value="row.cells[indicator.id]"/>
+                                        <td class="text-center">
+                                            <t t-if="cell.has_standard" t-esc="cell.value_low.toFixed(2)"/>
+                                        </td>
+                                        <td class="text-center">
+                                            <t t-if="cell.has_standard" t-esc="cell.value_high.toFixed(2)"/>
+                                        </td>
+                                        <td class="text-center"
+                                            t-att-class="cell.out_of_range ? 'fw-bold' : ''"
+                                            t-att-style="cell.real_color ? ('color: ' + cell.real_color + ';') : ''">
+                                            <t t-if="cell.real_value !== null" t-esc="cell.real_value.toFixed(2)"/>
+                                        </td>
+                                    </t>
+                                </tr>
+                                <t t-if="isComparison and state.expandedWeeks[row.week]">
+                                    <tr t-foreach="getRowBatches(row)" t-as="batchRow" t-key="batchRow.batch_id"
+                                        class="table-light">
+                                        <td/>
+                                        <td class="text-center">
+                                            <span class="badge rounded-pill text-bg-secondary">
+                                                <t t-esc="batchRow.name"/>
+                                            </span>
+                                        </td>
+                                        <td class="text-center text-nowrap small text-muted">
+                                            <t t-esc="batchRow.date or '-'"/>
+                                        </td>
+                                        <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                                            <t t-set="bv" t-value="batchRow.values[indicator.id]"/>
+                                            <td class="text-center small text-muted" colspan="2">
+                                                <t t-if="indicator_index === 0"
+                                                   t-esc="batchRow.bird_count ? (batchRow.bird_count + ' aves') : ''"/>
+                                            </td>
+                                            <td class="text-center small"
+                                                t-att-style="bv and bv.real_color ? ('color: ' + bv.real_color + '; font-weight: 500;') : ''">
+                                                <t t-if="bv" t-esc="bv.real_value.toFixed(2)"/>
+                                            </td>
+                                        </t>
+                                    </tr>
                                 </t>
-                            </tr>
+                            </t>
                         </tbody>
                     </table>
                 </t>

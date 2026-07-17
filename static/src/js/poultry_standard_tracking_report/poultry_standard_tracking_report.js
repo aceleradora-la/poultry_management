@@ -23,6 +23,7 @@ export class PoultryStandardTrackingReport extends Component {
             loading: true,
             error: null,
             hiddenIndicatorIds: {},
+            expandedWeeks: {},
         });
         onWillStart(async () => {
             try {
@@ -33,7 +34,7 @@ export class PoultryStandardTrackingReport extends Component {
                         [this.wizardId]
                     ),
                     this.orm.searchRead(
-                        "poultry.batch", [], ["id", "name"], { order: "birth_date desc" }
+                        "poultry.batch", [], ["id", "name", "genetics_id"], { order: "birth_date desc" }
                     ),
                 ]);
                 this.state.data = data;
@@ -93,9 +94,84 @@ export class PoultryStandardTrackingReport extends Component {
         this.state.hiddenIndicatorIds = hidden;
     }
 
-    async onBatchChange(ev) {
+    get isComparison() {
+        return !!(this.header && this.header.is_comparison);
+    }
+
+    get selectedBatches() {
+        if (!this.header) {
+            return [];
+        }
+        const byId = Object.fromEntries(this.state.batches.map((b) => [b.id, b]));
+        return (this.header.batch_ids || [this.header.batch_id])
+            .map((id) => byId[id])
+            .filter(Boolean);
+    }
+
+    get addableBatches() {
+        if (!this.header) {
+            return [];
+        }
+        const selectedIds = this.header.batch_ids || [this.header.batch_id];
+        const primary = this.state.batches.find((b) => b.id === this.header.batch_id);
+        const primaryGenetics = primary && primary.genetics_id ? primary.genetics_id[0] : null;
+        return this.state.batches.filter(
+            (b) =>
+                !selectedIds.includes(b.id) &&
+                (!primaryGenetics || (b.genetics_id && b.genetics_id[0] === primaryGenetics))
+        );
+    }
+
+    onRowClick(week) {
+        if (!this.isComparison) {
+            return;
+        }
+        this.state.expandedWeeks[week] = !this.state.expandedWeeks[week];
+    }
+
+    getRowBatches(row) {
+        const map = {};
+        for (const indicator of this.visibleIndicators) {
+            const cell = row.cells[indicator.id];
+            for (const bv of (cell && cell.batch_values) || []) {
+                if (!map[bv.batch_id]) {
+                    map[bv.batch_id] = {
+                        batch_id: bv.batch_id,
+                        name: bv.batch_name,
+                        bird_count: bv.bird_count,
+                        date: bv.date,
+                        values: {},
+                    };
+                }
+                map[bv.batch_id].values[indicator.id] = bv;
+            }
+        }
+        return Object.values(map);
+    }
+
+    async onAddBatch(ev) {
         const batchId = parseInt(ev.target.value, 10);
-        await this._reload("update_batch", batchId);
+        ev.target.value = "";
+        if (!batchId || !this.header) {
+            return;
+        }
+        const ids = (this.header.batch_ids || [this.header.batch_id]).concat([batchId]);
+        this.state.expandedWeeks = {};
+        await this._reload("update_batches", ids);
+    }
+
+    async onRemoveBatch(batchId) {
+        if (!this.header) {
+            return;
+        }
+        const ids = (this.header.batch_ids || [this.header.batch_id]).filter(
+            (id) => id !== batchId
+        );
+        if (!ids.length) {
+            return;
+        }
+        this.state.expandedWeeks = {};
+        await this._reload("update_batches", ids);
     }
 
     async onVersionChange(ev) {

@@ -11,6 +11,12 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
     _description = 'Reporte de Seguimiento de Estándares'
 
     batch_id = fields.Many2one('poultry.batch', string='Lote de Aves', required=True)
+    comparison_batch_ids = fields.Many2many(
+        'poultry.batch', string='Lotes a Comparar',
+        help='Lotes adicionales (de la misma genética que el Lote principal) para '
+             'comparar en el reporte. Con más de un lote, la fila de cada Semana de '
+             'Vida muestra el promedio ponderado por aves, y se puede desplegar el '
+             'detalle por lote (drilldown).')
     genetics_id = fields.Many2one('poultry.genetics', string='Genética',
                                    related='batch_id.genetics_id', readonly=True)
     version_id = fields.Many2one('poultry.genetics.standard.version', string='Versión de Estándar',
@@ -62,6 +68,40 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         self.version_id = self.env['poultry.genetics.standard.version'].browse(version_id) if version_id else False
         return self.get_report_data()
 
+    def update_batches(self, batch_ids):
+        """Reemplaza la selección completa de lotes del reporte (selector de tags
+        en pantalla). El primero de la lista es el Lote principal (define genética
+        y versión predeterminada); el resto son Lotes a Comparar."""
+        self.ensure_one()
+        batches = self.env['poultry.batch'].browse(batch_ids).exists()
+        if not batches:
+            raise UserError('Seleccione al menos un Lote de Aves.')
+        primary = batches[0]
+        if primary != self.batch_id:
+            self.batch_id = primary
+            self.version_id = primary.genetics_id.default_standard_version_id
+        self.comparison_batch_ids = [(6, 0, (batches - primary).ids)]
+        return self.get_report_data()
+
+    def _get_report_batches(self):
+        """Lote principal + Lotes a Comparar, descartando comparaciones de otra
+        genética (no habría un estándar común contra el cual pintarlas)."""
+        self.ensure_one()
+        comparison = self.comparison_batch_ids.filtered(
+            lambda b: b.genetics_id == self.batch_id.genetics_id and b != self.batch_id)
+        return self.batch_id | comparison
+
+    def _get_real_color(self, indicator, real_value, value_low, value_high, has_standard):
+        """Color configurado en el indicador según dónde cae el Valor Real
+        respecto del rango (debajo/dentro/encima). False = color normal."""
+        if not has_standard or real_value is None:
+            return False
+        if real_value < value_low:
+            return indicator.color_below or False
+        if real_value > value_high:
+            return indicator.color_above or False
+        return indicator.color_within or False
+
     def _get_relevant_indicators(self, period):
         """Unión: indicadores con al menos un poultry.batch.indicator.weekly.value
         para este lote+período, O al menos un poultry.genetics.standard para esta
@@ -79,7 +119,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         Weekly = self.env['poultry.batch.indicator.weekly.value']
         Standard = self.env['poultry.genetics.standard']
         from_weekly = Weekly.search([
-            ('batch_id', '=', self.batch_id.id),
+            ('batch_id', 'in', self._get_report_batches().ids),
             ('period', '=', period),
         ]).mapped('indicator_id')
         from_standard = Standard.search([
@@ -115,6 +155,8 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         Weekly = self.env['poultry.batch.indicator.weekly.value']
         Standard = self.env['poultry.genetics.standard']
         result = {}
+        report_batches = self._get_report_batches()
+        is_comparison = len(report_batches) > 1
         periods = (self.report_period,) if self.report_period else ('crianza', 'produccion')
         for period in ('crianza', 'produccion'):
             if period not in periods:
@@ -125,7 +167,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 continue
             indicators = self._get_relevant_indicators(period)
             weekly_values = Weekly.search([
-                ('batch_id', '=', self.batch_id.id),
+                ('batch_id', 'in', report_batches.ids),
                 ('period', '=', period),
             ])
             standard_weeks = Standard.search([
@@ -139,7 +181,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             for week in weeks:
                 cells = {}
                 for indicator in indicators:
-                    match = weekly_values.filtered(
+                    matches = weekly_values.filtered(
                         lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk)
                     # Bajo/Alto siempre se recalculan contra la Versión elegida en el
                     # reporte (nunca se toman del Bajo/Alto guardado en el Valor Real,
@@ -148,17 +190,31 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                     # actualiza el rango, tenga o no la semana un Valor Real ya calculado.
                     standard, value_low, value_high = self._get_standard_range(version, indicator, week)
                     has_standard = bool(standard)
-                    real_value = match[0].real_value if match else None
-                    # Color del Valor Real configurado en el indicador según dónde cae
-                    # respecto del rango (debajo/dentro/encima). Vacío = color normal.
-                    real_color = False
-                    if has_standard and real_value is not None:
-                        if real_value < value_low:
-                            real_color = indicator.color_below or False
-                        elif real_value > value_high:
-                            real_color = indicator.color_above or False
-                        else:
-                            real_color = indicator.color_within or False
+                    # Valor de cada lote seleccionado en esta semana, y consolidado
+                    # ponderado por la Cantidad de Aves de cada lote (un lote de
+                    # 32.000 aves pesa más que uno de 5.000, no promedio simple).
+                    batch_values = []
+                    total_weight = 0.0
+                    total_weighted = 0.0
+                    for batch in report_batches:
+                        batch_match = matches.filtered(lambda m, b=batch: m.batch_id == b)
+                        if not batch_match:
+                            continue
+                        batch_real = batch_match[0].real_value
+                        weight = batch.bird_count or 1
+                        total_weight += weight
+                        total_weighted += batch_real * weight
+                        batch_values.append({
+                            'batch_id': batch.id,
+                            'batch_name': batch.name,
+                            'bird_count': batch.bird_count,
+                            'date': str(batch.birth_date + timedelta(days=week * 7))
+                                    if batch.birth_date else None,
+                            'real_value': batch_real,
+                            'real_color': self._get_real_color(
+                                indicator, batch_real, value_low, value_high, has_standard),
+                        })
+                    real_value = (total_weighted / total_weight) if batch_values else None
                     cells[indicator.id] = {
                         'value_low': value_low,
                         'value_high': value_high,
@@ -166,7 +222,9 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         'has_standard': has_standard,
                         'out_of_range': has_standard and real_value is not None and (
                             real_value < value_low or real_value > value_high),
-                        'real_color': real_color,
+                        'real_color': self._get_real_color(
+                            indicator, real_value, value_low, value_high, has_standard),
+                        'batch_values': batch_values if is_comparison else [],
                     }
                 week_date = (self.batch_id.birth_date + timedelta(days=week * 7)
                              if self.batch_id.birth_date else None)
@@ -187,6 +245,8 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             'report_period': self.report_period or False,
             'batch_id': self.batch_id.id,
             'batch_name': self.batch_id.name,
+            'batch_ids': report_batches.ids,
+            'is_comparison': is_comparison,
             'genetics_name': self.genetics_id.name,
             'version_id': version.id,
             'version_name': version.name,
