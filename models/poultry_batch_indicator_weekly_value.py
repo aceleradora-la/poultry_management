@@ -16,6 +16,12 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
     indicator_id = fields.Many2one('poultry.indicator', string='Indicador', required=True,
                                     index=True, ondelete='restrict')
     week = fields.Integer(string='Semana de Vida', required=True, index=True)
+    manual_date = fields.Date(
+        string='Fecha del Dato',
+        help='Fecha a la que corresponde el dato cargado a mano. El sistema calcula la '
+             'Semana de Vida según la Fecha de Nacimiento del lote; no hace falta contar '
+             'la semana a mano. Ej.: el sábado 15/03 murieron X aves -poné esa fecha y el '
+             'sistema resuelve en qué Semana de Vida cae.')
     period = fields.Selection([
         ('crianza', 'Crianza'),
         ('produccion', 'Producción'),
@@ -53,13 +59,17 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
         for record in self:
             record.display_name = f'{record.batch_id.name} - {record.indicator_id.name} - Semana {record.week}'
 
-    @api.onchange('batch_id', 'indicator_id', 'week')
+    @api.onchange('batch_id', 'indicator_id', 'week', 'manual_date')
     def _onchange_manual_context(self):
-        """Al cargar un valor semanal a mano, autocompleta Período, Fechas de la semana
-        y Bajo/Alto del estándar a partir del lote, la semana y la genética; así el
-        usuario solo tipea Lote, Indicador, Semana y Valor Real."""
+        """Al cargar un valor semanal a mano, autocompleta la Semana de Vida a partir de
+        la Fecha del Dato y la Fecha de Nacimiento del lote, y de ahí Período, Fechas de
+        la semana y Bajo/Alto del estándar; así el usuario solo tipea Lote, Indicador,
+        Fecha del Dato y Valor Real (no cuenta semanas a mano)."""
         for record in self:
             batch = record.batch_id
+            # Fecha del Dato -> Semana de Vida (anclada a la Fecha de Nacimiento del lote).
+            if batch and batch.birth_date and record.manual_date:
+                record.week = (record.manual_date - batch.birth_date).days // 7
             if not (batch and record.week):
                 continue
             if batch.birth_date:
