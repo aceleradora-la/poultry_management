@@ -38,9 +38,20 @@ class PoultryStandardTrackingReportController(http.Controller):
         })
         cell_format = workbook.add_format({'align': 'center', 'border': 1})
         real_format = workbook.add_format({'align': 'center', 'border': 1, 'bold': True})
-        out_of_range_format = workbook.add_format({
-            'align': 'center', 'border': 1, 'bold': True, 'font_color': 'red',
-        })
+
+        # Formatos de Valor Real coloreados según la configuración de cada indicador
+        # (color_below/color_within/color_above). xlsxwriter exige un objeto Format por
+        # combinación, así que se cachean por color para no crear uno por celda.
+        real_color_formats = {}
+
+        def get_real_format(color):
+            if not color:
+                return real_format
+            if color not in real_color_formats:
+                real_color_formats[color] = workbook.add_format({
+                    'align': 'center', 'border': 1, 'bold': True, 'font_color': color,
+                })
+            return real_color_formats[color]
 
         period_sheets = (('crianza', 'Recría'), ('produccion', 'Parámetros productivos'))
         if wizard.report_period:
@@ -90,8 +101,7 @@ class PoultryStandardTrackingReportController(http.Controller):
                         sheet.write_blank(row, col + 1, None, cell_format)
                     real_value = cell.get('real_value') if cell else None
                     if real_value is not None:
-                        fmt = out_of_range_format if cell.get('out_of_range') else real_format
-                        sheet.write(row, col + 2, real_value, fmt)
+                        sheet.write(row, col + 2, real_value, get_real_format(cell.get('real_color')))
                     else:
                         sheet.write_blank(row, col + 2, None, real_format)
                     col += 3

@@ -150,6 +150,16 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         standard, value_low, value_high = self._get_standard_range(version, indicator, week)
                         real_value = None
                         has_standard = bool(standard)
+                    # Color del Valor Real configurado en el indicador según dónde cae
+                    # respecto del rango (debajo/dentro/encima). Vacío = color normal.
+                    real_color = False
+                    if has_standard and real_value is not None:
+                        if real_value < value_low:
+                            real_color = indicator.color_below or False
+                        elif real_value > value_high:
+                            real_color = indicator.color_above or False
+                        else:
+                            real_color = indicator.color_within or False
                     cells[indicator.id] = {
                         'value_low': value_low,
                         'value_high': value_high,
@@ -157,6 +167,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         'has_standard': has_standard,
                         'out_of_range': has_standard and real_value is not None and (
                             real_value < value_low or real_value > value_high),
+                        'real_color': real_color,
                     }
                 week_date = (self.batch_id.birth_date + timedelta(days=week * 7)
                              if self.batch_id.birth_date else None)
