@@ -98,7 +98,8 @@
                                     <field name="date"/>
                                     <field name="movement_type" widget="badge"
                                            decoration-info="movement_type == 'ingreso'"
-                                           decoration-success="movement_type == 'traslado'"/>
+                                           decoration-success="movement_type == 'traslado'"
+                                           decoration-danger="movement_type == 'retiro'"/>
                                     <field name="batch_id"/>
                                     <field name="origin_coop_id"/>
                                     <field name="dest_coop_id"/>

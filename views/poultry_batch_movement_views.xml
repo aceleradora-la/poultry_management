@@ -10,7 +10,8 @@
                 <field name="date"/>
                 <field name="movement_type" widget="badge"
                        decoration-info="movement_type == 'ingreso'"
-                       decoration-success="movement_type == 'traslado'"/>
+                       decoration-success="movement_type == 'traslado'"
+                       decoration-danger="movement_type == 'retiro'"/>
                 <field name="batch_id"/>
                 <field name="origin_coop_id"/>
                 <field name="dest_coop_id"/>
@@ -50,10 +51,12 @@
                         </group>
                         <group>
                             <field name="origin_coop_id" readonly="state != 'draft'"
-                                   invisible="movement_type != 'traslado'"
-                                   required="movement_type == 'traslado'"
+                                   invisible="movement_type == 'ingreso'"
+                                   required="movement_type in ('traslado', 'retiro')"
                                    options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="dest_coop_id" readonly="state != 'draft'"
+                                   invisible="movement_type == 'retiro'"
+                                   required="movement_type in ('ingreso', 'traslado')"
                                    options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="truck_chassis_plate" readonly="state != 'draft'"/>
                             <field name="truck_trailer_plate" readonly="state != 'draft'"/>
@@ -79,6 +82,7 @@
                 <separator/>
                 <filter string="Ingreso" name="ingreso" domain="[('movement_type', '=', 'ingreso')]"/>
                 <filter string="Traslado" name="traslado" domain="[('movement_type', '=', 'traslado')]"/>
+                <filter string="Retiro" name="retiro" domain="[('movement_type', '=', 'retiro')]"/>
                 <separator/>
                 <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Confirmados" name="done" domain="[('state', '=', 'done')]"/>
@@ -101,9 +105,10 @@
                 Crear un nuevo movimiento de aves
             </p>
             <p>
-                Registra el Ingreso de aves a un galpón (con datos del camión) o el
+                Registra el Ingreso de aves a un galpón (con datos del camión), el
                 Traslado de aves entre galpones (por ejemplo, de un galpón de Recría
-                a uno Productivo). Al confirmar, actualiza automáticamente las
+                a uno Productivo), o el Retiro de aves que se van de la granja (venta,
+                descarte o fin del lote). Al confirmar, actualiza automáticamente las
                 asignaciones de lote a galpón.
             </p>
         </field>

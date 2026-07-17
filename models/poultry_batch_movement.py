@@ -14,6 +14,7 @@ class PoultryBatchMovement(models.Model):
     movement_type = fields.Selection([
         ('ingreso', 'Ingreso'),
         ('traslado', 'Traslado'),
+        ('retiro', 'Retiro'),
     ], string='Tipo de Movimiento', required=True, default='ingreso', index=True)
     date = fields.Date(string='Fecha', required=True, default=fields.Date.today)
 
@@ -22,9 +23,12 @@ class PoultryBatchMovement(models.Model):
 
     origin_coop_id = fields.Many2one('poultry.coop', string='Galpón de Origen',
                                       domain="[('active', '=', True)]",
-                                      help='Requerido para Traslado: galpón desde el cual se mueven las aves.')
-    dest_coop_id = fields.Many2one('poultry.coop', string='Galpón de Destino', required=True,
-                                    domain="[('active', '=', True)]")
+                                      help='Requerido para Traslado y Retiro: galpón desde el cual '
+                                           'salen las aves.')
+    dest_coop_id = fields.Many2one('poultry.coop', string='Galpón de Destino',
+                                    domain="[('active', '=', True)]",
+                                    help='Galpón al que llegan las aves. No aplica al Retiro (las '
+                                         'aves se van de la granja: venta, descarte o fin del lote).')
 
     truck_chassis_plate = fields.Char(string='Patente Chasis')
     truck_trailer_plate = fields.Char(string='Patente Acoplado')
@@ -60,6 +64,8 @@ class PoultryBatchMovement(models.Model):
     def _onchange_movement_type(self):
         if self.movement_type == 'ingreso':
             self.origin_coop_id = False
+        elif self.movement_type == 'retiro':
+            self.dest_coop_id = False
 
     @api.constrains('bird_count')
     def _check_bird_count(self):
@@ -73,10 +79,20 @@ class PoultryBatchMovement(models.Model):
             if record.movement_type == 'traslado':
                 if not record.origin_coop_id:
                     raise ValidationError('El Traslado requiere indicar el Galpón de Origen.')
+                if not record.dest_coop_id:
+                    raise ValidationError('El Traslado requiere indicar el Galpón de Destino.')
                 if record.origin_coop_id == record.dest_coop_id:
                     raise ValidationError('El Galpón de Origen y de Destino no pueden ser el mismo.')
-            elif record.movement_type == 'ingreso' and record.origin_coop_id:
-                raise ValidationError('El Ingreso no debe tener Galpón de Origen (las aves llegan de afuera).')
+            elif record.movement_type == 'retiro':
+                if not record.origin_coop_id:
+                    raise ValidationError('El Retiro requiere indicar el Galpón de Origen (de dónde salen las aves).')
+                if record.dest_coop_id:
+                    raise ValidationError('El Retiro no debe tener Galpón de Destino (las aves se van de la granja).')
+            elif record.movement_type == 'ingreso':
+                if not record.dest_coop_id:
+                    raise ValidationError('El Ingreso requiere indicar el Galpón de Destino.')
+                if record.origin_coop_id:
+                    raise ValidationError('El Ingreso no debe tener Galpón de Origen (las aves llegan de afuera).')
 
     def _find_active_coop_line(self, batch, coop):
         return self.env['poultry.batch.coop.line'].search([
@@ -107,7 +123,7 @@ class PoultryBatchMovement(models.Model):
             if record.state != 'draft':
                 raise UserError('Solo se puede confirmar un movimiento en Borrador.')
 
-            if record.movement_type == 'traslado':
+            if record.movement_type in ('traslado', 'retiro'):
                 origin_line = record._find_active_coop_line(record.batch_id, record.origin_coop_id)
                 if not origin_line:
                     raise UserError(
@@ -115,9 +131,10 @@ class PoultryBatchMovement(models.Model):
                         f'en el galpón de origen {record.origin_coop_id.name}.'
                     )
                 live_count = origin_line._get_live_bird_count_on(record.date)
+                verb = 'retirar' if record.movement_type == 'retiro' else 'trasladar'
                 if record.bird_count > live_count:
                     raise UserError(
-                        f'No se pueden trasladar {record.bird_count} aves: solo hay '
+                        f'No se pueden {verb} {record.bird_count} aves: solo hay '
                         f'{live_count} aves vivas del lote {record.batch_id.name} '
                         f'en {record.origin_coop_id.name} a la fecha {record.date}.'
                     )
@@ -130,7 +147,13 @@ class PoultryBatchMovement(models.Model):
             # algo falla más abajo, toda la transacción (incluido este write) se revierte.
             record.state = 'done'
 
-            if record.movement_type == 'traslado':
+            if record.movement_type in ('traslado', 'retiro'):
+                # Traslado y Retiro comparten el manejo del galpón de origen: se cierra
+                # la asignación vigente (date_to = fecha) y, si quedan aves vivas, se abre
+                # una línea de remanente en el mismo galpón. El Retiro se detiene acá (las
+                # aves se van de la granja); el Traslado además crea la línea de destino.
+                # Si el remanente es 0, no se crea línea nueva: la asignación queda cerrada
+                # con su Fecha de Baja/Traslado -es el "fin del lote en ese galpón".
                 remainder = live_count - record.bird_count
                 origin_line.write({'date_to': record.date})
                 replacement_line = self.env['poultry.batch.coop.line'].browse()
@@ -141,14 +164,18 @@ class PoultryBatchMovement(models.Model):
                         'bird_count': remainder,
                         'date_from': record.date,
                     })
-                dest_line, dest_created = record._apply_incoming(
-                    record.batch_id, record.dest_coop_id, record.bird_count, record.date)
-                record.write({
+                vals = {
                     'origin_coop_line_id': origin_line.id,
                     'origin_replacement_coop_line_id': replacement_line.id if replacement_line else False,
-                    'dest_coop_line_id': dest_line.id,
-                    'dest_coop_line_created': dest_created,
-                })
+                }
+                if record.movement_type == 'traslado':
+                    dest_line, dest_created = record._apply_incoming(
+                        record.batch_id, record.dest_coop_id, record.bird_count, record.date)
+                    vals.update({
+                        'dest_coop_line_id': dest_line.id,
+                        'dest_coop_line_created': dest_created,
+                    })
+                record.write(vals)
             else:
                 dest_line, dest_created = record._apply_incoming(
                     record.batch_id, record.dest_coop_id, record.bird_count, record.date)
@@ -174,7 +201,7 @@ class PoultryBatchMovement(models.Model):
                         )
                     record.dest_coop_line_id.bird_count -= record.bird_count
 
-            if record.movement_type == 'traslado':
+            if record.movement_type in ('traslado', 'retiro'):
                 if record.origin_replacement_coop_line_id:
                     record.origin_replacement_coop_line_id.unlink()
                 if record.origin_coop_line_id:
