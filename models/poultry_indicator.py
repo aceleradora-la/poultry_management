@@ -29,6 +29,14 @@ class PoultryIndicator(models.Model):
              'proveedor de genética (Período de Crianza / Período de Producción).')
     sequence = fields.Integer(string='Secuencia', default=10)
     active = fields.Boolean(string='Activo', default=True)
+    period_scope = fields.Selection([
+        ('crianza', 'Crianza'),
+        ('produccion', 'Producción'),
+        ('both', 'Crianza y Producción'),
+    ], string='Período', default='both', required=True,
+        help='En qué reporte de Seguimiento de Estándares aparece este indicador: '
+             'solo en el de Crianza, solo en el de Producción, o en ambos (para '
+             'indicadores compartidos como Mortandad o Peso Corporal).')
     accumulation_type = fields.Selection([
         ('none', 'Ninguno (valor independiente cada día)'),
         ('live', 'Acumulado (suma corrida) sobre Aves Vivas'),

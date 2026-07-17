@@ -12,8 +12,12 @@ export class PoultryStandardTrackingReport extends Component {
         this.orm = useService("orm");
         this.action = useService("action");
         this.wizardId = this.props.action.params.wizard_id;
+        // Período fijo (menús "Seguimiento Estándares - Crianza/Producción"): el
+        // reporte muestra solo ese período y oculta las pestañas. Sin valor, se
+        // mantienen las pestañas Crianza/Producción (comportamiento anterior).
+        this.fixedPeriod = this.props.action.params.period || null;
         this.state = useState({
-            period: "crianza",
+            period: this.fixedPeriod || "crianza",
             data: null,
             batches: [],
             loading: true,
@@ -44,6 +48,16 @@ export class PoultryStandardTrackingReport extends Component {
 
     setPeriod(period) {
         this.state.period = period;
+    }
+
+    get title() {
+        if (this.fixedPeriod === "crianza") {
+            return "Seguimiento Estándares - Crianza";
+        }
+        if (this.fixedPeriod === "produccion") {
+            return "Seguimiento Estándares - Producción";
+        }
+        return "Seguimiento de Estándares";
     }
 
     get currentData() {

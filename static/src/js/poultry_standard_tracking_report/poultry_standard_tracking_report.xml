@@ -5,7 +5,7 @@
         <div class="o_action o_poultry_standard_tracking_report">
             <div class="o_control_panel">
                 <div class="o_control_panel_main d-flex align-items-center flex-wrap gap-2 p-2">
-                    <h5 class="mb-0 me-3">Seguimiento de Estándares</h5>
+                    <h5 class="mb-0 me-3"><t t-esc="title"/></h5>
                     <select class="form-select form-select-sm w-auto me-2" t-on-change="onBatchChange">
                         <t t-foreach="state.batches" t-as="batch" t-key="batch.id">
                             <option t-att-value="batch.id"
@@ -22,7 +22,7 @@
                             </option>
                         </t>
                     </select>
-                    <div class="btn-group me-2" role="group">
+                    <div class="btn-group me-2" role="group" t-if="!fixedPeriod">
                         <button class="btn btn-sm"
                                 t-att-class="state.period === 'crianza' ? 'btn-primary' : 'btn-outline-primary'"
                                 t-on-click="() => this.setPeriod('crianza')">
