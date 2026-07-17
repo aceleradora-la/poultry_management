@@ -601,6 +601,12 @@ class MrpProduction(models.Model):
         día, acumulada en kg de masa de huevo por ave alojada -mismo patrón que
         Huevos Acumulados Ave-Alojada.
 
+        Masa de Huevo Ave-Día (g/ave/día, tipo de acumulación Ninguno): la misma
+        masa del galpón del día pero SIN acumular, expresada en gramos por ave
+        viva ese día (como en las guías de genética, ej. 57.5 g). Al ser masa por
+        ave, el valor del día es el mismo para todos los lotes del galpón (misma
+        lógica de reparto uniforme por ave que % Ave-Día).
+
         Peso del Huevo Promedio (g/huevo): promedio ponderado del galpón ese día
         (por variante: peso medio × cantidad de huevos de esa variante, igual que
         poultry.egg.collection.average_weight_elaborated). No se reparte por
@@ -634,14 +640,18 @@ class MrpProduction(models.Model):
         mass_housed_indicator = Indicator.search(
             [('category', '=', 'egg_mass'), ('accumulation_type', '=', 'housed'),
              ('active', '=', True)], limit=1)
+        mass_rate_indicator = Indicator.search(
+            [('category', '=', 'egg_mass'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
         weight_indicator = Indicator.search(
             [('category', '=', 'egg_weight'), ('accumulation_type', '=', 'none'),
              ('active', '=', True)], limit=1)
-        if not mass_housed_indicator and not weight_indicator:
+        if not mass_housed_indicator and not mass_rate_indicator and not weight_indicator:
             return
 
         Value = self.env['poultry.batch.indicator.value']
         mass_kg_per_bird_day = total_mass_kg / total_birds
+        mass_g_per_bird_day = total_mass_grams / total_birds
 
         for line in lines:
             birds = birds_by_line[line.id]
@@ -664,6 +674,12 @@ class MrpProduction(models.Model):
                                       previous_total + kg_per_housed_bird,
                                       numerator=batch_mass_kg, denominator=batch.housed_bird_count,
                                       production=self)
+
+            if mass_rate_indicator:
+                Value._set_value(batch, self.coop_id, target_date, mass_rate_indicator,
+                                  mass_g_per_bird_day,
+                                  numerator=mass_g_per_bird_day * birds, denominator=birds,
+                                  production=self)
 
             if weight_indicator:
                 Value._set_value(batch, self.coop_id, target_date, weight_indicator,
