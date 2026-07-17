@@ -12,7 +12,11 @@ class PoultryGeneticsStandard(models.Model):
 
     version_id = fields.Many2one('poultry.genetics.standard.version', string='Versión',
                                   required=True, index=True, ondelete='cascade')
-    genetics_id = fields.Many2one('poultry.genetics', string='Genética', related='version_id.genetics_id',
+    # No se usa related=... a propósito: un related+store hereda el required=True del
+    # campo genetics_id de Versión, lo que bloquea la importación (el campo es readonly,
+    # así que el importador no puede completarlo, pero Odoo igual lo exige antes de crear
+    # el registro). Con compute simple, el campo no hereda esa obligatoriedad.
+    genetics_id = fields.Many2one('poultry.genetics', string='Genética', compute='_compute_genetics_id',
                                    store=True, index=True, readonly=True)
     indicator_id = fields.Many2one('poultry.indicator', string='Indicador', required=True,
                                     index=True, ondelete='restrict')
@@ -31,6 +35,11 @@ class PoultryGeneticsStandard(models.Model):
     active = fields.Boolean(string='Activo', default=True)
 
     display_name = fields.Char(string='Nombre', compute='_compute_display_name', store=True)
+
+    @api.depends('version_id.genetics_id')
+    def _compute_genetics_id(self):
+        for record in self:
+            record.genetics_id = record.version_id.genetics_id
 
     @api.depends('genetics_id.name', 'version_id.name', 'indicator_id.name', 'period', 'week')
     def _compute_display_name(self):
