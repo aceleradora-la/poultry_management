@@ -97,12 +97,14 @@ class PoultryBatch(models.Model):
 
     @api.depends('birth_date')
     def _compute_age_weeks(self):
-        """Calcula la edad del lote en semanas cerradas (semana completa desde el nacimiento)"""
+        """Calcula la Semana de Vida en curso del lote, numerada desde 1 (los días 0-6
+        de vida son la Semana 1, como en las guías de genética). Misma convención en
+        todo el módulo: días // 7 + 1."""
         today = fields.Date.today()
         for batch in self:
             if batch.birth_date:
                 days = (today - batch.birth_date).days
-                batch.age_weeks = days // 7
+                batch.age_weeks = days // 7 + 1
             else:
                 batch.age_weeks = 0
 

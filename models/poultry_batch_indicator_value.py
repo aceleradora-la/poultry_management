@@ -94,8 +94,10 @@ class PoultryBatchIndicatorValue(models.Model):
         birth_date = batch.birth_date
         if not birth_date or target_date < birth_date:
             return
-        week = (target_date - birth_date).days // 7
-        week_date_from = birth_date + timedelta(days=week * 7)
+        # Semana de Vida 1-based (los días 0-6 de vida son la Semana 1, como en las
+        # guías de genética). Misma convención en todo el módulo.
+        week = (target_date - birth_date).days // 7 + 1
+        week_date_from = birth_date + timedelta(days=(week - 1) * 7)
         week_date_to = week_date_from + timedelta(days=6)
 
         week_values = self.search([

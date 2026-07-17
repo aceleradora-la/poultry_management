@@ -124,7 +124,7 @@ class MrpProduction(models.Model):
         if previous:
             return previous.value
         if batch.birth_date and target_date >= batch.birth_date:
-            target_week = (target_date - batch.birth_date).days // 7
+            target_week = (target_date - batch.birth_date).days // 7 + 1
             manual = self.env['poultry.batch.indicator.weekly.value'].search([
                 ('batch_id', '=', batch.id),
                 ('indicator_id', '=', indicator.id),

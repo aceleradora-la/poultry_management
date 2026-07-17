@@ -54,13 +54,13 @@ class PoultryVaccinationCompliance(models.Model):
                     l.id AS plan_line_id,
                     l.week AS week,
                     l.vaccine_id AS vaccine_id,
-                    (b.birth_date + (l.week * 7)) AS due_date,
+                    (b.birth_date + ((l.week - 1) * 7)) AS due_date,
                     v.id AS vaccination_id,
                     v.date AS applied_date,
                     CASE
                         WHEN v.id IS NOT NULL THEN 'applied'
                         WHEN b.birth_date IS NULL THEN 'pending'
-                        WHEN (b.birth_date + (l.week * 7 + 13)) < CURRENT_DATE THEN 'overdue'
+                        WHEN (b.birth_date + ((l.week - 1) * 7 + 13)) < CURRENT_DATE THEN 'overdue'
                         ELSE 'pending'
                     END AS status,
                     (a.date_to IS NULL) AS active_assignment
