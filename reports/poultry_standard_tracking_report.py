@@ -141,15 +141,14 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 for indicator in indicators:
                     match = weekly_values.filtered(
                         lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk)
-                    if match:
-                        value_low = match[0].value_low
-                        value_high = match[0].value_high
-                        real_value = match[0].real_value
-                        has_standard = True
-                    else:
-                        standard, value_low, value_high = self._get_standard_range(version, indicator, week)
-                        real_value = None
-                        has_standard = bool(standard)
+                    # Bajo/Alto siempre se recalculan contra la Versión elegida en el
+                    # reporte (nunca se toman del Bajo/Alto guardado en el Valor Real,
+                    # que quedó congelado contra la Versión predeterminada de la genética
+                    # al momento del cálculo). Así cambiar de Versión en pantalla sí
+                    # actualiza el rango, tenga o no la semana un Valor Real ya calculado.
+                    standard, value_low, value_high = self._get_standard_range(version, indicator, week)
+                    has_standard = bool(standard)
+                    real_value = match[0].real_value if match else None
                     # Color del Valor Real configurado en el indicador según dónde cae
                     # respecto del rango (debajo/dentro/encima). Vacío = color normal.
                     real_color = False
