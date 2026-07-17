@@ -136,6 +136,11 @@ class PoultryBatchIndicatorValue(models.Model):
             ('indicator_id', '=', indicator.id),
             ('week', '=', week),
         ], limit=1)
+        # Un valor semanal cargado a mano (Origen=Manual) tiene prioridad: representa
+        # un dato histórico del pasado sin dato del sistema, y el cálculo automático
+        # no debe pisarlo.
+        if existing_weekly.source == 'manual':
+            return
         weekly_vals = {
             'period': period,
             'real_value': real_value,

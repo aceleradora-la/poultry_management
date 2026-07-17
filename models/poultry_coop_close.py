@@ -318,6 +318,7 @@ class PoultryCoopClose(models.Model):
                     ('indicator_id', 'in', indicators.ids),
                     ('week', '>=', week_from),
                     ('week', '<=', week_to),
+                    ('source', '=', 'system'),
                 ]).unlink()
 
         count = 0
