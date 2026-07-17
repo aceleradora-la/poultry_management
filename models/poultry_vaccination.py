@@ -69,7 +69,7 @@ class PoultryVaccination(models.Model):
         for record in self:
             if record.batch_id and record.batch_id.birth_date and record.date:
                 days = (record.date - record.batch_id.birth_date).days
-                record.batch_age_weeks = days // 7
+                record.batch_age_weeks = days // 7 + 1
             else:
                 record.batch_age_weeks = 0
 

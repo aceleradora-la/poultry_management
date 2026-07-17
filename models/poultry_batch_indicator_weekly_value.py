@@ -69,11 +69,11 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
             batch = record.batch_id
             # Fecha del Dato -> Semana de Vida (anclada a la Fecha de Nacimiento del lote).
             if batch and batch.birth_date and record.manual_date:
-                record.week = (record.manual_date - batch.birth_date).days // 7
+                record.week = (record.manual_date - batch.birth_date).days // 7 + 1
             if not (batch and record.week):
                 continue
             if batch.birth_date:
-                record.week_date_from = batch.birth_date + timedelta(days=record.week * 7)
+                record.week_date_from = batch.birth_date + timedelta(days=(record.week - 1) * 7)
                 record.week_date_to = record.week_date_from + timedelta(days=6)
             rearing_end = batch.genetics_id.rearing_end_week or 17
             record.period = 'crianza' if record.week <= rearing_end else 'produccion'

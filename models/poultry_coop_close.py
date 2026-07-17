@@ -314,8 +314,8 @@ class PoultryCoopClose(models.Model):
             for batch in affected_batches:
                 if not batch.birth_date:
                     continue
-                week_from = max((min(dates) - batch.birth_date).days // 7, 0)
-                week_to = max((max(dates) - batch.birth_date).days // 7, 0)
+                week_from = max((min(dates) - batch.birth_date).days // 7 + 1, 1)
+                week_to = max((max(dates) - batch.birth_date).days // 7 + 1, 1)
                 Weekly.search([
                     ('batch_id', '=', batch.id),
                     ('indicator_id', 'in', indicators.ids),

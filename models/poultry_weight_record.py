@@ -58,7 +58,7 @@ class PoultryWeightRecord(models.Model):
         for record in self:
             if record.batch_id and record.batch_id.birth_date and record.date:
                 days = (record.date - record.batch_id.birth_date).days
-                record.batch_age_weeks = days // 7
+                record.batch_age_weeks = days // 7 + 1
             else:
                 record.batch_age_weeks = 0
 
@@ -277,8 +277,8 @@ class PoultryWeightRecord(models.Model):
                 birth_date = batch.birth_date
                 if not birth_date or target_date < birth_date:
                     continue
-                week = (target_date - birth_date).days // 7
-                week_date_from = birth_date + timedelta(days=week * 7)
+                week = (target_date - birth_date).days // 7 + 1
+                week_date_from = birth_date + timedelta(days=(week - 1) * 7)
                 week_date_to = week_date_from + timedelta(days=6)
                 for indicator in indicators:
                     remaining = Value.search([
