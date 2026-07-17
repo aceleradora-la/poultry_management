@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from datetime import timedelta
+
 from odoo import models, fields, api
 
 
@@ -18,6 +20,16 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
         ('crianza', 'Crianza'),
         ('produccion', 'Producción'),
     ], string='Período')
+    source = fields.Selection([
+        ('system', 'Sistema'),
+        ('manual', 'Manual'),
+    ], string='Origen', default='system', required=True, index=True,
+        help='Sistema: calculado automáticamente desde los Cierres de Galpón y Partes '
+             'de Registro de Peso; el recálculo lo borra y lo vuelve a crear. '
+             'Manual: cargado a mano para semanas del pasado sin dato del sistema (ej. '
+             'histórico anterior a que se empezara a usar Odoo). El recálculo NO lo '
+             'toca, tiene prioridad sobre el cálculo automático de esa misma semana, y '
+             'los indicadores acumulados del sistema empalman a partir de él.')
 
     real_value = fields.Float(string='Valor Real', digits=(16, 4))
     value_low = fields.Float(string='Bajo (Estándar)', digits=(16, 4),
@@ -40,3 +52,23 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
     def _compute_display_name(self):
         for record in self:
             record.display_name = f'{record.batch_id.name} - {record.indicator_id.name} - Semana {record.week}'
+
+    @api.onchange('batch_id', 'indicator_id', 'week')
+    def _onchange_manual_context(self):
+        """Al cargar un valor semanal a mano, autocompleta Período, Fechas de la semana
+        y Bajo/Alto del estándar a partir del lote, la semana y la genética; así el
+        usuario solo tipea Lote, Indicador, Semana y Valor Real."""
+        for record in self:
+            batch = record.batch_id
+            if not (batch and record.week):
+                continue
+            if batch.birth_date:
+                record.week_date_from = batch.birth_date + timedelta(days=record.week * 7)
+                record.week_date_to = record.week_date_from + timedelta(days=6)
+            rearing_end = batch.genetics_id.rearing_end_week or 17
+            record.period = 'crianza' if record.week <= rearing_end else 'produccion'
+            if record.indicator_id and batch.genetics_id:
+                low, high = batch.genetics_id.get_standard_range(
+                    record.week, record.indicator_id, period=record.period)
+                record.value_low = low
+                record.value_high = high

@@ -286,6 +286,9 @@ class PoultryCoopClose(models.Model):
         if not closes:
             return 0
 
+        # NUNCA agregar acá las categorías 'weight' ni 'uniformity': sus valores reales
+        # los publica el Parte de Registro de Peso (poultry.weight.record), no las OFs,
+        # y este rebuild los borraría sin poder recalcularlos.
         indicators = self.env['poultry.indicator'].search([
             ('category', 'in', ('feed_consumption', 'water_consumption', 'egg_production',
                                  'mortality', 'egg_mass', 'egg_weight', 'viability',
@@ -318,6 +321,7 @@ class PoultryCoopClose(models.Model):
                     ('indicator_id', 'in', indicators.ids),
                     ('week', '>=', week_from),
                     ('week', '<=', week_to),
+                    ('source', '=', 'system'),
                 ]).unlink()
 
         count = 0

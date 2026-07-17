@@ -273,6 +273,36 @@ class MrpProduction(models.Model):
         birds_by_line = {line.id: line._get_live_bird_count_on(target_date) for line in lines}
         return lines, birds_by_line, sum(birds_by_line.values())
 
+    def _poultry_previous_accumulated(self, batch, indicator, target_date):
+        """Valor acumulado previo desde el cual continuar la suma corrida de un
+        indicador acumulado (empalme). Devuelve, en este orden de prioridad:
+        1) el último Valor Real DIARIO del sistema anterior a target_date;
+        2) si no hay, el último Valor Real SEMANAL MANUAL de una semana anterior a la
+           de target_date (dato histórico cargado a mano, ej. el acumulado al final de
+           la crianza antes de empezar a usar Odoo);
+        3) 0.0 si no hay ninguno.
+        Así los acumulados del sistema (que arrancan cuando ya hay datos) continúan
+        a partir del histórico manual en vez de reiniciarse en cero."""
+        Value = self.env['poultry.batch.indicator.value']
+        previous = Value.search([
+            ('batch_id', '=', batch.id),
+            ('indicator_id', '=', indicator.id),
+            ('date', '<', target_date),
+        ], order='date desc', limit=1)
+        if previous:
+            return previous.value
+        if batch.birth_date and target_date >= batch.birth_date:
+            target_week = (target_date - batch.birth_date).days // 7
+            manual = self.env['poultry.batch.indicator.weekly.value'].search([
+                ('batch_id', '=', batch.id),
+                ('indicator_id', '=', indicator.id),
+                ('source', '=', 'manual'),
+                ('week', '<', target_week),
+            ], order='week desc', limit=1)
+            if manual:
+                return manual.real_value
+        return 0.0
+
     def _poultry_compute_all_indicator_values(self):
         """Punto de entrada único para calcular todos los indicadores reales derivados
         de esta OF de Huevo sin Clasificar (consumo + producción de huevos). Se llama
@@ -424,12 +454,8 @@ class MrpProduction(models.Model):
                                   production=self)
 
             if cumulative_live_indicator:
-                previous = Value.search([
-                    ('batch_id', '=', line.batch_id.id),
-                    ('indicator_id', '=', cumulative_live_indicator.id),
-                    ('date', '<', target_date),
-                ], order='date desc', limit=1)
-                previous_total = previous.value if previous else 0.0
+                previous_total = self._poultry_previous_accumulated(
+                    line.batch_id, cumulative_live_indicator, target_date)
                 Value._set_value(line.batch_id, self.coop_id, target_date, cumulative_live_indicator,
                                   previous_total + eggs_per_bird_day,
                                   numerator=batch_egg_share, denominator=birds,
@@ -443,12 +469,8 @@ class MrpProduction(models.Model):
                 # hay una base fija válida (el lote puede seguir recibiendo Ingresos).
                 if (batch.housed_bird_count and batch.production_start_date
                         and target_date >= batch.production_start_date):
-                    previous = Value.search([
-                        ('batch_id', '=', batch.id),
-                        ('indicator_id', '=', cumulative_housed_indicator.id),
-                        ('date', '<', target_date),
-                    ], order='date desc', limit=1)
-                    previous_total = previous.value if previous else 0.0
+                    previous_total = self._poultry_previous_accumulated(
+                        batch, cumulative_housed_indicator, target_date)
                     eggs_per_housed_bird = batch_egg_share / batch.housed_bird_count
                     Value._set_value(batch, self.coop_id, target_date, cumulative_housed_indicator,
                                       previous_total + eggs_per_housed_bird,
@@ -517,12 +539,8 @@ class MrpProduction(models.Model):
                                   production=self)
 
             if cumulative_live_indicator:
-                previous = Value.search([
-                    ('batch_id', '=', batch.id),
-                    ('indicator_id', '=', cumulative_live_indicator.id),
-                    ('date', '<', target_date),
-                ], order='date desc', limit=1)
-                previous_total = previous.value if previous else 0.0
+                previous_total = self._poultry_previous_accumulated(
+                    batch, cumulative_live_indicator, target_date)
                 Value._set_value(batch, self.coop_id, target_date, cumulative_live_indicator,
                                   previous_total + daily_pct,
                                   numerator=dead * 100.0, denominator=base, production=self)
@@ -530,12 +548,8 @@ class MrpProduction(models.Model):
             if cumulative_housed_indicator:
                 if (batch.housed_bird_count and batch.production_start_date
                         and target_date >= batch.production_start_date):
-                    previous = Value.search([
-                        ('batch_id', '=', batch.id),
-                        ('indicator_id', '=', cumulative_housed_indicator.id),
-                        ('date', '<', target_date),
-                    ], order='date desc', limit=1)
-                    previous_total = previous.value if previous else 0.0
+                    previous_total = self._poultry_previous_accumulated(
+                        batch, cumulative_housed_indicator, target_date)
                     dead_pct_housed = dead / batch.housed_bird_count * 100.0
                     Value._set_value(batch, self.coop_id, target_date, cumulative_housed_indicator,
                                       previous_total + dead_pct_housed,
@@ -543,12 +557,8 @@ class MrpProduction(models.Model):
                                       production=self)
 
             if cumulative_original_indicator and batch.bird_count:
-                previous = Value.search([
-                    ('batch_id', '=', batch.id),
-                    ('indicator_id', '=', cumulative_original_indicator.id),
-                    ('date', '<', target_date),
-                ], order='date desc', limit=1)
-                previous_total = previous.value if previous else 0.0
+                previous_total = self._poultry_previous_accumulated(
+                    batch, cumulative_original_indicator, target_date)
                 dead_pct_original = dead / batch.bird_count * 100.0
                 Value._set_value(batch, self.coop_id, target_date, cumulative_original_indicator,
                                   previous_total + dead_pct_original,
@@ -663,12 +673,8 @@ class MrpProduction(models.Model):
                 if (batch.housed_bird_count and batch.production_start_date
                         and target_date >= batch.production_start_date):
                     batch_mass_kg = mass_kg_per_bird_day * birds
-                    previous = Value.search([
-                        ('batch_id', '=', batch.id),
-                        ('indicator_id', '=', mass_housed_indicator.id),
-                        ('date', '<', target_date),
-                    ], order='date desc', limit=1)
-                    previous_total = previous.value if previous else 0.0
+                    previous_total = self._poultry_previous_accumulated(
+                        batch, mass_housed_indicator, target_date)
                     kg_per_housed_bird = batch_mass_kg / batch.housed_bird_count
                     Value._set_value(batch, self.coop_id, target_date, mass_housed_indicator,
                                       previous_total + kg_per_housed_bird,
