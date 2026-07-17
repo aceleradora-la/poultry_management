@@ -90,7 +90,48 @@ class PoultryMortality(models.Model):
         for vals in vals_list:
             if not vals.get('name') or vals.get('name') == 'Nuevo Registro':
                 vals['name'] = self.env['ir.sequence'].next_by_code('poultry.mortality') or 'NUEVO'
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records._recompute_affected_housed()
+        return records
+
+    def write(self, vals):
+        # Recalcular Aves Alojadas si cambia algo que afecte las aves vivas a la fecha
+        # del Cambio de Período (cantidad, fecha, lote, galpón o baja lógica).
+        trigger = bool({'dead_count', 'date', 'batch_id', 'coop_id', 'active'} & set(vals))
+        batches = self.mapped('batch_id') if trigger else self.env['poultry.batch']
+        result = super().write(vals)
+        if trigger:
+            self._recompute_affected_housed(batches | self.mapped('batch_id'))
+        return result
+
+    def unlink(self):
+        batches = self.mapped('batch_id')
+        result = super().unlink()
+        self._recompute_affected_housed(batches)
+        return result
+
+    def _recompute_affected_housed(self, batches=None):
+        """Recalcula las Aves Alojadas (housed_bird_count) de los Cambios de Período a
+        Producción de los lotes afectados. Registrar, modificar o borrar mortandad
+        ANTERIOR a la Fecha de Entrada en Producción cambia las aves vivas a esa fecha,
+        que son la base fija Ave-Alojada; sin este recálculo la foto quedaría obsoleta.
+        La mortandad POSTERIOR al cambio no altera el resultado (_get_housed_bird_count
+        solo cuenta hasta la fecha del cambio), así que recalcular de más es inocuo:
+        el guard 'si cambió' evita escrituras espurias (p. ej. durante el alta masiva
+        de mortandad de una OF, cuya fecha es de producción)."""
+        if batches is None:
+            batches = self.mapped('batch_id')
+        if not batches:
+            return
+        changes = self.env['poultry.batch.period.change'].search([
+            ('batch_id', 'in', batches.ids),
+            ('period', '=', 'produccion'),
+            ('active', '=', True),
+        ])
+        for change in changes:
+            new_val = change._get_housed_bird_count()
+            if change.housed_bird_count != new_val:
+                change.housed_bird_count = new_val
 
     @api.constrains('dead_count')
     def _check_dead_count(self):
