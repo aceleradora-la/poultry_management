@@ -136,7 +136,8 @@
                                         <t t-if="cell.has_standard" t-esc="cell.value_high.toFixed(2)"/>
                                     </td>
                                     <td class="text-center"
-                                        t-att-class="cell.out_of_range ? 'text-danger fw-bold' : ''">
+                                        t-att-class="cell.out_of_range ? 'fw-bold' : ''"
+                                        t-att-style="cell.real_color ? ('color: ' + cell.real_color + ';') : ''">
                                         <t t-if="cell.real_value !== null" t-esc="cell.real_value.toFixed(2)"/>
                                     </td>
                                 </t>

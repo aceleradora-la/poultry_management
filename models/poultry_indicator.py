@@ -76,6 +76,20 @@ class PoultryIndicator(models.Model):
              'consumo de alimento (12 = docena, 30 = cajón, 1 = por huevo individual, '
              'etc., según cómo se quiera expresar el indicador).'
     )
+    color_below = fields.Char(
+        string='Color por Debajo del Rango', default='#dc3545',
+        help='Color del Valor Real en el reporte cuando queda por DEBAJO del rango '
+             'Bajo-Alto del estándar. Depende de qué se mide: en % de Postura estar '
+             'por debajo es malo (rojo), pero en Mortandad puede ser bueno (verde).')
+    color_within = fields.Char(
+        string='Color Dentro del Rango',
+        help='Color del Valor Real cuando está DENTRO del rango Bajo-Alto. '
+             'Vacío = color de texto normal (negro).')
+    color_above = fields.Char(
+        string='Color por Encima del Rango', default='#dc3545',
+        help='Color del Valor Real cuando SUPERA el rango Bajo-Alto. Depende de qué '
+             'se mide: en Mortandad superar el rango es malo (rojo), pero en % de '
+             'Postura puede ser bueno (verde).')
     notes = fields.Text(string='Notas')
     real_value_source = fields.Char(
         string='Origen de Valor Real',

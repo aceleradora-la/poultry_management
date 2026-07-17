@@ -41,6 +41,9 @@
                         <group>
                             <field name="real_value_source" placeholder="Ej: poultry.egg.collection:average_weight_elaborated"/>
                             <field name="notes" placeholder="Información adicional sobre este indicador..."/>
+                            <field name="color_below" widget="color"/>
+                            <field name="color_within" widget="color"/>
+                            <field name="color_above" widget="color"/>
                         </group>
                     </group>
                     <group>

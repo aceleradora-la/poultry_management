@@ -79,8 +79,7 @@
                                                 <td style="text-align: center;">
                                                     <t t-if="cell['has_standard']" t-esc="'%.2f' % cell['value_high']"/>
                                                 </td>
-                                                <td style="text-align: center;"
-                                                    t-attf-class="#{'text-danger font-weight-bold' if cell['out_of_range'] else ''}">
+                                                <td t-attf-style="text-align: center;#{' color: %s;' % cell['real_color'] if cell.get('real_color') else ''}#{' font-weight: bold;' if cell['out_of_range'] else ''}">
                                                     <t t-if="cell['real_value'] is not None" t-esc="'%.2f' % cell['real_value']"/>
                                                 </td>
                                             </t>
