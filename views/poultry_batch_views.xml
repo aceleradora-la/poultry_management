@@ -33,6 +33,19 @@
                     <field name="active" widget="boolean_toggle"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_weight_records" type="object"
+                                class="oe_stat_button" icon="fa-balance-scale">
+                            <field name="weight_record_count" widget="statinfo" string="Pesajes"/>
+                        </button>
+                        <button name="action_view_vaccinations" type="object"
+                                class="oe_stat_button" icon="fa-medkit">
+                            <field name="vaccination_count" widget="statinfo" string="Vacunaciones"/>
+                        </button>
+                        <button name="action_view_vaccination_compliance" type="object"
+                                class="oe_stat_button" icon="fa-check-square-o"
+                                string="Cumplimiento"/>
+                    </div>
                     <widget name="web_ribbon" title="Activo" bg_color="text-success"
                             invisible="not active"/>
                     <group>
@@ -106,6 +119,20 @@
                                            decoration-muted="state == 'draft'"
                                            decoration-success="state == 'done'"
                                            decoration-danger="state == 'cancel'"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Planes de Vacunación" name="vaccination_plans">
+                            <field name="vaccination_plan_ids" nolabel="1" context="{'default_batch_id': id}">
+                                <list string="Planes de Vacunación" editable="bottom">
+                                    <field name="plan_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
+                                    <field name="assigned_by_id"/>
+                                    <field name="notes" optional="hide"/>
+                                    <button name="action_close_assignment" string="Desasignar" type="object"
+                                            icon="fa-times-circle" invisible="date_to"
+                                            confirm="Se cierra la vigencia del plan para este lote (la asignación queda en el historial). ¿Continuar?"/>
                                 </list>
                             </field>
                         </page>

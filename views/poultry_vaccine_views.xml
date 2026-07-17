@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_vaccine_tree" model="ir.ui.view">
+        <field name="name">poultry.vaccine.tree</field>
+        <field name="model">poultry.vaccine</field>
+        <field name="arch" type="xml">
+            <list string="Vacunas">
+                <field name="name"/>
+                <field name="code" optional="show"/>
+                <field name="disease"/>
+                <field name="default_route"/>
+                <field name="default_dose" optional="show"/>
+                <field name="laboratory" optional="show"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_vaccine_form" model="ir.ui.view">
+        <field name="name">poultry.vaccine.form</field>
+        <field name="model">poultry.vaccine</field>
+        <field name="arch" type="xml">
+            <form string="Vacuna">
+                <sheet>
+                    <widget name="web_ribbon" title="Archivado" bg_color="text-danger"
+                            invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Ej: Newcastle La Sota"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="disease"/>
+                            <field name="laboratory"/>
+                        </group>
+                        <group>
+                            <field name="default_route"/>
+                            <field name="default_dose" placeholder="Ej: 0,5 ml/ave"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <field name="notes" placeholder="Notas..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_vaccine_search" model="ir.ui.view">
+        <field name="name">poultry.vaccine.search</field>
+        <field name="model">poultry.vaccine</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Vacunas">
+                <field name="name" string="Vacuna"
+                       filter_domain="['|', '|', ('name', 'ilike', self), ('code', 'ilike', self), ('disease', 'ilike', self)]"/>
+                <field name="laboratory"/>
+                <separator/>
+                <filter string="Archivadas" name="inactive" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_vaccine" model="ir.actions.act_window">
+        <field name="name">Vacunas</field>
+        <field name="res_model">poultry.vaccine</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_poultry_vaccine_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Cargá el catálogo de vacunas
+            </p>
+            <p>
+                Las vacunas se usan en los Planes de Vacunación (por Semana de Vida) y en
+                los registros de Aplicación de Vacunas.
+            </p>
+        </field>
+    </record>
+</odoo>

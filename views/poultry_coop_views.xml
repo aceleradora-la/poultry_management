@@ -41,6 +41,9 @@
                         <button name="action_view_batches" type="object" class="oe_stat_button" icon="fa-list">
                             <field name="batch_count" widget="statinfo" string="Lotes"/>
                         </button>
+                        <button name="action_view_cages" type="object" class="oe_stat_button" icon="fa-th-large">
+                            <field name="cage_count" widget="statinfo" string="Jaulas"/>
+                        </button>
                     </div>
                     <widget name="web_ribbon" title="Activo" bg_color="text-success" 
                             invisible="not active"/>

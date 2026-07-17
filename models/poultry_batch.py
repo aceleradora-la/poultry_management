@@ -40,6 +40,20 @@ class PoultryBatch(models.Model):
     mortality_ids = fields.One2many('poultry.mortality', 'batch_id', string='Registros de Mortalidad')
     mortality_count = fields.Integer(string='Registros de Mortalidad', compute='_compute_mortality_count')
 
+    # Sanidad: planes de vacunación asignados (con historial) y aplicaciones de vacunas
+    vaccination_plan_ids = fields.One2many('poultry.batch.vaccination.plan', 'batch_id',
+                                           string='Planes de Vacunación')
+    vaccination_ids = fields.One2many('poultry.vaccination', 'batch_id',
+                                      string='Aplicaciones de Vacunas')
+    vaccination_count = fields.Integer(string='Aplicaciones de Vacunas',
+                                       compute='_compute_health_counts')
+
+    # Pesajes de aves (partes de registro de peso)
+    weight_record_ids = fields.One2many('poultry.weight.record', 'batch_id',
+                                        string='Partes de Peso')
+    weight_record_count = fields.Integer(string='Partes de Peso',
+                                         compute='_compute_health_counts')
+
     # Edad del lote
     age_days = fields.Integer(string='Edad (días)', compute='_compute_age_days')
     age_weeks = fields.Integer(string='Edad (semanas)', compute='_compute_age_weeks')
@@ -155,6 +169,45 @@ class PoultryBatch(models.Model):
         """Cuenta la cantidad de registros de mortalidad"""
         for batch in self:
             batch.mortality_count = len(batch.mortality_ids)
+
+    @api.depends('vaccination_ids', 'weight_record_ids')
+    def _compute_health_counts(self):
+        for batch in self:
+            batch.vaccination_count = len(batch.vaccination_ids)
+            batch.weight_record_count = len(batch.weight_record_ids)
+
+    def action_view_vaccinations(self):
+        self.ensure_one()
+        return {
+            'name': 'Aplicaciones de Vacunas - %s' % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.vaccination',
+            'view_mode': 'list,form',
+            'domain': [('batch_id', '=', self.id)],
+            'context': {'default_batch_id': self.id},
+        }
+
+    def action_view_vaccination_compliance(self):
+        self.ensure_one()
+        return {
+            'name': 'Cumplimiento de Vacunación - %s' % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.vaccination.compliance',
+            'view_mode': 'list',
+            'domain': [('batch_id', '=', self.id)],
+            'context': {'search_default_active_assignment': 1},
+        }
+
+    def action_view_weight_records(self):
+        self.ensure_one()
+        return {
+            'name': 'Partes de Peso - %s' % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.weight.record',
+            'view_mode': 'list,form',
+            'domain': [('batch_id', '=', self.id)],
+            'context': {'default_batch_id': self.id},
+        }
 
     @api.constrains('code')
     def _check_code_unique(self):

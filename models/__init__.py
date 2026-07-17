@@ -19,6 +19,15 @@ from . import poultry_genetics_standard
 from . import poultry_batch_indicator_value
 from . import poultry_batch_indicator_weekly_value
 from . import poultry_mortality
+from . import poultry_cage
+from . import poultry_weight_record
+from . import poultry_weight_record_line
+from . import poultry_vaccine
+from . import poultry_vaccination_plan
+from . import poultry_vaccination_plan_line
+from . import poultry_batch_vaccination_plan
+from . import poultry_vaccination
+from . import poultry_vaccination_compliance
 from . import poultry_egg_collection
 from . import poultry_egg_collection_line
 from . import poultry_egg_collection_line_uom
