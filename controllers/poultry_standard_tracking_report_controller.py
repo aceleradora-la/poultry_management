@@ -42,7 +42,12 @@ class PoultryStandardTrackingReportController(http.Controller):
             'align': 'center', 'border': 1, 'bold': True, 'font_color': 'red',
         })
 
-        for period, sheet_name in (('crianza', 'Recría'), ('produccion', 'Parámetros productivos')):
+        period_sheets = (('crianza', 'Recría'), ('produccion', 'Parámetros productivos'))
+        if wizard.report_period:
+            # Reporte fijado a un período (menús Crianza/Producción dedicados):
+            # exportar solo la hoja correspondiente.
+            period_sheets = tuple(p for p in period_sheets if p[0] == wizard.report_period)
+        for period, sheet_name in period_sheets:
             period_data = report_data.get(period, {'indicators': [], 'rows': []})
             sheet = workbook.add_worksheet(sheet_name)
 

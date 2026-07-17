@@ -1,18 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- El reporte en pantalla ya permite elegir Lote y Versión de Estándar desde sus
-         propios selectores, así que el menú abre directamente el componente para el
-         primer lote activo en vez de pasar por un formulario de selección previo. -->
+         propios selectores, así que cada menú abre directamente el componente para el
+         primer lote activo, fijado al período correspondiente (Crianza o Producción). -->
     <record id="action_poultry_standard_tracking_report_open" model="ir.actions.server">
-        <field name="name">Seguimiento de Estándares</field>
+        <field name="name">Seguimiento Estándares - Crianza</field>
         <field name="model_id" ref="model_poultry_standard_tracking_report_wizard"/>
         <field name="state">code</field>
-        <field name="code">action = model.action_open_direct()</field>
+        <field name="code">action = model.action_open_direct('crianza')</field>
+    </record>
+
+    <record id="action_poultry_standard_tracking_report_open_produccion" model="ir.actions.server">
+        <field name="name">Seguimiento Estándares - Producción</field>
+        <field name="model_id" ref="model_poultry_standard_tracking_report_wizard"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_direct('produccion')</field>
     </record>
 
     <menuitem id="menu_poultry_standard_tracking_report"
-              name="Seguimiento de Estándares"
+              name="Seguimiento Estándares - Crianza"
               parent="menu_poultry_reports"
               action="action_poultry_standard_tracking_report_open"
               sequence="25"/>
+
+    <menuitem id="menu_poultry_standard_tracking_report_produccion"
+              name="Seguimiento Estándares - Producción"
+              parent="menu_poultry_reports"
+              action="action_poultry_standard_tracking_report_open_produccion"
+              sequence="26"/>
 </odoo>

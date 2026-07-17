@@ -10,6 +10,7 @@
                 <field name="name"/>
                 <field name="category"/>
                 <field name="accumulation_type"/>
+                <field name="period_scope"/>
                 <field name="uom_id"/>
                 <field name="standard_count"/>
                 <field name="active" widget="boolean_toggle"/>
@@ -34,6 +35,7 @@
                             <field name="category"/>
                             <field name="accumulation_type"/>
                             <field name="egg_group_size" invisible="category != 'feed_conversion'"/>
+                            <field name="period_scope" widget="radio" options="{'horizontal': true}"/>
                             <field name="sequence"/>
                         </group>
                         <group>

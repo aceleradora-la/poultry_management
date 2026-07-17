@@ -23,6 +23,13 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         ('day', 'Día'),
         ('week', 'Semana'),
     ], string='Granularidad', required=True, default='week')
+    report_period = fields.Selection([
+        ('crianza', 'Crianza'),
+        ('produccion', 'Producción'),
+    ], string='Período del Reporte',
+        help='Con valor, el reporte muestra SOLO ese período (menús "Seguimiento '
+             'Estándares - Crianza/Producción"). Vacío: muestra ambos períodos con '
+             'pestañas (comportamiento anterior, por compatibilidad).')
 
     current_coop_names = fields.Char(string='Galpón Actual', compute='_compute_current_coop_info')
     current_coop_date_from = fields.Date(string='Fecha de Ingreso a Galpón',
@@ -84,6 +91,10 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         if version:
             indicators = indicators.filtered(
                 lambda i: not i.applicable_version_ids or version in i.applicable_version_ids)
+        # Período del indicador: solo Crianza, solo Producción, o ambos. Sin valor
+        # (registros anteriores a este campo) se trata como "ambos".
+        indicators = indicators.filtered(
+            lambda i: not i.period_scope or i.period_scope in ('both', period))
         return indicators
 
     def get_report_data(self):
@@ -104,7 +115,14 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         Weekly = self.env['poultry.batch.indicator.weekly.value']
         Standard = self.env['poultry.genetics.standard']
         result = {}
+        periods = (self.report_period,) if self.report_period else ('crianza', 'produccion')
         for period in ('crianza', 'produccion'):
+            if period not in periods:
+                # Período fuera del reporte (menú Crianza/Producción dedicado): se deja
+                # la estructura vacía para que pantalla/PDF/Excel lo salteen sin
+                # ramificar en cada consumidor.
+                result[period] = {'indicators': [], 'rows': []}
+                continue
             indicators = self._get_relevant_indicators(period)
             weekly_values = Weekly.search([
                 ('batch_id', '=', self.batch_id.id),
@@ -156,6 +174,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 'rows': rows,
             }
         result['header'] = {
+            'report_period': self.report_period or False,
             'batch_id': self.batch_id.id,
             'batch_name': self.batch_id.name,
             'genetics_name': self.genetics_id.name,
@@ -196,17 +215,21 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         return {
             'type': 'ir.actions.client',
             'tag': 'poultry_standard_tracking_report',
-            'params': {'wizard_id': self.id},
+            'params': {'wizard_id': self.id, 'period': self.report_period or False},
         }
 
     @api.model
-    def action_open_direct(self):
+    def action_open_direct(self, period=None):
         """Abre el reporte directamente para el primer lote activo, sin pasar
         por un formulario de selección previo: el propio componente en pantalla
-        ya permite elegir Lote y Versión de Estándar desde sus selectores."""
+        ya permite elegir Lote y Versión de Estándar desde sus selectores.
+
+        period ('crianza'/'produccion'): fija el reporte a un solo período (los
+        menús dedicados de Crianza y Producción); None mantiene el comportamiento
+        anterior con pestañas para ambos."""
         batch = self.env['poultry.batch'].search(
             [('active', '=', True)], order='birth_date desc', limit=1)
         if not batch:
             raise UserError('No hay Lotes de Aves activos. Cree un lote antes de abrir este reporte.')
-        wizard = self.create({'batch_id': batch.id})
+        wizard = self.create({'batch_id': batch.id, 'report_period': period})
         return wizard.action_generate()
