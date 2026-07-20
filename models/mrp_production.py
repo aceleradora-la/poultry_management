@@ -16,13 +16,21 @@ class MrpProduction(models.Model):
     coop_close_id = fields.Many2one('poultry.coop.close', string='Cierre de Galpón',
                                     readonly=True, copy=False,
                                     help='Cierre de galpón que generó esta OF de huevo sin clasificar')
+    # groups: los campos avícolas de mortandad solo existen para usuarios con rol
+    # avícola. Sin esto, cualquier usuario de Manufactura ajeno al módulo (ej. la
+    # planta de alimentos, que usa el Galpón solo para elegir la fórmula) recibía
+    # "Error de acceso" al abrir/procesar sus OFs: el cliente web lee TODOS los
+    # campos de la vista -incluso los de solapas ocultas-, y leer el One2many exige
+    # acceso de lectura sobre poultry.mortality, que es solo de los grupos avícolas.
     poultry_dead_count_total = fields.Integer(
         string='Aves Muertas (total galpón)', copy=False,
+        groups='poultry_management.poultry_user,poultry_management.poultry_manager',
         help='Cantidad total de aves muertas del galpón en la fecha de esta OF. Se reparte '
              'automáticamente entre los lotes del galpón según su población viva, generando '
              'un registro de mortandad por lote.')
     poultry_mortality_ids = fields.One2many(
-        'poultry.mortality', 'production_id', string='Registros de Mortalidad', readonly=True)
+        'poultry.mortality', 'production_id', string='Registros de Mortalidad', readonly=True,
+        groups='poultry_management.poultry_user,poultry_management.poultry_manager')
 
     def _get_scheduled_date(self):
         """Obtiene la fecha programada de la OF con tolerancia entre versiones."""

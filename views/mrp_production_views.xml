@@ -21,7 +21,8 @@
                  queda justo después de la página Miscelánea (última página). -->
             <xpath expr="//notebook" position="inside">
                 <page string="Aves Muertas" name="poultry_mortality"
-                      invisible="not coop_close_id">
+                      invisible="not coop_close_id"
+                      groups="poultry_management.poultry_user,poultry_management.poultry_manager">
                     <group>
                         <group>
                             <field name="coop_id" readonly="1"/>
