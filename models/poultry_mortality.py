@@ -123,7 +123,12 @@ class PoultryMortality(models.Model):
             batches = self.mapped('batch_id')
         if not batches:
             return
-        changes = self.env['poultry.batch.period.change'].search([
+        # sudo() acotado: el usuario común tiene solo lectura sobre Cambios de
+        # Período, pero este write es mantenimiento automático del sistema (la
+        # foto de Aves Alojadas), disparado p. ej. al cerrar la OF que registra
+        # la mortandad del día. Mismo criterio que los indicadores en
+        # mrp_production y el Parte de Registro de Peso.
+        changes = self.env['poultry.batch.period.change'].sudo().search([
             ('batch_id', 'in', batches.ids),
             ('period', '=', 'produccion'),
             ('active', '=', True),

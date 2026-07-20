@@ -283,7 +283,7 @@ class MrpProduction(models.Model):
         3) 0.0 si no hay ninguno.
         Así los acumulados del sistema (que arrancan cuando ya hay datos) continúan
         a partir del histórico manual en vez de reiniciarse en cero."""
-        Value = self.env['poultry.batch.indicator.value']
+        Value = self.env['poultry.batch.indicator.value'].sudo()
         previous = Value.search([
             ('batch_id', '=', batch.id),
             ('indicator_id', '=', indicator.id),
@@ -293,7 +293,7 @@ class MrpProduction(models.Model):
             return previous.value
         if batch.birth_date and target_date >= batch.birth_date:
             target_week = (target_date - batch.birth_date).days // 7 + 1
-            manual = self.env['poultry.batch.indicator.weekly.value'].search([
+            manual = self.env['poultry.batch.indicator.weekly.value'].sudo().search([
                 ('batch_id', '=', batch.id),
                 ('indicator_id', '=', indicator.id),
                 ('source', '=', 'manual'),
@@ -353,7 +353,7 @@ class MrpProduction(models.Model):
         if not lines or total_birds <= 0:
             return
 
-        Indicator = self.env['poultry.indicator']
+        Indicator = self.env['poultry.indicator'].sudo()
         feed_indicator = Indicator.search(
             [('category', '=', 'feed_consumption'), ('accumulation_type', '=', 'none'),
              ('active', '=', True)], limit=1)
@@ -361,7 +361,7 @@ class MrpProduction(models.Model):
             [('category', '=', 'water_consumption'), ('accumulation_type', '=', 'none'),
              ('active', '=', True)], limit=1)
 
-        Value = self.env['poultry.batch.indicator.value']
+        Value = self.env['poultry.batch.indicator.value'].sudo()
         feed_g_per_bird_day = (feed_qty_kg * 1000.0 / total_birds) if feed_qty_kg > 0 else 0.0
         water_ml_per_bird_day = (water_qty_l * 1000.0 / total_birds) if water_qty_l > 0 else 0.0
 
@@ -410,7 +410,7 @@ class MrpProduction(models.Model):
         if not lines or total_birds <= 0:
             return
 
-        Indicator = self.env['poultry.indicator']
+        Indicator = self.env['poultry.indicator'].sudo()
         rate_indicator = Indicator.search(
             [('category', '=', 'egg_production'), ('accumulation_type', '=', 'none'),
              ('active', '=', True)], limit=1)
@@ -427,7 +427,7 @@ class MrpProduction(models.Model):
                     cumulative_housed_indicator)):
             return
 
-        Value = self.env['poultry.batch.indicator.value']
+        Value = self.env['poultry.batch.indicator.value'].sudo()
         # Uniforme por ave: mismo huevos/ave para todos los lotes que comparten el galpón.
         eggs_per_bird_day = total_eggs / total_birds
 
@@ -509,7 +509,7 @@ class MrpProduction(models.Model):
         if not dead_by_batch:
             return
 
-        Indicator = self.env['poultry.indicator']
+        Indicator = self.env['poultry.indicator'].sudo()
         rate_indicator = Indicator.search(
             [('category', '=', 'mortality'), ('accumulation_type', '=', 'none'),
              ('active', '=', True)], limit=1)
@@ -526,7 +526,7 @@ class MrpProduction(models.Model):
                 and not cumulative_original_indicator):
             return
 
-        Value = self.env['poultry.batch.indicator.value']
+        Value = self.env['poultry.batch.indicator.value'].sudo()
         for batch, dead in dead_by_batch.items():
             base = live_by_batch[batch] + dead
             if base <= 0:
@@ -576,7 +576,7 @@ class MrpProduction(models.Model):
         if not self.coop_close_id or not self.coop_id:
             return
         target_date = self._poultry_target_mortality_date()
-        Indicator = self.env['poultry.indicator']
+        Indicator = self.env['poultry.indicator'].sudo()
         viability_indicator = Indicator.search(
             [('category', '=', 'viability'), ('accumulation_type', '=', 'original_cumulative'),
              ('active', '=', True)], limit=1)
@@ -587,7 +587,7 @@ class MrpProduction(models.Model):
         if not lines:
             return
 
-        Value = self.env['poultry.batch.indicator.value']
+        Value = self.env['poultry.batch.indicator.value'].sudo()
         for line in lines:
             batch = line.batch_id
             if not batch.bird_count:
@@ -646,7 +646,7 @@ class MrpProduction(models.Model):
         if not lines or total_birds <= 0:
             return
 
-        Indicator = self.env['poultry.indicator']
+        Indicator = self.env['poultry.indicator'].sudo()
         mass_housed_indicator = Indicator.search(
             [('category', '=', 'egg_mass'), ('accumulation_type', '=', 'housed'),
              ('active', '=', True)], limit=1)
@@ -659,7 +659,7 @@ class MrpProduction(models.Model):
         if not mass_housed_indicator and not mass_rate_indicator and not weight_indicator:
             return
 
-        Value = self.env['poultry.batch.indicator.value']
+        Value = self.env['poultry.batch.indicator.value'].sudo()
         mass_kg_per_bird_day = total_mass_kg / total_birds
         mass_g_per_bird_day = total_mass_grams / total_birds
 
@@ -735,7 +735,7 @@ class MrpProduction(models.Model):
         if not lines or total_birds <= 0:
             return
 
-        Indicator = self.env['poultry.indicator']
+        Indicator = self.env['poultry.indicator'].sudo()
         feed_rate_indicator = Indicator.search(
             [('category', '=', 'feed_conversion'), ('accumulation_type', '=', 'none'),
              ('active', '=', True)], limit=1)
@@ -752,7 +752,7 @@ class MrpProduction(models.Model):
                     mass_rate_indicator, mass_cumulative_indicator)):
             return
 
-        Value = self.env['poultry.batch.indicator.value']
+        Value = self.env['poultry.batch.indicator.value'].sudo()
         feed_size_indicator = feed_rate_indicator or feed_cumulative_indicator
         egg_group_size = (feed_size_indicator.egg_group_size or 12) if feed_size_indicator else 12
 
