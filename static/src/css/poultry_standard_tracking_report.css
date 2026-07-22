@@ -7,16 +7,16 @@
     /* Contenedor de scroll del sticky: sin esto el que scrollea puede ser un
        ancestro y el encabezado no se pega. */
     overflow: auto;
+    /* CERO padding en el scroller: sticky se ancla al borde interior del
+       padding, y cualquier padding deja una franja (arriba y a la izquierda)
+       que el encabezado/columnas fijas no pueden alcanzar y por la que se ven
+       pasar los datos. El espaciado va como margen de los hijos (scrollea con
+       ellos y no deja franja). */
+    padding: 0;
 }
 
-/* Bug conocido de Chrome: con border-collapse: collapse (el default de las
-   tablas de Bootstrap), las celdas sticky del encabezado se enganchan con un
-   corrimiento (queda una franja arriba por la que se ven pasar los datos).
-   Mismo fix que usan las listas nativas de Odoo: bordes separados con spacing
-   cero; los bordes de las celdas fijas se redibujan con sombras internas. */
-.o_poultry_standard_tracking_report table.table {
-    border-collapse: separate;
-    border-spacing: 0;
+.o_poultry_standard_tracking_report .o_content > * {
+    margin: 1rem;
 }
 
 .o_poultry_standard_tracking_report thead th {
