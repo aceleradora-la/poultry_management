@@ -1,7 +1,16 @@
 # -*- coding: utf-8 -*-
 
+from datetime import timedelta
+
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+
+# Índice de día de la semana (convención Python: lunes = 0) para el parámetro
+# de configuración poultry_management.week_start_day.
+WEEK_START_INDEX = {
+    'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+    'friday': 4, 'saturday': 5, 'sunday': 6,
+}
 
 
 class PoultryBatch(models.Model):
@@ -97,16 +106,60 @@ class PoultryBatch(models.Model):
 
     @api.depends('birth_date')
     def _compute_age_weeks(self):
-        """Calcula la Semana de Vida en curso del lote, numerada desde 1 (los días 0-6
-        de vida son la Semana 1, como en las guías de genética). Misma convención en
-        todo el módulo: días // 7 + 1."""
+        """Calcula la Semana de Vida en curso del lote, numerada desde 1 y anclada
+        según la configuración de inicio de semana (_poultry_week_anchor). Misma
+        convención en todo el módulo."""
         today = fields.Date.today()
         for batch in self:
-            if batch.birth_date:
-                days = (today - batch.birth_date).days
-                batch.age_weeks = days // 7 + 1
-            else:
-                batch.age_weeks = 0
+            batch.age_weeks = batch._poultry_week_of(today) if batch.birth_date else 0
+
+    # -- Semana de Vida: ancla configurable -----------------------------------
+    # Toda la numeración de Semanas de Vida del módulo (indicadores, agregados
+    # semanales, reportes, mortandad, pesajes) pasa por estos helpers. Excepción
+    # deliberada: la vacunación sigue anclada a la Fecha de Nacimiento (un plan de
+    # "semana 6" significa 36-42 días de vida — edad biológica, no semana calendario).
+
+    def _poultry_week_anchor(self):
+        """Primer día de la Semana de Vida 1 del lote.
+
+        Configurable en Ajustes (parámetro poultry_management.week_start_day):
+        - 'birth' (predeterminado): ancla en la Fecha de Nacimiento (días 0-6 de
+          vida = Semana 1, como en las guías de genética).
+        - un día fijo de la semana (ej. 'monday'): la Semana 1 arranca el primer
+          lunes desde el nacimiento, y todas las semanas cortan de lunes a domingo,
+          igual que las planillas de la granja. Los días de vida anteriores a ese
+          primer lunes se agrupan también en la Semana 1 (que puede ser más larga).
+        """
+        self.ensure_one()
+        if not self.birth_date:
+            return False
+        start = self.env['ir.config_parameter'].sudo().get_param(
+            'poultry_management.week_start_day', 'birth')
+        index = WEEK_START_INDEX.get(start)
+        if index is None:
+            return self.birth_date
+        return self.birth_date + timedelta(days=(index - self.birth_date.weekday()) % 7)
+
+    def _poultry_week_of(self, target_date):
+        """Semana de Vida (numerada desde 1) a la que pertenece target_date."""
+        self.ensure_one()
+        anchor = self._poultry_week_anchor()
+        if not (anchor and target_date):
+            return 0
+        return max((target_date - anchor).days, 0) // 7 + 1
+
+    def _poultry_week_start(self, week):
+        """Primer día de la Semana de Vida indicada."""
+        self.ensure_one()
+        anchor = self._poultry_week_anchor()
+        if not (anchor and week):
+            return False
+        return anchor + timedelta(days=(week - 1) * 7)
+
+    def _poultry_week_end(self, week):
+        """Último día de la Semana de Vida indicada."""
+        start = self._poultry_week_start(week)
+        return start + timedelta(days=6) if start else False
 
     @api.depends('age_weeks', 'genetics_id.rearing_end_week')
     def _compute_period_suggested(self):

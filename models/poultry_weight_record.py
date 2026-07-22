@@ -57,8 +57,7 @@ class PoultryWeightRecord(models.Model):
         """Calcula la edad del lote en semanas al momento de la pesada"""
         for record in self:
             if record.batch_id and record.batch_id.birth_date and record.date:
-                days = (record.date - record.batch_id.birth_date).days
-                record.batch_age_weeks = days // 7 + 1
+                record.batch_age_weeks = record.batch_id._poultry_week_of(record.date)
             else:
                 record.batch_age_weeks = 0
 
@@ -277,9 +276,9 @@ class PoultryWeightRecord(models.Model):
                 birth_date = batch.birth_date
                 if not birth_date or target_date < birth_date:
                     continue
-                week = (target_date - birth_date).days // 7 + 1
-                week_date_from = birth_date + timedelta(days=(week - 1) * 7)
-                week_date_to = week_date_from + timedelta(days=6)
+                week = batch._poultry_week_of(target_date)
+                week_date_from = batch._poultry_week_start(week)
+                week_date_to = batch._poultry_week_end(week)
                 for indicator in indicators:
                     remaining = Value.search([
                         ('batch_id', '=', batch_id),

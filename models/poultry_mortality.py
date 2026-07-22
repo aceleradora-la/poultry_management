@@ -47,8 +47,7 @@ class PoultryMortality(models.Model):
         """Calcula la edad del lote en semanas al momento del registro"""
         for record in self:
             if record.batch_id and record.batch_id.birth_date and record.date:
-                days = (record.date - record.batch_id.birth_date).days
-                record.batch_age_weeks = days // 7 + 1
+                record.batch_age_weeks = record.batch_id._poultry_week_of(record.date)
             else:
                 record.batch_age_weeks = 0
 

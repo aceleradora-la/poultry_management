@@ -87,18 +87,17 @@ class PoultryBatchIndicatorValue(models.Model):
         return record
 
     def _recompute_weekly_value(self, batch, indicator, target_date):
-        """Recalcula y guarda el agregado de la Semana de Vida (anclada a la Fecha de
-        Nacimiento del lote) que contiene target_date, para que quede disponible como
-        dato persistente y pivoteable (poultry.batch.indicator.weekly.value), en vez de
-        tener que agregarse al vuelo cada vez que se quiere ver por semana."""
+        """Recalcula y guarda el agregado de la Semana de Vida (numerada según el
+        ancla configurable del lote, ver poultry.batch._poultry_week_anchor) que
+        contiene target_date, para que quede disponible como dato persistente y
+        pivoteable (poultry.batch.indicator.weekly.value), en vez de tener que
+        agregarse al vuelo cada vez que se quiere ver por semana."""
         birth_date = batch.birth_date
         if not birth_date or target_date < birth_date:
             return
-        # Semana de Vida 1-based (los días 0-6 de vida son la Semana 1, como en las
-        # guías de genética). Misma convención en todo el módulo.
-        week = (target_date - birth_date).days // 7 + 1
-        week_date_from = birth_date + timedelta(days=(week - 1) * 7)
-        week_date_to = week_date_from + timedelta(days=6)
+        week = batch._poultry_week_of(target_date)
+        week_date_from = batch._poultry_week_start(week)
+        week_date_to = batch._poultry_week_end(week)
 
         week_values = self.search([
             ('batch_id', '=', batch.id),
