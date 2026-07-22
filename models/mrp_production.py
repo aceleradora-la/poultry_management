@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools.float_utils import float_compare
 
 
@@ -110,6 +110,84 @@ class MrpProduction(models.Model):
         return (self.sudo().poultry_collection_date
                 or (self.coop_close_id.date if self.coop_close_id else False)
                 or self._get_scheduled_date())
+
+    # Campos avícolas corregibles en una OF ya procesada (sin desmantelarla),
+    # solo por el grupo "Mortandad: Carga Manual"; al corregirlos el write
+    # resincroniza la mortandad y recalcula los indicadores automáticamente.
+    _POULTRY_PROTECTED_DONE_FIELDS = ('poultry_dead_count_total', 'poultry_collection_date')
+
+    def write(self, vals):
+        """Permite corregir Aves Muertas / Fecha de Recolección de una OF de cierre
+        ya Hecha sin desmantelarla: verifica el permiso server-side (la vista solo
+        gatea la UX), y tras guardar resincroniza la mortandad y reconstruye los
+        indicadores desde la fecha más vieja afectada hacia adelante (los
+        acumulados propagan hacia adelante: nunca acotar el rebuild con date_to)."""
+        touched = [f for f in self._POULTRY_PROTECTED_DONE_FIELDS if f in vals]
+        to_resync = self.env['mrp.production']
+        old_dates = {}
+        if touched and not self.env.context.get('poultry_skip_done_edit_check'):
+            for mo in self:
+                if mo.state != 'done' or not mo.coop_close_id:
+                    continue
+                # sudo() acotado: los campos tienen groups= y hay que COMPARAR su
+                # valor actual aunque el que escribe no sea usuario avícola.
+                mo_sudo = mo.sudo()
+                changed = False
+                for field_name in touched:
+                    new_val = vals[field_name]
+                    if field_name == 'poultry_collection_date':
+                        new_val = fields.Date.to_date(new_val)  # el cliente manda string
+                    if (new_val or False) != (mo_sudo[field_name] or False):
+                        changed = True
+                        break
+                if not changed:
+                    continue
+                if not self.env.user.has_group('poultry_management.group_poultry_mortality_manual'):
+                    raise AccessError(
+                        'Solo los usuarios con el permiso "Mortandad: Carga Manual" '
+                        'pueden corregir las Aves Muertas o la Fecha de Recolección/'
+                        'Postura de una OF ya procesada.')
+                old_dates[mo.id] = mo._poultry_target_date()
+                to_resync |= mo
+        result = super().write(vals)
+        for mo in to_resync:
+            # Primero la mortandad (las aves vivas del recálculo dependen de los
+            # registros ya movidos a la fecha nueva), después el rebuild — mismo
+            # orden que button_mark_done. Acotado al galpón de la OF (con expansión
+            # por lotes compartidos dentro del rebuild).
+            mo._poultry_sync_mortality()
+            rebuild_from = min(old_dates[mo.id], mo._poultry_target_date())
+            self.env['poultry.coop.close']._poultry_rebuild_all_indicator_values(
+                date_from=rebuild_from, coops=mo.coop_id)
+        return result
+
+    @api.constrains('poultry_collection_date')
+    def _check_poultry_collection_date_unique(self):
+        """Dos OFs de cierre del mismo galpón no pueden imputar a la misma fecha
+        efectiva: los valores diarios son únicos por (lote, indicador, fecha) y el
+        upsert de _set_value PISARÍA los de la otra OF (el resultado dependería
+        del orden de recálculo). La restricción de unicidad de Cierres solo cubre
+        la fecha del cierre, no una Fecha de Recolección corregida."""
+        for mo in self.sudo():
+            if not mo.coop_close_id or not mo.coop_id:
+                continue
+            eff = mo._poultry_target_date()
+            clash = self.sudo().search([
+                ('id', '!=', mo.id),
+                ('coop_close_id', '!=', False),
+                ('coop_id', '=', mo.coop_id.id),
+                ('state', '!=', 'cancel'),
+                '|',
+                ('poultry_collection_date', '=', eff),
+                '&',
+                ('poultry_collection_date', '=', False),
+                ('coop_close_id.date', '=', eff),
+            ], limit=1)
+            if clash:
+                raise ValidationError(
+                    f'Ya existe otra OF de cierre del galpón {mo.coop_id.display_name} '
+                    f'que imputa a la fecha {eff} ({clash.display_name}). Dos OFs del '
+                    f'mismo galpón no pueden compartir Fecha de Recolección/Postura.')
 
     def _poultry_distribute_integer(self, total, lines, birds_by_line):
         """Reparte un entero 'total' entre 'lines' proporcional a su población viva
