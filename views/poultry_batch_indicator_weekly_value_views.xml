@@ -33,16 +33,20 @@
                             <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="indicator_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="manual_date"/>
-                            <field name="week" readonly="1"/>
+                            <!-- force_save: estos campos los completa el onchange a partir de la
+                                 Fecha del Dato; sin force_save el cliente web no manda los campos
+                                 readonly al guardar y la Semana de Vida llega vacía al servidor
+                                 (que la exige por ser obligatoria). -->
+                            <field name="week" readonly="1" force_save="1"/>
                             <field name="real_value"/>
                         </group>
                         <group>
-                            <field name="source" readonly="1"/>
-                            <field name="period" readonly="1"/>
-                            <field name="week_date_from" readonly="1"/>
-                            <field name="week_date_to" readonly="1"/>
-                            <field name="value_low" readonly="1"/>
-                            <field name="value_high" readonly="1"/>
+                            <field name="source" readonly="1" force_save="1"/>
+                            <field name="period" readonly="1" force_save="1"/>
+                            <field name="week_date_from" readonly="1" force_save="1"/>
+                            <field name="week_date_to" readonly="1" force_save="1"/>
+                            <field name="value_low" readonly="1" force_save="1"/>
+                            <field name="value_high" readonly="1" force_save="1"/>
                         </group>
                     </group>
                 </sheet>
@@ -58,11 +62,14 @@
                 <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
                 <field name="indicator_id" options="{'no_create': False, 'no_create_edit': False}"/>
                 <field name="manual_date"/>
-                <field name="week" readonly="1"/>
-                <field name="period" readonly="1"/>
+                <!-- force_save: ver nota en el formulario de carga manual. -->
+                <field name="week" readonly="1" force_save="1"/>
+                <field name="period" readonly="1" force_save="1"/>
                 <field name="real_value"/>
-                <field name="value_low" readonly="1"/>
-                <field name="value_high" readonly="1"/>
+                <field name="value_low" readonly="1" force_save="1"/>
+                <field name="value_high" readonly="1" force_save="1"/>
+                <field name="week_date_from" column_invisible="1" force_save="1"/>
+                <field name="week_date_to" column_invisible="1" force_save="1"/>
                 <field name="source" column_invisible="1"/>
             </list>
         </field>
