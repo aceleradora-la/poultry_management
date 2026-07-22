@@ -259,7 +259,7 @@ class PoultryCoopClose(models.Model):
             })
 
     @api.model
-    def _poultry_rebuild_all_indicator_values(self, date_from=None, date_to=None):
+    def _poultry_rebuild_all_indicator_values(self, date_from=None, date_to=None, coops=None):
         """Reconstruye desde cero (borra y recalcula) los valores reales derivados de
         Cierres de Galpón: Consumo (Alimento/Agua), Producción de Huevos (% Ave-Día,
         Huevos Acumulados Ave-Día), Mortandad, Masa de Huevo, Peso del Huevo, Viabilidad
@@ -272,6 +272,18 @@ class PoultryCoopClose(models.Model):
         GLOBAL (no por lote), porque un mismo día de un mismo galpón puede tocar la
         cadena de acumulados de varios lotes a la vez.
 
+        El rango y el orden usan la FECHA EFECTIVA de cada cierre: la Fecha de
+        Recolección/Postura de su OF si está cargada, si no la fecha del cierre
+        (mismo criterio que mrp.production._poultry_target_date, que es la fecha a
+        la que la OF imputó sus valores). Filtrar por la fecha del cierre dejaría
+        afuera OFs cuya fecha se corrigió hacia adentro del rango, y viceversa.
+
+        coops (opcional): acota el rebuild a los Cierres de esos galpones, para no
+        recalcular toda la granja al corregir una sola OF. Se expande a los demás
+        galpones donde estuvieron los lotes de esos galpones (un lote trasladado
+        tiene su cadena de acumulados repartida entre varios galpones; recalcular
+        solo uno la cortaría). Vacío/None = toda la granja (wizard de recálculo).
+
         No filtra por el estado MRP de la OF (Confirmada/Hecha/etc.): usa directamente
         product_qty y move_raw_ids, poblados desde que se crea la OF en
         _create_unclassified_production, sin importar si luego se marcó como Hecha.
@@ -282,13 +294,28 @@ class PoultryCoopClose(models.Model):
         obsoletas si algún día se les quita el dato diario que las sustentaba.
         """
         domain = [('unclassified_production_id', '!=', False)]
-        if date_from:
-            domain.append(('date', '>=', date_from))
-        if date_to:
-            domain.append(('date', '<=', date_to))
-        closes = self.search(domain, order='date asc, id asc')
-        if not closes:
+        if coops:
+            initial_batches = self.env['poultry.batch.coop.line'].search([
+                ('coop_id', 'in', coops.ids),
+            ]).mapped('batch_id')
+            expanded_coops = coops | initial_batches.mapped('coop_line_ids.coop_id')
+            domain.append(('coop_id', 'in', expanded_coops.ids))
+        candidates = self.search(domain)
+        # Fecha efectiva por cierre; el filtro de rango se hace acá (no en el
+        # domain) porque la fecha efectiva puede diferir de la del cierre.
+        dated = []
+        for close in candidates:
+            eff = (close.unclassified_production_id.sudo().poultry_collection_date
+                   or close.date)
+            if date_from and eff < date_from:
+                continue
+            if date_to and eff > date_to:
+                continue
+            dated.append((eff, close.id, close))
+        if not dated:
             return 0
+        dated.sort(key=lambda item: (item[0], item[1]))
+        closes = self.browse([item[2].id for item in dated])
 
         # NUNCA agregar acá las categorías 'weight' ni 'uniformity': sus valores reales
         # los publica el Parte de Registro de Peso (poultry.weight.record), no las OFs,
@@ -301,7 +328,7 @@ class PoultryCoopClose(models.Model):
         affected_batches = self.env['poultry.batch.coop.line'].search([
             ('coop_id', 'in', closes.mapped('coop_id').ids),
         ]).mapped('batch_id')
-        dates = closes.mapped('date')
+        dates = [item[0] for item in dated]  # fechas EFECTIVAS (no close.date)
         if indicators and affected_batches:
             self.env['poultry.batch.indicator.value'].search([
                 ('indicator_id', 'in', indicators.ids),
@@ -333,7 +360,7 @@ class PoultryCoopClose(models.Model):
                 ]).unlink()
 
         count = 0
-        for close in closes:
+        for _eff, _close_id, close in dated:  # orden cronológico por fecha efectiva
             production = close.unclassified_production_id
             if production and production.coop_id:
                 production._poultry_compute_all_indicator_values()
