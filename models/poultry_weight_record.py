@@ -47,9 +47,12 @@ class PoultryWeightRecord(models.Model):
                                   store=True, digits=(16, 2))
     cv_pct = fields.Float(string='Coef. de Variación (%)', compute='_compute_totals',
                           store=True, digits=(16, 2))
-    min_weight_g = fields.Float(string='Peso Mínimo (g)', compute='_compute_totals',
+    # Compute propio (no _compute_totals): son los únicos NO almacenados del
+    # grupo, y Odoo exige métodos separados para almacenados y no almacenados
+    # (si comparten método, leer min/max dispararía recomputar los almacenados).
+    min_weight_g = fields.Float(string='Peso Mínimo (g)', compute='_compute_min_max',
                                 digits=(16, 1))
-    max_weight_g = fields.Float(string='Peso Máximo (g)', compute='_compute_totals',
+    max_weight_g = fields.Float(string='Peso Máximo (g)', compute='_compute_min_max',
                                 digits=(16, 1))
 
     @api.depends('batch_id', 'batch_id.birth_date', 'date')
@@ -75,15 +78,11 @@ class PoultryWeightRecord(models.Model):
                 record.average_weight_g = 0.0
                 record.uniformity_pct = 0.0
                 record.cv_pct = 0.0
-                record.min_weight_g = 0.0
-                record.max_weight_g = 0.0
                 continue
             total = sum(weights)
             avg = total / count
             record.total_weight_g = total
             record.average_weight_g = avg
-            record.min_weight_g = min(weights)
-            record.max_weight_g = max(weights)
             if avg:
                 band = avg * (record.uniformity_band_pct or 10.0) / 100.0
                 in_band = sum(1 for w in weights if abs(w - avg) <= band)
@@ -93,6 +92,14 @@ class PoultryWeightRecord(models.Model):
             else:
                 record.uniformity_pct = 0.0
                 record.cv_pct = 0.0
+
+    @api.depends('line_ids.weight_g')
+    def _compute_min_max(self):
+        """Peso mínimo y máximo del parte (no almacenados)."""
+        for record in self:
+            weights = record.line_ids.mapped('weight_g')
+            record.min_weight_g = min(weights) if weights else 0.0
+            record.max_weight_g = max(weights) if weights else 0.0
 
     @api.model_create_multi
     def create(self, vals_list):
