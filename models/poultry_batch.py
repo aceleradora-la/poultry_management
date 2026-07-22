@@ -143,6 +143,25 @@ class PoultryBatch(models.Model):
         start = self._poultry_week_start(week)
         return start + timedelta(days=6) if start else False
 
+    def _poultry_get_live_bird_count_on(self, target_date):
+        """Aves vivas del lote a una fecha histórica: suma de las asignaciones a
+        galpón VIGENTES a esa fecha (mismo filtro de vigencia que
+        mrp.production._poultry_get_coop_batches_and_birds). Se filtra por
+        vigencia y no solo por date_from porque un Traslado cierra la línea vieja
+        y abre una nueva: contar líneas ya cerradas duplicaría las aves
+        trasladadas. Devuelve None si el lote no tenía ninguna asignación vigente
+        ese día (sin galpón no es lo mismo que 0 aves: los reportes muestran
+        vacío, no cero)."""
+        self.ensure_one()
+        if not target_date:
+            return None
+        lines = self.coop_line_ids.filtered(
+            lambda l: l.active and l.date_from and l.date_from <= target_date
+            and (not l.date_to or l.date_to >= target_date))
+        if not lines:
+            return None
+        return sum(line._get_live_bird_count_on(target_date) for line in lines)
+
     @api.depends('age_weeks', 'genetics_id.rearing_end_week')
     def _compute_period_suggested(self):
         """Sugerencia de período según la edad y la genética (no confirmada)"""

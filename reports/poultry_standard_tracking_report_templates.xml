@@ -32,6 +32,14 @@
                                 <span t-esc="doc.current_coop_date_from or '-'"/>
                             </div>
                         </div>
+                        <div class="row mb-3 text-left" style="padding: 10px;">
+                            <div class="col-4">
+                                <!-- Aves Alojadas (foto a la Entrada en Producción, igual que
+                                     la ficha del lote); en crianza, la Cantidad de Aves. -->
+                                <strong>Aves Alojadas:</strong>
+                                <span t-esc="doc.batch_id.housed_bird_count or doc.batch_id.bird_count"/>
+                            </div>
+                        </div>
 
                         <t t-set="report_data" t-value="doc.get_report_data()"/>
                         <t t-foreach="[('crianza', 'Crianza'), ('produccion', 'Producción')]" t-as="period_entry">
@@ -48,6 +56,9 @@
                                             </th>
                                             <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
                                                 Fecha
+                                            </th>
+                                            <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
+                                                Aves Vivas
                                             </th>
                                             <t t-foreach="period_data['indicators']" t-as="indicator">
                                                 <th colspan="3" style="text-align: center; background: none !important; color: #333 !important; border-bottom: 1px solid #333;">
@@ -70,6 +81,9 @@
                                             </td>
                                             <td style="text-align: center; white-space: nowrap;">
                                                 <t t-esc="row['date']"/>
+                                            </td>
+                                            <td style="text-align: center; white-space: nowrap;">
+                                                <t t-if="row.get('live_birds') is not None" t-esc="row['live_birds']"/>
                                             </td>
                                             <t t-foreach="period_data['indicators']" t-as="indicator">
                                                 <t t-set="cell" t-value="row['cells'][indicator['id']]"/>

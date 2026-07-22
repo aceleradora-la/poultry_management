@@ -68,29 +68,36 @@ class PoultryStandardTrackingReportController(http.Controller):
             sheet.write(3, 0, 'Galpón: %s' % (header.get('coop_names') or '-'), info_label_format)
             sheet.write(4, 0, 'Fecha de Ingreso a Galpón: %s' % (header.get('coop_date_from') or '-'),
                         info_label_format)
+            sheet.write(5, 0, 'Aves Alojadas: %s' % (header.get('bird_count') or '-'), info_label_format)
 
-            header_row = 6
-            sheet.freeze_panes(header_row + 2, 2)
+            header_row = 7
+            # Columnas fijas: Edad, Fecha y Aves Vivas (base 3 para los indicadores).
+            sheet.freeze_panes(header_row + 2, 3)
 
             indicators = period_data['indicators']
             sheet.merge_range(header_row, 0, header_row + 1, 0, 'Edad', header_format)
             sheet.merge_range(header_row, 1, header_row + 1, 1, 'Fecha', header_format)
-            col = 2
+            sheet.merge_range(header_row, 2, header_row + 1, 2, 'Aves Vivas', header_format)
+            col = 3
             for indicator in indicators:
                 sheet.merge_range(header_row, col, header_row, col + 2, indicator['name'], header_format)
                 sheet.write(header_row + 1, col, 'Bajo', sub_header_format)
                 sheet.write(header_row + 1, col + 1, 'Alto', sub_header_format)
                 sheet.write(header_row + 1, col + 2, 'Real', sub_header_format)
                 col += 3
-            sheet.set_column(0, 1, 12)
+            sheet.set_column(0, 2, 12)
             if indicators:
-                sheet.set_column(2, col - 1, 10)
+                sheet.set_column(3, col - 1, 10)
 
             row = header_row + 2
             for line in period_data['rows']:
                 sheet.write(row, 0, line['week'], header_format)
                 sheet.write(row, 1, line['date'], header_format)
-                col = 2
+                if line.get('live_birds') is not None:
+                    sheet.write(row, 2, line['live_birds'], cell_format)
+                else:
+                    sheet.write_blank(row, 2, None, cell_format)
+                col = 3
                 for indicator in indicators:
                     cell = line['cells'].get(indicator['id']) or line['cells'].get(str(indicator['id']))
                     if cell and cell.get('has_standard'):
