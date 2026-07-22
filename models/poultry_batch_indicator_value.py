@@ -87,8 +87,8 @@ class PoultryBatchIndicatorValue(models.Model):
         return record
 
     def _recompute_weekly_value(self, batch, indicator, target_date):
-        """Recalcula y guarda el agregado de la Semana de Vida (numerada según el
-        ancla configurable del lote, ver poultry.batch._poultry_week_anchor) que
+        """Recalcula y guarda el agregado de la Semana de Vida (anclada a la Fecha
+        de Nacimiento del lote, ver poultry.batch._poultry_week_anchor) que
         contiene target_date, para que quede disponible como dato persistente y
         pivoteable (poultry.batch.indicator.weekly.value), en vez de tener que
         agregarse al vuelo cada vez que se quiere ver por semana."""
