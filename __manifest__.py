@@ -61,6 +61,7 @@
         'views/poultry_genetics_standard_views.xml',
         'views/mrp_bom_views.xml',
         'views/mrp_production_views.xml',
+        'views/poultry_zero_mortality_wizard_views.xml',
         'views/poultry_menus.xml',
         'views/poultry_batch_period_change_views.xml',
         'views/poultry_batch_indicator_weekly_value_views.xml',

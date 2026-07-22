@@ -341,6 +341,29 @@ class MrpProduction(models.Model):
             )
 
     def button_mark_done(self):
+        # Advertencia de mortandad en cero: si una OF de cierre se va a procesar
+        # sin Aves Muertas cargadas, se pregunta antes de tocar nada (por eso va
+        # ANTES de la validación kit y del super: si el operador cancela, no debe
+        # haber cambiado nada). Confirmar reintenta con el flag de contexto.
+        # sudo() acotado: el campo tiene groups= y el botón puede apretarlo un
+        # usuario de Manufactura sin rol avícola (el dato faltante es del galpón,
+        # el aviso aplica igual).
+        if not self.env.context.get('poultry_skip_zero_dead_warning'):
+            pending = self.filtered(
+                lambda m: m.coop_close_id and not m.sudo().poultry_dead_count_total)
+            if pending:
+                wizard = self.env['poultry.zero.mortality.confirm.wizard'].create({
+                    'production_ids': [(6, 0, self.ids)],
+                    'pending_names': ', '.join(pending.mapped('display_name')),
+                })
+                return {
+                    'type': 'ir.actions.act_window',
+                    'name': 'Confirmar sin Aves Muertas',
+                    'res_model': 'poultry.zero.mortality.confirm.wizard',
+                    'res_id': wizard.id,
+                    'view_mode': 'form',
+                    'target': 'new',
+                }
         for mo in self:
             tmpl = mo.product_id.product_tmpl_id if mo.product_id else False
             if tmpl and getattr(tmpl, 'poultry_validate_kit_consumption', False):
