@@ -14,13 +14,22 @@ _logger = logging.getLogger(__name__)
 
 
 def migrate(cr, version):
+    # Solo respaldar/borrar si la tabla todavía tiene el ESQUEMA VIEJO (columna
+    # standard_type). Si ya está en el esquema nuevo (version_id/indicator_id),
+    # los datos son estándares importados válidos y NO deben tocarse: este caso
+    # se da cuando la versión instalada del módulo quedó desincronizada del
+    # esquema real (ej. un rebuild de staging desde una producción con número
+    # de versión viejo pero datos nuevos).
     cr.execute("""
         SELECT EXISTS (
-            SELECT 1 FROM information_schema.tables
+            SELECT 1 FROM information_schema.columns
             WHERE table_name = 'poultry_genetics_standard'
+              AND column_name = 'standard_type'
         )
     """)
     if not cr.fetchone()[0]:
+        _logger.info('Poultry: estándares ya en el esquema nuevo (o tabla inexistente), '
+                     'no se borra nada.')
         return
     cr.execute("""
         CREATE TABLE IF NOT EXISTS poultry_genetics_standard_pre_19_0_1_5_0_backup AS
