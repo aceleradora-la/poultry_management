@@ -84,15 +84,21 @@
                     </button>
                 </div>
                 <div class="o_control_panel_secondary p-2 border-top small text-muted" t-if="header">
-                    <span class="me-3"><strong>Genética:</strong> <t t-esc="header.genetics_name"/></span>
-                    <span class="me-3"><strong>Versión de Estándar:</strong> <t t-esc="header.version_name"/></span>
-                    <span class="me-3"><strong>Galpón:</strong> <t t-esc="header.coop_names or '-'"/></span>
-                    <span class="me-3">
-                        <strong>Fecha de Ingreso a Galpón:</strong>
-                        <t t-esc="header.coop_date_from or '-'"/>
-                    </span>
-                    <span class="me-3"><strong>Fecha de Nacimiento:</strong> <t t-esc="header.birth_date or '-'"/></span>
-                    <span><strong>Aves:</strong> <t t-esc="header.bird_count"/></span>
+                    <div>
+                        <span class="me-3"><strong>Genética:</strong> <t t-esc="header.genetics_name"/></span>
+                        <span class="me-3"><strong>Versión de Estándar:</strong> <t t-esc="header.version_name"/></span>
+                    </div>
+                    <!-- Una línea por lote seleccionado (con comparación, la info de todos). -->
+                    <div t-foreach="header.batches_info or []" t-as="bi" t-key="bi.batch_id">
+                        <span class="me-3"><strong><t t-esc="bi.name"/></strong></span>
+                        <span class="me-3"><strong>Galpón:</strong> <t t-esc="bi.coop_names or '-'"/></span>
+                        <span class="me-3">
+                            <strong>Fecha de Ingreso a Galpón:</strong>
+                            <t t-esc="bi.coop_date_from or '-'"/>
+                        </span>
+                        <span class="me-3"><strong>Fecha de Nacimiento:</strong> <t t-esc="bi.birth_date or '-'"/></span>
+                        <span><strong>Aves:</strong> <t t-esc="bi.bird_count"/></span>
+                    </div>
                 </div>
             </div>
 
