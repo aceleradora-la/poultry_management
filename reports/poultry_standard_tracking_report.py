@@ -41,16 +41,43 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
     current_coop_date_from = fields.Date(string='Fecha de Ingreso a Galpón',
                                           compute='_compute_current_coop_info')
 
+    @api.model
+    def default_get(self, fields_list):
+        """El formulario de selección abre con el lote más nuevo y su versión
+        predeterminada ya elegidos, para que el caso común sea un solo click."""
+        res = super().default_get(fields_list)
+        if 'batch_id' in fields_list and not res.get('batch_id'):
+            batch = self.env['poultry.batch'].search(
+                [('active', '=', True)], order='birth_date desc', limit=1)
+            if batch:
+                res['batch_id'] = batch.id
+                if 'version_id' in fields_list and not res.get('version_id'):
+                    res['version_id'] = batch.genetics_id.default_standard_version_id.id or False
+        return res
+
+    @api.model
+    def _get_batch_coop_info(self, batch):
+        """(Nombres de galpones actuales, fecha de ingreso) de un lote, para los
+        encabezados del reporte (uno por lote seleccionado)."""
+        active_lines = batch.coop_line_ids.filtered(lambda l: l.active and not l.date_to)
+        names = ', '.join(active_lines.mapped('coop_id.name')) or False
+        date_from = min(active_lines.mapped('date_from')) if active_lines else False
+        return names, date_from
+
     @api.depends('batch_id')
     def _compute_current_coop_info(self):
         for wizard in self:
-            active_lines = wizard.batch_id.coop_line_ids.filtered(lambda l: l.active and not l.date_to)
-            wizard.current_coop_names = ', '.join(active_lines.mapped('coop_id.name')) or False
-            wizard.current_coop_date_from = min(active_lines.mapped('date_from')) if active_lines else False
+            names, date_from = self._get_batch_coop_info(wizard.batch_id)
+            wizard.current_coop_names = names
+            wizard.current_coop_date_from = date_from
 
     @api.onchange('batch_id')
     def _onchange_batch_id(self):
         self.version_id = self.batch_id.genetics_id.default_standard_version_id if self.batch_id else False
+        # Los Lotes a Comparar deben ser de la misma genética que el principal
+        # (y no incluirlo): al cambiar el principal se depura la selección.
+        self.comparison_batch_ids = self.comparison_batch_ids.filtered(
+            lambda b: b.genetics_id == self.batch_id.genetics_id and b != self.batch_id)
 
     def update_batch(self, batch_id):
         """Cambia el Lote de Aves de un reporte ya abierto (llamado desde el
@@ -261,6 +288,20 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             'coop_names': self.current_coop_names,
             'coop_date_from': str(self.current_coop_date_from) if self.current_coop_date_from else False,
             'bird_count': self.batch_id.bird_count,
+            # Una entrada por lote seleccionado, para que el encabezado en pantalla
+            # muestre la información de todos (no solo la del principal).
+            'batches_info': [
+                {
+                    'batch_id': batch.id,
+                    'name': batch.name,
+                    'coop_names': info[0],
+                    'coop_date_from': str(info[1]) if info[1] else False,
+                    'birth_date': str(batch.birth_date) if batch.birth_date else False,
+                    'bird_count': batch.bird_count,
+                }
+                for batch in report_batches
+                for info in [self._get_batch_coop_info(batch)]
+            ],
         }
         return result
 
@@ -291,18 +332,6 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             'params': {'wizard_id': self.id, 'period': self.report_period or False},
         }
 
-    @api.model
-    def action_open_direct(self, period=None):
-        """Abre el reporte directamente para el primer lote activo, sin pasar
-        por un formulario de selección previo: el propio componente en pantalla
-        ya permite elegir Lote y Versión de Estándar desde sus selectores.
-
-        period ('crianza'/'produccion'): fija el reporte a un solo período (los
-        menús dedicados de Crianza y Producción); None mantiene el comportamiento
-        anterior con pestañas para ambos."""
-        batch = self.env['poultry.batch'].search(
-            [('active', '=', True)], order='birth_date desc', limit=1)
-        if not batch:
-            raise UserError('No hay Lotes de Aves activos. Cree un lote antes de abrir este reporte.')
-        wizard = self.create({'batch_id': batch.id, 'report_period': period})
-        return wizard.action_generate()
+    # Los menús ahora abren el formulario de selección del asistente (Lote/s y
+    # Versión) en vez de saltar directo al primer lote activo; una vez adentro
+    # del reporte, los selectores en pantalla siguen permitiendo cambiar todo.
