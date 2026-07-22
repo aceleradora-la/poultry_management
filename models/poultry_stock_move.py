@@ -56,18 +56,24 @@ class PoultryStockMove(models.Model):
         return super().create(vals_list)
 
     def _poultry_consumption_type(self):
-        """Tipo de Consumo Avícola del movimiento (feed/water/none). Prioriza el
-        valor congelado; si está vacío (movimiento previo al snapshot), toma el de
-        la línea de la Lista de Materiales en vivo y LO CONGELA en el movimiento,
-        para que un cambio posterior del componente de alimento en la Lista no
-        altere este consumo. Devuelve 'none' si no aplica."""
+        """Tipo de Consumo Avícola del movimiento (feed/water/none), resuelto en este
+        orden de prioridad, congelando en el movimiento el primer valor encontrado
+        para que un cambio posterior de la Lista o del producto no lo altere:
+          1) el valor ya congelado en el movimiento;
+          2) la línea de la Lista de Materiales en vivo (marca explícita por Lista);
+          3) el Tipo de Consumo del PRODUCTO (fuente estable: un alimento balanceado
+             es Alimento en cualquier Lista, y así se reconocen OFs históricas cuyo
+             componente ya no es el actual sin editar líneas a mano).
+        Devuelve 'none' si ninguno define un tipo."""
         self.ensure_one()
         if self.poultry_consumption_type:
             return self.poultry_consumption_type
-        live = self.bom_line_id.poultry_consumption_type if self.bom_line_id else False
-        if live in ('feed', 'water'):
-            self.sudo().poultry_consumption_type = live
-            return live
+        line_type = self.bom_line_id.poultry_consumption_type if self.bom_line_id else False
+        product_type = self.product_id.poultry_consumption_type if self.product_id else False
+        resolved = line_type if line_type in ('feed', 'water') else product_type
+        if resolved in ('feed', 'water'):
+            self.sudo().poultry_consumption_type = resolved
+            return resolved
         return 'none'
 
     @api.depends('product_uom_qty', 'product_uom', 'product_id', 'location_id', 'location_dest_id')
