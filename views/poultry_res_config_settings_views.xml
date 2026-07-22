@@ -10,12 +10,6 @@
         <field name="arch" type="xml">
             <xpath expr="//form" position="inside">
                 <app data-string="Gestión Avícola" string="Gestión Avícola" name="poultry_management">
-                    <block title="Semanas de Vida" name="poultry_weeks_block">
-                        <setting string="Inicio de la Semana de Vida"
-                                 help="Con un día fijo (ej. Lunes) las semanas cortan igual que las planillas de la granja. Tras cambiarlo, correr &quot;Recalcular Indicadores de Producción&quot;. No afecta la vacunación (edad biológica).">
-                            <field name="poultry_week_start_day"/>
-                        </setting>
-                    </block>
                     <block title="Producción" name="poultry_production_block">
                         <setting string="Producto para Huevo sin Clasificar"
                                  help="Producto que representa el huevo sin clasificar en las recolecciones de producción.">

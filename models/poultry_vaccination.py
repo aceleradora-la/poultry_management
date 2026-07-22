@@ -65,12 +65,8 @@ class PoultryVaccination(models.Model):
 
     @api.depends('batch_id', 'batch_id.birth_date', 'date')
     def _compute_batch_age(self):
-        """Edad del lote en semanas a la fecha de aplicación.
-
-        A propósito NO usa el ancla configurable de Semana de Vida
-        (poultry.batch._poultry_week_anchor): la semana de un plan de vacunación es
-        edad biológica (semana N = N x 7 días de vida), igual que las fechas de
-        vencimiento del cumplimiento (poultry_vaccination_compliance)."""
+        """Edad del lote en semanas a la fecha de aplicación (misma convención que
+        todo el módulo: semanas ancladas a la Fecha de Nacimiento, desde 1)."""
         for record in self:
             if record.batch_id and record.batch_id.birth_date and record.date:
                 days = (record.date - record.batch_id.birth_date).days

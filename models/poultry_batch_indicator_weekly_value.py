@@ -67,7 +67,7 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
         Fecha del Dato y Valor Real (no cuenta semanas a mano)."""
         for record in self:
             batch = record.batch_id
-            # Fecha del Dato -> Semana de Vida (numerada según el ancla configurable
+            # Fecha del Dato -> Semana de Vida (anclada a la Fecha de Nacimiento
             # del lote, ver poultry.batch._poultry_week_anchor).
             if batch and batch.birth_date and record.manual_date:
                 record.week = batch._poultry_week_of(record.manual_date)
