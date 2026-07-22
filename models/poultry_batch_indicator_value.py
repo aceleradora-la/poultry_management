@@ -86,6 +86,30 @@ class PoultryBatchIndicatorValue(models.Model):
         self._recompute_weekly_value(batch, indicator, target_date)
         return record
 
+    @api.model
+    def _poultry_aggregate_week_values(self, indicator, week_values):
+        """Agrega un conjunto de valores DIARIOS de una misma semana al Valor Real
+        semanal, según el tipo de acumulación del indicador. week_values puede ser
+        la semana completa (agregado persistido) o un recorte (ej. el Reporte de
+        Seguimiento, que excluye el día de HOY porque el día no terminó).
+        Devuelve None si no hay valores."""
+        if not week_values:
+            return None
+        if indicator.accumulation_type not in self._RATE_ACCUMULATION_TYPES:
+            return week_values.sorted('date')[-1].value
+        if indicator.category == 'mortality' and indicator.accumulation_type == 'none':
+            # % Mortandad Semanal: a diferencia de las demás tasas diarias (Consumo,
+            # % Ave-Día), acá el denominador NO se suma día a día (eso daría un
+            # promedio ponderado por "aves-día"). Se usa una única base fija: las
+            # aves vivas al inicio del primer día de la semana con dato cargado.
+            # Muertas totales de la semana / vivas al inicio de la semana × 100.
+            first_day_denominator = week_values.sorted('date')[0].denominator
+            return (sum(week_values.mapped('numerator')) / first_day_denominator
+                    if first_day_denominator else 0.0)
+        total_denominator = sum(week_values.mapped('denominator'))
+        return (sum(week_values.mapped('numerator')) / total_denominator
+                if total_denominator else 0.0)
+
     def _recompute_weekly_value(self, batch, indicator, target_date):
         """Recalcula y guarda el agregado de la Semana de Vida (anclada a la Fecha
         de Nacimiento del lote, ver poultry.batch._poultry_week_anchor) que
@@ -108,21 +132,7 @@ class PoultryBatchIndicatorValue(models.Model):
         if not week_values:
             return
 
-        if indicator.accumulation_type not in self._RATE_ACCUMULATION_TYPES:
-            real_value = week_values.sorted('date')[-1].value
-        elif indicator.category == 'mortality' and indicator.accumulation_type == 'none':
-            # % Mortandad Semanal: a diferencia de las demás tasas diarias (Consumo,
-            # % Ave-Día), acá el denominador NO se suma día a día (eso daría un
-            # promedio ponderado por "aves-día"). Se usa una única base fija: las
-            # aves vivas al inicio del primer día de la semana con dato cargado.
-            # Muertas totales de la semana / vivas al inicio de la semana × 100.
-            first_day_denominator = week_values.sorted('date')[0].denominator
-            real_value = (sum(week_values.mapped('numerator')) / first_day_denominator
-                          if first_day_denominator else 0.0)
-        else:
-            total_denominator = sum(week_values.mapped('denominator'))
-            real_value = (sum(week_values.mapped('numerator')) / total_denominator
-                          if total_denominator else 0.0)
+        real_value = self._poultry_aggregate_week_values(indicator, week_values)
 
         period = 'crianza' if week <= (batch.genetics_id.rearing_end_week or 17) else 'produccion'
         # Bajo/Alto según la Versión de Estándar predeterminada de la genética del lote,

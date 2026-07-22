@@ -210,6 +210,31 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             today = fields.Date.context_today(self)
             yesterday = today - timedelta(days=1)
 
+            # Semana en curso: el agregado semanal PERSISTIDO incluye los valores
+            # de hoy (lo consume el pivot de Valores Semanales, que no corta). El
+            # reporte en cambio la recalcula al vuelo desde los valores diarios
+            # con fecha < hoy, para no mostrar nunca un día sin terminar. Al día
+            # siguiente el mismo recálculo incorpora solo el día ya cerrado. Solo
+            # puede haber una semana en curso por lote → 1 búsqueda por lote.
+            Value = self.env['poultry.batch.indicator.value']
+            current_overrides = {}
+            for batch in report_batches:
+                if not batch.birth_date:
+                    continue
+                current_week = batch._poultry_week_of(today)
+                week_start = batch._poultry_week_start(current_week)
+                day_values = Value.search([
+                    ('batch_id', '=', batch.id),
+                    ('indicator_id', 'in', indicators.ids),
+                    ('date', '>=', week_start),
+                    ('date', '<', today),
+                ])
+                for indicator in indicators:
+                    ind_values = day_values.filtered(
+                        lambda v, ind=indicator: v.indicator_id == ind)
+                    current_overrides[(batch.id, indicator.id, current_week)] = \
+                        Value._poultry_aggregate_week_values(indicator, ind_values)
+
             rows = []
             for week in weeks:
                 cells = {}
@@ -247,6 +272,14 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         if not batch_match:
                             continue
                         batch_real = batch_match[0].real_value
+                        # Semana en curso de origen Sistema: usar el recálculo sin
+                        # el día de hoy (None = sin días terminados → sin Real).
+                        # Los valores manuales son histórico y no se tocan.
+                        override_key = (batch.id, indicator.id, week)
+                        if batch_match[0].source == 'system' and override_key in current_overrides:
+                            batch_real = current_overrides[override_key]
+                            if batch_real is None:
+                                continue
                         weight = batch.bird_count or 1
                         total_weight += weight
                         total_weighted += batch_real * weight
