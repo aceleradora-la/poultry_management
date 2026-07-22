@@ -104,7 +104,11 @@
                 </div>
             </div>
 
-            <div class="o_content p-3">
+            <!-- Sin padding en el contenedor de scroll: position sticky se ancla al
+                 borde INTERIOR del padding, y esa franja de padding quedaba arriba
+                 del encabezado dejando ver los datos al scrollear. El espaciado lo
+                 aporta el margen de los hijos (ver CSS), que scrollea con ellos. -->
+            <div class="o_content">
                 <t t-if="state.loading">
                     <p class="text-muted">Cargando...</p>
                 </t>
