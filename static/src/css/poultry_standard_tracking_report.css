@@ -26,3 +26,48 @@
 .o_poultry_standard_tracking_report thead tr:last-child th {
     top: 34px;
 }
+
+/* Columnas fijas a la izquierda (Edad y Fecha, más la flechita de drilldown en
+   modo comparación). Los offsets son acumulativos y necesitan anchos conocidos:
+   caret 28px + Edad 80px (entra el badge del lote en el drilldown). La variable
+   --poultry-caret-w vale 0 sin comparación y 28px con la clase
+   o_poultry_has_caret que pone el template. */
+.o_poultry_standard_tracking_report table {
+    --poultry-caret-w: 0px;
+}
+
+.o_poultry_standard_tracking_report table.o_poultry_has_caret {
+    --poultry-caret-w: 28px;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_caret,
+.o_poultry_standard_tracking_report .o_poultry_col_week,
+.o_poultry_standard_tracking_report .o_poultry_col_date {
+    position: sticky;
+    z-index: 1;
+    background-color: var(--o-view-background-color, #fff);
+    box-shadow: inset -1px 0 0 #dee2e6, inset 0 -1px 0 #dee2e6;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_caret {
+    left: 0;
+    min-width: 28px;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_week {
+    left: var(--poultry-caret-w);
+    min-width: 80px;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_date {
+    left: calc(var(--poultry-caret-w) + 80px);
+    min-width: 96px;
+}
+
+/* Las celdas de la esquina (encabezado + columna fija a la vez) tapan tanto a
+   las filas como a las columnas que pasan por debajo. */
+.o_poultry_standard_tracking_report thead th.o_poultry_col_caret,
+.o_poultry_standard_tracking_report thead th.o_poultry_col_week,
+.o_poultry_standard_tracking_report thead th.o_poultry_col_date {
+    z-index: 3;
+}
