@@ -34,8 +34,10 @@
         <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
         <field name="implied_ids" eval="[(4, ref('poultry_user'))]"/>
         <field name="comment">Permite crear y editar manualmente registros de mortandad
-            (día por día y por lote) desde el Reporte de Mortandad. La carga automática
-            desde la Orden de Fabricación no requiere este permiso.</field>
+            (día por día y por lote) desde el Reporte de Mortandad, y corregir las Aves
+            Muertas y la Fecha de Recolección/Postura de OFs de cierre ya procesadas
+            (con resincronización y recálculo automáticos). La carga automática desde
+            la Orden de Fabricación no requiere este permiso.</field>
     </record>
 
     <!-- Los usuarios/gestores sin el permiso especial solo pueden operar sobre los

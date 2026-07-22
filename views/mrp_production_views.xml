@@ -26,10 +26,23 @@
                     <group>
                         <group>
                             <field name="coop_id" readonly="1"/>
+                            <!-- Nodos duplicados por grupo: "Mortandad: Carga Manual" puede
+                                 corregir estos campos incluso con la OF Hecha (el write de
+                                 mrp.production re-verifica el permiso server-side y dispara
+                                 resync de mortandad + recálculo de indicadores); el resto
+                                 los ve solo-lectura una vez procesada. -->
                             <field name="poultry_collection_date"
-                                   readonly="state in ('done', 'cancel')"/>
+                                   readonly="state == 'cancel'"
+                                   groups="poultry_management.group_poultry_mortality_manual"/>
+                            <field name="poultry_collection_date"
+                                   readonly="state in ('done', 'cancel')"
+                                   groups="!poultry_management.group_poultry_mortality_manual"/>
                             <field name="poultry_dead_count_total"
-                                   readonly="state in ('done', 'cancel')"/>
+                                   readonly="state == 'cancel'"
+                                   groups="poultry_management.group_poultry_mortality_manual"/>
+                            <field name="poultry_dead_count_total"
+                                   readonly="state in ('done', 'cancel')"
+                                   groups="!poultry_management.group_poultry_mortality_manual"/>
                         </group>
                     </group>
                     <separator string="Reparto por lote"/>
