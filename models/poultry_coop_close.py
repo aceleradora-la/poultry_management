@@ -153,6 +153,10 @@ class PoultryCoopClose(models.Model):
             'coop_id': coop.id,
             'egg_collection_id': False,
             'origin': f'Cierre Galpón {coop.name} - {self.date}',
+            # Fecha de Recolección/Postura: nace igual a la fecha del cierre, pero
+            # desde acá todos los cálculos de la OF dependen de este campo (no del
+            # cierre), y puede corregirse después (grupo Mortandad: Carga Manual).
+            'poultry_collection_date': self.date,
         }
         if picking_type_id:
             vals['picking_type_id'] = picking_type_id

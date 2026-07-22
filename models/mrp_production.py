@@ -31,6 +31,17 @@ class MrpProduction(models.Model):
     poultry_mortality_ids = fields.One2many(
         'poultry.mortality', 'production_id', string='Registros de Mortalidad', readonly=True,
         groups='poultry_management.poultry_user,poultry_management.poultry_manager')
+    # Fecha real a la que se imputan los huevos, la mortandad y TODOS los
+    # indicadores de esta OF (no la fecha técnica de Odoo). La setea el Cierre de
+    # Galpón al crear la OF de Huevo sin Clasificar (= fecha del cierre); el grupo
+    # "Mortandad: Carga Manual" puede corregirla incluso con la OF Hecha (el write
+    # resincroniza mortandad y recalcula indicadores automáticamente).
+    poultry_collection_date = fields.Date(
+        string='Fecha de Recolección/Postura', copy=False,
+        groups='poultry_management.poultry_user,poultry_management.poultry_manager',
+        help='Fecha real de la recolección/postura: es la fecha a la que se imputan '
+             'los huevos, la mortandad y todos los indicadores de esta OF. Se toma '
+             'del Cierre de Galpón al crearla.')
 
     def _get_scheduled_date(self):
         """Obtiene la fecha programada de la OF con tolerancia entre versiones."""
@@ -88,11 +99,17 @@ class MrpProduction(models.Model):
     # El registro se materializa al confirmar/producir la OF (button_mark_done), no en
     # cada guardado del total; y se elimina al desmantelar la OF (ver mrp_unbuild.py).
 
-    def _poultry_target_mortality_date(self):
-        """Fecha a la que se imputa la mortandad: la del Cierre de Galpón, o en su
-        defecto la fecha programada de la OF."""
+    def _poultry_target_date(self):
+        """Fecha a la que se imputa TODO lo derivado de esta OF (huevos, mortandad,
+        consumos e indicadores): la Fecha de Recolección/Postura si está cargada,
+        si no la del Cierre de Galpón, y en último caso la fecha programada de la
+        OF. sudo() acotado: poultry_collection_date tiene groups= (ver el
+        comentario del bloque de campos) y este helper también corre en flujos de
+        sistema (rebuild, migraciones) sin usuario avícola."""
         self.ensure_one()
-        return (self.coop_close_id.date if self.coop_close_id else False) or self._get_scheduled_date()
+        return (self.sudo().poultry_collection_date
+                or (self.coop_close_id.date if self.coop_close_id else False)
+                or self._get_scheduled_date())
 
     def _poultry_get_coop_batches_and_birds(self, target_date):
         """Devuelve (batches, birds_by_batch, total_birds): los lotes con asignación
@@ -178,7 +195,7 @@ class MrpProduction(models.Model):
         if total <= 0 or not self.coop_id:
             return
 
-        target_date = self._poultry_target_mortality_date()
+        target_date = self._poultry_target_date()
         batches, birds_by_batch, total_birds = self._poultry_get_coop_batches_and_birds(target_date)
         if not batches or total_birds <= 0:
             raise UserError(
@@ -306,7 +323,7 @@ class MrpProduction(models.Model):
         if not self.coop_close_id or not self.coop_id:
             return
 
-        target_date = self.coop_close_id.date or self._get_scheduled_date()
+        target_date = self._poultry_target_date()
 
         kg_uom = self._poultry_get_consumption_uom('uom.product_uom_kgm')
         liter_uom = self._poultry_get_consumption_uom('uom.product_uom_litre')
@@ -374,7 +391,7 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
-        target_date = self.coop_close_id.date or self._get_scheduled_date()
+        target_date = self._poultry_target_date()
         total_eggs = self.product_qty or 0.0
         if total_eggs <= 0:
             return
@@ -455,7 +472,7 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
-        target_date = self._poultry_target_mortality_date()
+        target_date = self._poultry_target_date()
         # Incluye tanto los registros generados por esta OF (_poultry_sync_mortality) como
         # los cargados a mano (production_id vacío) para este galpón en la fecha: la
         # mortandad del día de un lote es la suma de ambos.
@@ -543,7 +560,7 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
-        target_date = self._poultry_target_mortality_date()
+        target_date = self._poultry_target_date()
         Indicator = self.env['poultry.indicator'].sudo()
         viability_indicator = Indicator.search(
             [('category', '=', 'viability'), ('accumulation_type', '=', 'original_cumulative'),
@@ -595,7 +612,7 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
-        target_date = self.coop_close_id.date or self._get_scheduled_date()
+        target_date = self._poultry_target_date()
 
         collections = self.coop_close_id.egg_collection_ids.filtered(lambda c: c.state == 'done')
         total_mass_grams = 0.0
@@ -676,7 +693,7 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
-        target_date = self.coop_close_id.date or self._get_scheduled_date()
+        target_date = self._poultry_target_date()
 
         kg_uom = self._poultry_get_consumption_uom('uom.product_uom_kgm')
         feed_qty_kg = 0.0
