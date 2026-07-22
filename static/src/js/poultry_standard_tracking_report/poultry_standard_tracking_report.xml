@@ -2,7 +2,7 @@
 <templates xml:space="preserve">
 
     <t t-name="poultry_management.PoultryStandardTrackingReport" owl="1">
-        <div class="o_action o_poultry_standard_tracking_report">
+        <div class="o_action o_poultry_standard_tracking_report" t-ref="root">
             <div class="o_control_panel">
                 <div class="o_control_panel_main d-flex align-items-center flex-wrap gap-2 p-2">
                     <h5 class="mb-0 me-3"><t t-esc="title"/></h5>

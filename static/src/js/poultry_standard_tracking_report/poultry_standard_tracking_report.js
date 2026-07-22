@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
-import { Component, useState, onWillStart } from "@odoo/owl";
+import { Component, useState, onWillStart, onMounted, onPatched, useRef } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
 export class PoultryStandardTrackingReport extends Component {
@@ -11,6 +11,12 @@ export class PoultryStandardTrackingReport extends Component {
     setup() {
         this.orm = useService("orm");
         this.action = useService("action");
+        this.rootRef = useRef("root");
+        // El encabezado sticky de dos filas necesita saber la altura REAL de la
+        // primera fila (los nombres de indicadores se parten en varias líneas)
+        // para posicionar la segunda; se mide tras cada render.
+        onMounted(() => this._updateStickyOffsets());
+        onPatched(() => this._updateStickyOffsets());
         this.wizardId = this.props.action.params.wizard_id;
         // Período fijo (menús "Seguimiento Estándares - Crianza/Producción"): el
         // reporte muestra solo ese período y oculta las pestañas. Sin valor, se
@@ -49,6 +55,22 @@ export class PoultryStandardTrackingReport extends Component {
 
     setPeriod(period) {
         this.state.period = period;
+    }
+
+    _updateStickyOffsets() {
+        const root = this.rootRef.el;
+        if (!root) {
+            return;
+        }
+        for (const table of root.querySelectorAll("table")) {
+            const firstRow = table.querySelector("thead tr:first-child");
+            if (firstRow) {
+                table.style.setProperty(
+                    "--poultry-thead-row1-h",
+                    `${firstRow.getBoundingClientRect().height}px`
+                );
+            }
+        }
     }
 
     get title() {

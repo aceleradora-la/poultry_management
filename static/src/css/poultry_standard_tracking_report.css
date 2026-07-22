@@ -20,11 +20,13 @@
 
 .o_poultry_standard_tracking_report thead tr:first-child th {
     top: 0;
-    height: 34px;
 }
 
+/* El offset de la segunda fila es la altura REAL de la primera (los nombres de
+   indicadores se parten en varias líneas, la altura no es fija): el componente
+   la mide después de cada render y la publica en esta variable. */
 .o_poultry_standard_tracking_report thead tr:last-child th {
-    top: 34px;
+    top: var(--poultry-thead-row1-h, 34px);
 }
 
 /* Columnas fijas a la izquierda (Edad y Fecha, más la flechita de drilldown en
