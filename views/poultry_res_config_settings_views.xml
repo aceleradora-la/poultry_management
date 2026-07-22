@@ -1,4 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <function model="ir.ui.view" name="_poultry_cleanup_obsolete_dashboard_settings_views"/>
+
+    <!-- Sección de Gestión Avícola en Ajustes Generales. -->
+    <record id="res_config_settings_view_form_poultry" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.poultry.management</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Gestión Avícola" string="Gestión Avícola" name="poultry_management">
+                    <block title="Semanas de Vida" name="poultry_weeks_block">
+                        <setting string="Inicio de la Semana de Vida"
+                                 help="Con un día fijo (ej. Lunes) las semanas cortan igual que las planillas de la granja. Tras cambiarlo, correr &quot;Recalcular Indicadores de Producción&quot;. No afecta la vacunación (edad biológica).">
+                            <field name="poultry_week_start_day"/>
+                        </setting>
+                    </block>
+                    <block title="Producción" name="poultry_production_block">
+                        <setting string="Producto para Huevo sin Clasificar"
+                                 help="Producto que representa el huevo sin clasificar en las recolecciones de producción.">
+                            <field name="poultry_unclassified_egg_product_id"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
 </odoo>

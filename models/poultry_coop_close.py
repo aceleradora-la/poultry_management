@@ -308,14 +308,17 @@ class PoultryCoopClose(models.Model):
 
             # Limpia también los agregados semanales del rango, ya que se derivan de
             # los valores diarios que se acaban de borrar y se van a recalcular. La
-            # semana se calcula por lote (ancla en birth_date), así que el rango de
-            # semanas a borrar puede variar de un lote a otro.
+            # semana se calcula por lote (ancla configurable, ver poultry.batch.
+            # _poultry_week_anchor), así que el rango puede variar de un lote a otro.
+            # El rango se ensancha 1 semana para ambos lados: si el ancla configurada
+            # cambió desde el último recálculo, las filas viejas pueden estar
+            # numeradas una semana más arriba o abajo y quedarían huérfanas.
             Weekly = self.env['poultry.batch.indicator.weekly.value']
             for batch in affected_batches:
                 if not batch.birth_date:
                     continue
-                week_from = max((min(dates) - batch.birth_date).days // 7 + 1, 1)
-                week_to = max((max(dates) - batch.birth_date).days // 7 + 1, 1)
+                week_from = max(batch._poultry_week_of(min(dates)) - 1, 1)
+                week_to = batch._poultry_week_of(max(dates)) + 1
                 Weekly.search([
                     ('batch_id', '=', batch.id),
                     ('indicator_id', 'in', indicators.ids),

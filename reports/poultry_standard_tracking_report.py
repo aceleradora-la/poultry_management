@@ -208,7 +208,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                             'batch_id': batch.id,
                             'batch_name': batch.name,
                             'bird_count': batch.bird_count,
-                            'date': str(batch.birth_date + timedelta(days=(week - 1) * 7))
+                            'date': str(batch._poultry_week_end(week))
                                     if batch.birth_date else None,
                             'real_value': batch_real,
                             'real_color': self._get_real_color(
@@ -226,8 +226,10 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                             indicator, real_value, value_low, value_high, has_standard),
                         'batch_values': batch_values if is_comparison else [],
                     }
-                # Semana de Vida 1-based: la Semana 1 arranca en la Fecha de Nacimiento.
-                week_date = (self.batch_id.birth_date + timedelta(days=(week - 1) * 7)
+                # Se muestra el ÚLTIMO día de la Semana de Vida (como las planillas de
+                # la granja, que registran los totales al cierre de la semana), con el
+                # ancla configurable (ver poultry.batch._poultry_week_anchor).
+                week_date = (self.batch_id._poultry_week_end(week)
                              if self.batch_id.birth_date else None)
                 rows.append({
                     'week': week,
