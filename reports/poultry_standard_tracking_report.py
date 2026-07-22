@@ -204,9 +204,28 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             ]).mapped('week')
             weeks = sorted(set(weekly_values.mapped('week')) | set(standard_weeks))
 
+            # El reporte muestra solo días TERMINADOS: hoy nunca cuenta (el día no
+            # cerró). Para la columna Aves Vivas, la fecha de referencia de la
+            # semana en curso es AYER; las semanas futuras quedan vacías.
+            today = fields.Date.context_today(self)
+            yesterday = today - timedelta(days=1)
+
             rows = []
             for week in weeks:
                 cells = {}
+                # Aves Vivas al último día de la semana (o a AYER si la semana está
+                # en curso), por lote y consolidado (suma de los seleccionados).
+                # None = sin dato (lote sin asignación vigente o semana futura),
+                # distinto de 0 (todas las aves muertas).
+                live_by_batch = {}
+                for batch in report_batches:
+                    week_start = batch._poultry_week_start(week) if batch.birth_date else False
+                    if not week_start or week_start > yesterday:
+                        live_by_batch[batch.id] = None
+                        continue
+                    ref_date = min(batch._poultry_week_end(week), yesterday)
+                    live_by_batch[batch.id] = batch._poultry_get_live_bird_count_on(ref_date)
+                live_values = [v for v in live_by_batch.values() if v is not None]
                 for indicator in indicators:
                     matches = weekly_values.filtered(
                         lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk)
@@ -261,6 +280,8 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 rows.append({
                     'week': week,
                     'date': str(week_date) if week_date else None,
+                    'live_birds': sum(live_values) if live_values else None,
+                    'live_birds_by_batch': live_by_batch,
                     'cells': cells,
                 })
 
@@ -287,7 +308,10 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
             'birth_date': str(self.batch_id.birth_date) if self.batch_id.birth_date else False,
             'coop_names': self.current_coop_names,
             'coop_date_from': str(self.current_coop_date_from) if self.current_coop_date_from else False,
-            'bird_count': self.batch_id.bird_count,
+            # Aves Alojadas (la foto a la Entrada en Producción, igual que la ficha
+            # del lote); si el lote no entró en producción todavía (crianza), la
+            # Cantidad de Aves ingresada.
+            'bird_count': self.batch_id.housed_bird_count or self.batch_id.bird_count,
             # Una entrada por lote seleccionado, para que el encabezado en pantalla
             # muestre la información de todos (no solo la del principal).
             'batches_info': [
@@ -297,7 +321,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                     'coop_names': info[0],
                     'coop_date_from': str(info[1]) if info[1] else False,
                     'birth_date': str(batch.birth_date) if batch.birth_date else False,
-                    'bird_count': batch.bird_count,
+                    'bird_count': batch.housed_bird_count or batch.bird_count,
                 }
                 for batch in report_batches
                 for info in [self._get_batch_coop_info(batch)]

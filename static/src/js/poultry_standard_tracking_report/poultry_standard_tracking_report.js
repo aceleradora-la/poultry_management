@@ -140,6 +140,7 @@ export class PoultryStandardTrackingReport extends Component {
                         name: bv.batch_name,
                         bird_count: bv.bird_count,
                         date: bv.date,
+                        live_birds: (row.live_birds_by_batch || {})[bv.batch_id],
                         values: {},
                     };
                 }
