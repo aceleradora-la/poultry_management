@@ -431,8 +431,10 @@ class MrpProduction(models.Model):
 
         feed_qty_kg = 0.0
         water_qty_l = 0.0
-        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel' and m.bom_line_id):
-            consumption_type = move.bom_line_id.poultry_consumption_type
+        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel'):
+            # Tipo congelado en el movimiento (no el actual de la Lista): así un
+            # cambio posterior del componente de alimento no altera este consumo.
+            consumption_type = move._poultry_consumption_type()
             if consumption_type not in ('feed', 'water'):
                 continue
             qty = self._poultry_get_move_consumed_qty(move)
@@ -798,8 +800,9 @@ class MrpProduction(models.Model):
 
         kg_uom = self._poultry_get_consumption_uom('uom.product_uom_kgm')
         feed_qty_kg = 0.0
-        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel' and m.bom_line_id):
-            if move.bom_line_id.poultry_consumption_type != 'feed':
+        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel'):
+            # Tipo congelado en el movimiento (ver _poultry_compute_consumption_indicator_values).
+            if move._poultry_consumption_type() != 'feed':
                 continue
             qty = self._poultry_get_move_consumed_qty(move)
             feed_qty_kg += move.product_uom._compute_quantity(qty, kg_uom) if kg_uom else qty

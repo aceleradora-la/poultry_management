@@ -26,6 +26,50 @@ class PoultryStockMove(models.Model):
         help='Cantidad convertida a Cajones (Huevos/360). Conserva el signo para totalizar.'
     )
 
+    # Copia congelada del Tipo de Consumo Avícola de la línea de la Lista de
+    # Materiales, tomada al crear el movimiento (y, para movimientos previos, al
+    # recalcular por primera vez). Los indicadores de Consumo de Alimento/Agua y de
+    # Conversión Alimenticia usan ESTE valor, no el actual de la Lista: así, si más
+    # adelante se cambia el componente de alimento en la Lista, el consumo ya
+    # calculado de las OFs pasadas no se altera. Vacío = todavía no congelado
+    # (se resuelve contra la Lista en vivo la próxima vez, ver _poultry_consumption_type).
+    poultry_consumption_type = fields.Selection([
+        ('none', 'Ninguno'),
+        ('feed', 'Alimento'),
+        ('water', 'Agua'),
+    ], string='Tipo de Consumo Avícola (congelado)', copy=False)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Al crear un movimiento con línea de Lista de Materiales, congela su Tipo
+        de Consumo Avícola (Alimento/Agua) en el propio movimiento."""
+        line_ids = [v['bom_line_id'] for v in vals_list
+                    if v.get('bom_line_id') and not v.get('poultry_consumption_type')]
+        if line_ids:
+            types = {line.id: line.poultry_consumption_type
+                     for line in self.env['mrp.bom.line'].browse(line_ids)}
+            for vals in vals_list:
+                if not vals.get('poultry_consumption_type') and vals.get('bom_line_id'):
+                    ct = types.get(vals['bom_line_id'])
+                    if ct in ('feed', 'water'):
+                        vals['poultry_consumption_type'] = ct
+        return super().create(vals_list)
+
+    def _poultry_consumption_type(self):
+        """Tipo de Consumo Avícola del movimiento (feed/water/none). Prioriza el
+        valor congelado; si está vacío (movimiento previo al snapshot), toma el de
+        la línea de la Lista de Materiales en vivo y LO CONGELA en el movimiento,
+        para que un cambio posterior del componente de alimento en la Lista no
+        altere este consumo. Devuelve 'none' si no aplica."""
+        self.ensure_one()
+        if self.poultry_consumption_type:
+            return self.poultry_consumption_type
+        live = self.bom_line_id.poultry_consumption_type if self.bom_line_id else False
+        if live in ('feed', 'water'):
+            self.sudo().poultry_consumption_type = live
+            return live
+        return 'none'
+
     @api.depends('product_uom_qty', 'product_uom', 'product_id', 'location_id', 'location_dest_id')
     def _compute_poultry_quantities(self):
         """
