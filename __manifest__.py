@@ -17,6 +17,7 @@
     'assets': {
         'web.assets_backend': [
             'poultry_management/static/src/css/poultry_stock_cover_dashboard.css',
+            'poultry_management/static/src/css/poultry_standard_tracking_report.css',
             'poultry_management/static/src/js/poultry_dynamic_columns.js',
             'poultry_management/static/src/js/poultry_standard_tracking_report/poultry_standard_tracking_report.js',
             'poultry_management/static/src/js/poultry_standard_tracking_report/poultry_standard_tracking_report.xml',

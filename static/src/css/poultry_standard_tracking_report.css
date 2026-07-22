@@ -1,0 +1,28 @@
+/* Encabezado fijo (sticky) del Reporte de Seguimiento de Estándares.
+   El thead tiene DOS filas: la segunda necesita un top igual a la altura de la
+   primera, así que la primera se fija a una altura conocida en vez de depender
+   del contenido. Los th con rowspan=2 (Edad/Fecha/Aves Vivas) viven en la
+   primera fila, por eso el selector por fila funciona también para ellos. */
+.o_poultry_standard_tracking_report .o_content {
+    /* Contenedor de scroll del sticky: sin esto el que scrollea puede ser un
+       ancestro y el encabezado no se pega. */
+    overflow: auto;
+}
+
+.o_poultry_standard_tracking_report thead th {
+    position: sticky;
+    z-index: 2;
+    background-color: var(--o-view-background-color, #fff);
+    /* border-collapse de Bootstrap pierde los bordes de un th sticky al
+       scrollear: se redibujan con sombras internas. */
+    box-shadow: inset 0 -1px 0 #dee2e6, inset 1px 0 0 #dee2e6;
+}
+
+.o_poultry_standard_tracking_report thead tr:first-child th {
+    top: 0;
+    height: 34px;
+}
+
+.o_poultry_standard_tracking_report thead tr:last-child th {
+    top: 34px;
+}
