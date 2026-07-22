@@ -118,12 +118,14 @@
                     </p>
                 </t>
                 <t t-else="">
-                    <table class="table table-bordered table-sm table-hover">
+                    <!-- o_poultry_has_caret corre los offsets de las columnas fijas
+                         cuando existe la columna de la flechita (modo comparación). -->
+                    <table t-att-class="'table table-bordered table-sm table-hover' + (isComparison ? ' o_poultry_has_caret' : '')">
                         <thead>
                             <tr>
-                                <th rowspan="2" t-if="isComparison" style="width: 28px;"/>
-                                <th rowspan="2" class="align-middle text-center">Edad</th>
-                                <th rowspan="2" class="align-middle text-center">Fecha</th>
+                                <th rowspan="2" t-if="isComparison" style="width: 28px;" class="o_poultry_col_caret"/>
+                                <th rowspan="2" class="align-middle text-center o_poultry_col_week">Edad</th>
+                                <th rowspan="2" class="align-middle text-center o_poultry_col_date">Fecha</th>
                                 <th rowspan="2" class="align-middle text-center">Aves Vivas</th>
                                 <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
                                     <th colspan="3" class="text-center">
@@ -143,13 +145,13 @@
                             <t t-foreach="currentData.rows" t-as="row" t-key="row.week">
                                 <tr t-att-style="isComparison ? 'cursor: pointer;' : ''"
                                     t-on-click="() => this.onRowClick(row.week)">
-                                    <td class="text-center align-middle text-muted" t-if="isComparison">
+                                    <td class="text-center align-middle text-muted o_poultry_col_caret" t-if="isComparison">
                                         <i t-att-class="'fa ' + (state.expandedWeeks[row.week] ? 'fa-caret-down' : 'fa-caret-right')"/>
                                     </td>
-                                    <td class="text-center fw-bold text-nowrap">
+                                    <td class="text-center fw-bold text-nowrap o_poultry_col_week">
                                         <t t-esc="row.week"/>
                                     </td>
-                                    <td class="text-center text-nowrap">
+                                    <td class="text-center text-nowrap o_poultry_col_date">
                                         <t t-esc="row.date"/>
                                     </td>
                                     <!-- Aves vivas al último día de la semana (semana en curso:
@@ -175,13 +177,13 @@
                                 <t t-if="isComparison and state.expandedWeeks[row.week]">
                                     <tr t-foreach="getRowBatches(row)" t-as="batchRow" t-key="batchRow.batch_id"
                                         class="table-light">
-                                        <td/>
-                                        <td class="text-center">
+                                        <td class="o_poultry_col_caret"/>
+                                        <td class="text-center o_poultry_col_week">
                                             <span class="badge rounded-pill text-bg-secondary">
                                                 <t t-esc="batchRow.name"/>
                                             </span>
                                         </td>
-                                        <td class="text-center text-nowrap small text-muted">
+                                        <td class="text-center text-nowrap small text-muted o_poultry_col_date">
                                             <t t-esc="batchRow.date or '-'"/>
                                         </td>
                                         <td class="text-center small text-muted">
