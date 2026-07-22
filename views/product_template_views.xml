@@ -21,6 +21,12 @@
                            help="Al finalizar una OF, valida que la suma consumida de componentes sea igual a la cantidad producida (en la misma UdM)."/>
                     <label for="poultry_validate_kit_consumption"/>
                 </div>
+                <div class="o_row">
+                    <field name="poultry_consumption_type"
+                           string="Tipo de Consumo Avícola"
+                           help="Marca el producto como Alimento o Agua: fuente estable del tipo de consumo, usada como respaldo cuando la línea de la Lista de Materiales no lo define."/>
+                    <label for="poultry_consumption_type"/>
+                </div>
                 <group string="Cobertura de stock (tablero)" invisible="not is_storable">
                     <field name="poultry_cover_window_days" placeholder="Desde categoría"/>
                 </group>

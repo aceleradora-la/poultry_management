@@ -32,6 +32,17 @@ class ProductTemplate(models.Model):
         ),
     )
 
+    poultry_consumption_type = fields.Selection([
+        ('feed', 'Alimento'),
+        ('water', 'Agua'),
+    ], string='Tipo de Consumo Avícola',
+        help='Marca este producto como Alimento o Agua para el cálculo de consumo '
+             '(g/ave-día, ml/ave-día). Es la fuente estable del tipo: un producto de '
+             'alimento balanceado es Alimento sin importar en qué Lista de Materiales '
+             'se consuma. Se usa como respaldo cuando la línea de la Lista no define '
+             'un tipo, y permite reconocer OFs históricas cuyo componente de alimento '
+             'ya no es el actual, sin editar las líneas a mano.')
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
