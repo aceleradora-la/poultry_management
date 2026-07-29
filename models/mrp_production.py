@@ -665,19 +665,29 @@ class MrpProduction(models.Model):
                                   production=self)
 
     def _poultry_compute_viability_indicator_values(self):
-        """% de Viabilidad Acumulada (aves vivas hoy / aves originales del lote x 100).
-        A diferencia de los indicadores de mortandad (que suman contribuciones diarias),
-        se calcula como una foto directa del estado del lote a la fecha -no depende del
-        valor del día anterior- pero se guarda con tipo de acumulación 'original_cumulative'
-        para que el agregado semanal tome el último valor de la semana (estado), no un
-        promedio de tasas diarias."""
+        """% de Viabilidad Acumulada (aves vivas hoy / Aves Alojadas x 100). A
+        diferencia de los indicadores de mortandad (que suman contribuciones
+        diarias), se calcula como una foto directa del estado del lote a la fecha
+        -no depende del valor del día anterior- y el agregado semanal toma el
+        último valor de la semana (estado), no un promedio de tasas diarias.
+
+        Base: las Aves Alojadas (la foto a la Entrada en Producción, igual que la
+        ficha del lote y el encabezado del reporte). Antes de la Entrada en
+        Producción (crianza, sin Cambio de Período) cae a la Cantidad de Aves
+        original: todavía no existe una base alojada válida.
+
+        El indicador se acepta con tipo 'housed' (sobre Aves Alojadas, la
+        semántica real) o 'original_cumulative' (el tipo histórico, por
+        compatibilidad con configuraciones existentes); ambos agregan el semanal
+        como último valor (estado)."""
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
         target_date = self._poultry_target_date()
         Indicator = self.env['poultry.indicator'].sudo()
         viability_indicator = Indicator.search(
-            [('category', '=', 'viability'), ('accumulation_type', '=', 'original_cumulative'),
+            [('category', '=', 'viability'),
+             ('accumulation_type', 'in', ('housed', 'original_cumulative')),
              ('active', '=', True)], limit=1)
         if not viability_indicator:
             return
@@ -688,12 +698,16 @@ class MrpProduction(models.Model):
 
         Value = self.env['poultry.batch.indicator.value'].sudo()
         for batch in batches:
-            if not batch.bird_count:
+            base = (batch.housed_bird_count
+                    if (batch.housed_bird_count and batch.production_start_date
+                        and target_date >= batch.production_start_date)
+                    else batch.bird_count)
+            if not base:
                 continue
             live_today = birds_by_batch.get(batch.id, 0)
-            viability_pct = live_today / batch.bird_count * 100.0
+            viability_pct = live_today / base * 100.0
             Value._set_value(batch, self.coop_id, target_date, viability_indicator,
-                              viability_pct, numerator=live_today * 100.0, denominator=batch.bird_count,
+                              viability_pct, numerator=live_today * 100.0, denominator=base,
                               production=self)
 
     def _poultry_compute_egg_mass_and_weight_indicator_values(self):
