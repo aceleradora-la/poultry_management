@@ -194,6 +194,24 @@ class PoultryIndicator(models.Model):
     # -- Motor de fórmulas: resolución ------------------------------------------
 
     @api.model
+    def _poultry_legacy_indicator(self, category, accumulation_type):
+        """Indicador de una categoría+tipo que TODAVÍA usa el cálculo cableado, es
+        decir el que no tiene fórmula cargada. Todos los cálculos cableados buscan
+        por acá para no pisar lo que ya escribe el motor de fórmulas: con fórmula
+        lo calcula el motor, sin fórmula lo calcula el código. Nunca los dos.
+
+        accumulation_type acepta un valor o una tupla/lista (la Viabilidad admite
+        dos tipos históricos)."""
+        operator = 'in' if isinstance(accumulation_type, (list, tuple)) else '='
+        return self.search([
+            ('category', '=', category),
+            ('accumulation_type', operator,
+             list(accumulation_type) if operator == 'in' else accumulation_type),
+            ('active', '=', True),
+            ('formula_mode', '=', False),
+        ], limit=1)
+
+    @api.model
     def _poultry_formula_indicators(self, source='coop_close'):
         """Indicadores activos con fórmula cargada para una fuente de datos.
         source='coop_close' (Cierre de Galpón / OF) o 'weight_record' (Parte de
