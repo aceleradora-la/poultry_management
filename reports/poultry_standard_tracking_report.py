@@ -110,6 +110,58 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         self.comparison_batch_ids = [(6, 0, (batches - primary).ids)]
         return self.get_report_data()
 
+    def get_week_daily_data(self, week):
+        """Detalle diario de una Semana de Vida, para el despliegue por día del
+        reporte en pantalla (carga perezosa: el componente lo pide recién al
+        desplegar la semana y lo cachea). Devuelve, por lote del reporte:
+            { '<batch_id>': {'batch_name': str, 'has_daily': bool,
+                             'days': [{'date': str, 'live_birds': int|None,
+                                       'cells': {indicator_id: {'real_value': float,
+                                                 'count': int  # solo mortandad diaria
+                                       }}}]} }
+        Solo días TERMINADOS (hoy nunca, misma regla que el resto del reporte).
+        Sin comparación contra estándar: no existe estándar diario."""
+        self.ensure_one()
+        today = fields.Date.context_today(self)
+        Value = self.env['poultry.batch.indicator.value']
+        result = {}
+        for batch in self._get_report_batches():
+            if not batch.birth_date:
+                result[str(batch.id)] = {'batch_name': batch.name, 'has_daily': False, 'days': []}
+                continue
+            week_start = batch._poultry_week_start(week)
+            week_end = batch._poultry_week_end(week)
+            last_day = min(week_end, today - timedelta(days=1))
+            values = Value.search([
+                ('batch_id', '=', batch.id),
+                ('date', '>=', week_start),
+                ('date', '<=', last_day),
+            ]) if week_start <= last_day else Value
+            days = []
+            day = week_start
+            while day <= last_day:
+                cells = {}
+                for value in values.filtered(lambda v, d=day: v.date == d):
+                    indicator = value.indicator_id
+                    cell = {'real_value': value.value}
+                    if indicator.category == 'mortality' and indicator.accumulation_type == 'none':
+                        # Muertas exactas del día: el numerador guardado es
+                        # muertas × 100 (ver _poultry_compute_mortality_...).
+                        cell['count'] = int(round((value.numerator or 0.0) / 100.0))
+                    cells[indicator.id] = cell
+                days.append({
+                    'date': str(day),
+                    'live_birds': batch._poultry_get_live_bird_count_on(day),
+                    'cells': cells,
+                })
+                day += timedelta(days=1)
+            result[str(batch.id)] = {
+                'batch_name': batch.name,
+                'has_daily': bool(values),
+                'days': days,
+            }
+        return result
+
     def _get_report_batches(self):
         """Lote principal + Lotes a Comparar, descartando comparaciones de otra
         genética (no habría un estándar común contra el cual pintarlas)."""

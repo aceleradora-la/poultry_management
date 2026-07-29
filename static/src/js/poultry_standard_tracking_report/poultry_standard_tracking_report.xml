@@ -122,12 +122,13 @@
                     </p>
                 </t>
                 <t t-else="">
-                    <!-- o_poultry_has_caret corre los offsets de las columnas fijas
-                         cuando existe la columna de la flechita (modo comparación). -->
-                    <table t-att-class="'table table-bordered table-sm table-hover' + (isComparison ? ' o_poultry_has_caret' : '')">
+                    <!-- La columna de la flechita existe SIEMPRE: sin comparación
+                         despliega los días de la semana; con comparación, los lotes
+                         (y cada lote despliega sus días en un segundo nivel). -->
+                    <table class="table table-bordered table-sm table-hover o_poultry_has_caret">
                         <thead>
                             <tr>
-                                <th rowspan="2" t-if="isComparison" style="width: 28px;" class="o_poultry_col_caret"/>
+                                <th rowspan="2" style="width: 28px;" class="o_poultry_col_caret"/>
                                 <th rowspan="2" class="align-middle text-center o_poultry_col_week">Edad</th>
                                 <th rowspan="2" class="align-middle text-center o_poultry_col_date">Fecha</th>
                                 <th rowspan="2" class="align-middle text-center">Aves Vivas</th>
@@ -147,9 +148,9 @@
                         </thead>
                         <tbody>
                             <t t-foreach="currentData.rows" t-as="row" t-key="row.week">
-                                <tr t-att-style="isComparison ? 'cursor: pointer;' : ''"
+                                <tr style="cursor: pointer;"
                                     t-on-click="() => this.onRowClick(row.week)">
-                                    <td class="text-center align-middle text-muted o_poultry_col_caret" t-if="isComparison">
+                                    <td class="text-center align-middle text-muted o_poultry_col_caret">
                                         <i t-att-class="'fa ' + (state.expandedWeeks[row.week] ? 'fa-caret-down' : 'fa-caret-right')"/>
                                     </td>
                                     <td class="text-center fw-bold text-nowrap o_poultry_col_week">
@@ -178,34 +179,52 @@
                                         </td>
                                     </t>
                                 </tr>
+                                <!-- Un lote: al desplegar la semana se muestran sus días. -->
+                                <t t-if="!isComparison and state.expandedWeeks[row.week]">
+                                    <t t-set="daily_week" t-value="row.week"/>
+                                    <t t-set="daily_batch_id" t-value="header.batch_id"/>
+                                    <t t-call="poultry_management.PoultryStandardTrackingReport.DayRows"/>
+                                </t>
+                                <!-- Comparación: primer nivel por lote; la flechita de cada
+                                     lote abre sus días (segundo nivel). -->
                                 <t t-if="isComparison and state.expandedWeeks[row.week]">
-                                    <tr t-foreach="getRowBatches(row)" t-as="batchRow" t-key="batchRow.batch_id"
-                                        class="table-light">
-                                        <td class="o_poultry_col_caret"/>
-                                        <td class="text-center o_poultry_col_week">
-                                            <span class="badge rounded-pill text-bg-secondary">
-                                                <t t-esc="batchRow.name"/>
-                                            </span>
-                                        </td>
-                                        <td class="text-center text-nowrap small text-muted o_poultry_col_date">
-                                            <t t-esc="batchRow.date or '-'"/>
-                                        </td>
-                                        <td class="text-center small text-muted">
-                                            <t t-if="batchRow.live_birds !== null and batchRow.live_birds !== undefined"
-                                               t-esc="batchRow.live_birds"/>
-                                        </td>
-                                        <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
-                                            <t t-set="bv" t-value="batchRow.values[indicator.id]"/>
-                                            <td class="text-center small text-muted" colspan="2">
-                                                <t t-if="indicator_index === 0"
-                                                   t-esc="batchRow.bird_count ? (batchRow.bird_count + ' aves') : ''"/>
+                                    <t t-foreach="getRowBatches(row)" t-as="batchRow" t-key="batchRow.batch_id">
+                                        <tr class="table-light">
+                                            <td class="text-center align-middle text-muted o_poultry_col_caret"
+                                                style="cursor: pointer;"
+                                                t-on-click="() => this.onBatchDayToggle(row.week, batchRow.batch_id)">
+                                                <i t-att-class="'fa ' + (state.expandedBatchDays[row.week + ':' + batchRow.batch_id] ? 'fa-caret-down' : 'fa-caret-right')"/>
                                             </td>
-                                            <td class="text-center small"
-                                                t-att-style="bv and bv.real_color ? ('color: ' + bv.real_color + '; font-weight: 500;') : ''">
-                                                <t t-if="bv" t-esc="bv.real_value.toFixed(2)"/>
+                                            <td class="text-center o_poultry_col_week">
+                                                <span class="badge rounded-pill text-bg-secondary">
+                                                    <t t-esc="batchRow.name"/>
+                                                </span>
                                             </td>
+                                            <td class="text-center text-nowrap small text-muted o_poultry_col_date">
+                                                <t t-esc="batchRow.date or '-'"/>
+                                            </td>
+                                            <td class="text-center small text-muted">
+                                                <t t-if="batchRow.live_birds !== null and batchRow.live_birds !== undefined"
+                                                   t-esc="batchRow.live_birds"/>
+                                            </td>
+                                            <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                                                <t t-set="bv" t-value="batchRow.values[indicator.id]"/>
+                                                <td class="text-center small text-muted" colspan="2">
+                                                    <t t-if="indicator_index === 0"
+                                                       t-esc="batchRow.bird_count ? (batchRow.bird_count + ' aves') : ''"/>
+                                                </td>
+                                                <td class="text-center small"
+                                                    t-att-style="bv and bv.real_color ? ('color: ' + bv.real_color + '; font-weight: 500;') : ''">
+                                                    <t t-if="bv" t-esc="bv.real_value.toFixed(2)"/>
+                                                </td>
+                                            </t>
+                                        </tr>
+                                        <t t-if="state.expandedBatchDays[row.week + ':' + batchRow.batch_id]">
+                                            <t t-set="daily_week" t-value="row.week"/>
+                                            <t t-set="daily_batch_id" t-value="batchRow.batch_id"/>
+                                            <t t-call="poultry_management.PoultryStandardTrackingReport.DayRows"/>
                                         </t>
-                                    </tr>
+                                    </t>
                                 </t>
                             </t>
                         </tbody>
@@ -213,6 +232,53 @@
                 </t>
             </div>
         </div>
+    </t>
+
+    <!-- Filas del detalle DIARIO de una semana desplegada. Espera en contexto:
+         daily_week (semana) y daily_batch_id (lote cuyos días se muestran).
+         Solo valores Reales (no hay estándar diario); la mortandad muestra las
+         aves muertas del día y su % entre paréntesis. -->
+    <t t-name="poultry_management.PoultryStandardTrackingReport.DayRows" owl="1">
+        <t t-set="dailyEntry" t-value="getWeekDays(daily_week, daily_batch_id)"/>
+        <t t-if="dailyEntry === null">
+            <tr class="table-light">
+                <td class="o_poultry_col_caret"/>
+                <td t-att-colspan="3 + visibleIndicators.length * 3"
+                    class="small text-muted fst-italic">Cargando detalle diario...</td>
+            </tr>
+        </t>
+        <t t-elif="!dailyEntry.has_daily">
+            <tr class="table-light">
+                <td class="o_poultry_col_caret"/>
+                <td t-att-colspan="3 + visibleIndicators.length * 3"
+                    class="small text-muted fst-italic">
+                    Sin datos diarios para esta semana (histórico manual o sin cierres de galpón).
+                </td>
+            </tr>
+        </t>
+        <t t-else="">
+            <tr t-foreach="dailyEntry.days" t-as="day" t-key="day.date" class="table-light">
+                <td class="o_poultry_col_caret"/>
+                <td class="o_poultry_col_week"/>
+                <td class="text-center text-nowrap small text-muted o_poultry_col_date">
+                    <t t-esc="day.date"/>
+                </td>
+                <td class="text-center small text-muted">
+                    <t t-if="day.live_birds !== null" t-esc="day.live_birds"/>
+                </td>
+                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                    <t t-set="dcell" t-value="day.cells[indicator.id]"/>
+                    <td colspan="2"/>
+                    <td class="text-center small text-muted">
+                        <t t-if="dcell">
+                            <t t-if="dcell.count !== undefined"
+                               t-esc="dcell.count + ' (' + dcell.real_value.toFixed(2) + '%)'"/>
+                            <t t-else="" t-esc="dcell.real_value.toFixed(2)"/>
+                        </t>
+                    </td>
+                </t>
+            </tr>
+        </t>
     </t>
 
 </templates>
