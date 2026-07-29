@@ -230,7 +230,10 @@ class PoultryWeightRecord(models.Model):
         Weekly = self.env['poultry.batch.indicator.weekly.value'].sudo()
         weight_indicator = Indicator._poultry_legacy_indicator('weight', 'none')
         uniformity_indicator = Indicator._poultry_legacy_indicator('uniformity', 'none')
-        indicators = weight_indicator | uniformity_indicator
+        # Indicadores con fórmula cuya fuente es el Parte de Peso: los calcula el
+        # motor. Los que no tienen fórmula siguen con el cálculo cableado de abajo.
+        formula_indicators = Indicator._poultry_formula_indicators('weight_record')
+        indicators = weight_indicator | uniformity_indicator | formula_indicators
         if not indicators:
             # Sin indicadores configurados no hay dónde publicar: se omite en silencio
             # (misma convención que los cálculos de mrp_production).
@@ -250,15 +253,27 @@ class PoultryWeightRecord(models.Model):
                 total_g = sum(weights)
                 avg_g = total_g / birds
                 coop = siblings.sorted(key=lambda r: r.id)[-1].coop_id
+                in_band = 0
+                for line in lines:
+                    band_pct = line.record_id.uniformity_band_pct or 10.0
+                    if avg_g and abs(line.weight_g - avg_g) <= avg_g * band_pct / 100.0:
+                        in_band += 1
+                if formula_indicators:
+                    # Mismos datos crudos que el cálculo cableado, con las claves que
+                    # ofrecen los campos Numerador/Denominador del indicador.
+                    Indicator._poultry_apply_formulas(
+                        {batch.id: {
+                            'batch': batch,
+                            'weighed_g': float(total_g),
+                            'uniform_birds': float(in_band),
+                            'weighed_birds': float(birds),
+                            'one': 1.0,
+                        }},
+                        coop, target_date, source='weight_record')
                 if weight_indicator:
                     Value._set_value(batch, coop, target_date, weight_indicator, avg_g,
                                      numerator=total_g, denominator=birds)
                 if uniformity_indicator:
-                    in_band = 0
-                    for line in lines:
-                        band_pct = line.record_id.uniformity_band_pct or 10.0
-                        if avg_g and abs(line.weight_g - avg_g) <= avg_g * band_pct / 100.0:
-                            in_band += 1
                     Value._set_value(batch, coop, target_date, uniformity_indicator,
                                      in_band / birds * 100.0,
                                      numerator=in_band * 100.0, denominator=birds)
