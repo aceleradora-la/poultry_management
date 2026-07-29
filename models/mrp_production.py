@@ -743,16 +743,23 @@ class MrpProduction(models.Model):
         target_date = self._poultry_target_date()
 
         collections = self.coop_close_id.egg_collection_ids.filtered(lambda c: c.state == 'done')
-        total_mass_grams = 0.0
+        measured_mass_grams = 0.0
         total_eggs_with_weight = 0.0
+        total_all_eggs = 0.0
         for line in collections.mapped('line_ids'):
+            total_all_eggs += line.total_produced_reference or 0.0
             if line.average_weight and line.total_produced_reference:
-                total_mass_grams += line.average_weight * line.total_produced_reference
+                measured_mass_grams += line.average_weight * line.total_produced_reference
                 total_eggs_with_weight += line.total_produced_reference
-        if total_mass_grams <= 0:
+        if measured_mass_grams <= 0:
             return
+        avg_weight_g = measured_mass_grams / total_eggs_with_weight if total_eggs_with_weight else 0.0
+        # Masa del día = Peso ESTIMADO del galpón: el Peso Medio Elaborado
+        # extrapolado a TODOS los huevos (incluye variantes sin Peso Medio),
+        # igual que Total Peso Estimado del Parte de Producción. Si todas las
+        # variantes tienen peso, coincide exacto con el medido.
+        total_mass_grams = avg_weight_g * total_all_eggs
         total_mass_kg = total_mass_grams / 1000.0
-        avg_weight_g = total_mass_grams / total_eggs_with_weight if total_eggs_with_weight else 0.0
 
         batches, birds_by_batch, total_birds = self._poultry_get_coop_batches_and_birds(target_date)
         if not batches or total_birds <= 0:
@@ -799,9 +806,12 @@ class MrpProduction(models.Model):
                                   production=self)
 
             if weight_indicator:
+                # Numerador = gramos MEDIDOS (no extrapolados): el peso promedio es
+                # un atributo del huevo pesado, y el agregado semanal Σnum/Σden debe
+                # reproducir el promedio ponderado real de las variantes con peso.
                 Value._set_value(batch, self.coop_id, target_date, weight_indicator,
                                   avg_weight_g,
-                                  numerator=total_mass_grams, denominator=total_eggs_with_weight,
+                                  numerator=measured_mass_grams, denominator=total_eggs_with_weight,
                                   production=self)
 
     def _poultry_compute_feed_conversion_indicator_values(self):
@@ -836,11 +846,20 @@ class MrpProduction(models.Model):
 
         total_eggs = self.product_qty or 0.0
 
+        # Masa de huevo del día = Peso ESTIMADO (peso medio elaborado extrapolado a
+        # todos los huevos), mismo criterio que Masa de Huevo Ave-Día/Ave-Alojada y
+        # que Total Peso Estimado del Parte de Producción.
         collections = self.coop_close_id.egg_collection_ids.filtered(lambda c: c.state == 'done')
-        total_mass_grams = 0.0
+        measured_mass_grams = 0.0
+        eggs_with_weight = 0.0
+        all_eggs = 0.0
         for line in collections.mapped('line_ids'):
+            all_eggs += line.total_produced_reference or 0.0
             if line.average_weight and line.total_produced_reference:
-                total_mass_grams += line.average_weight * line.total_produced_reference
+                measured_mass_grams += line.average_weight * line.total_produced_reference
+                eggs_with_weight += line.total_produced_reference
+        total_mass_grams = (measured_mass_grams / eggs_with_weight * all_eggs
+                            if eggs_with_weight else 0.0)
         total_mass_kg = total_mass_grams / 1000.0
 
         batches, birds_by_batch, total_birds = self._poultry_get_coop_batches_and_birds(target_date)
