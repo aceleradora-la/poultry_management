@@ -111,6 +111,11 @@ class PoultryIndicator(models.Model):
         ('original_birds', 'Cantidad de Aves (Lote de Aves, base fija)'),
         ('eggs', 'Total Huevos (Parte de Producción)'),
         ('egg_units', 'Unidades de huevo (Total Huevos / Huevos por Unidad)'),
+        # Divide por la CONSTANTE Huevos por Unidad, para expresar una cantidad en
+        # docenas, cajones, etc. (ej. Huevos de la Semana en cajones = huevos / 360).
+        # Distinto de 'egg_units', que divide por la cantidad de unidades producidas
+        # y sirve para la Conversión Alimenticia (kg de alimento por docena).
+        ('egg_group_size', 'Huevos por Unidad (constante: 12 docena, 360 cajón...)'),
         ('egg_mass_kg', 'Total Peso Estimado en Kg (Parte de Producción)'),
         ('eggs_with_weight', 'Huevos con Peso Medio cargado (Parte de Producción)'),
         ('weighed_birds', 'Aves Pesadas (Parte de Registro de Peso)'),
@@ -127,6 +132,21 @@ class PoultryIndicator(models.Model):
         help='Multiplicador final. Usar Porcentaje cuando el indicador se expresa '
              'en %. Las conversiones de unidad (Kg a g, l a ml) ya están en las '
              'opciones del Numerador, no se hacen con el factor.')
+    weekly_aggregation = fields.Selection([
+        ('auto', 'Automática según la fórmula'),
+        ('sum', 'Suma del período'),
+        ('last', 'Último valor del período'),
+    ], string='Agregación Semanal', default='auto', required=True,
+        help='Cómo se combinan los valores DIARIOS al mostrar la semana (o el mes, o '
+             'un rango) en el reporte.\n'
+             '"Automática": lo que corresponde a la fórmula — las tasas se agregan '
+             'como suma(numerador)/suma(denominador) (promedio ponderado real, no '
+             'promedio de promedios) y los acumulados muestran el último valor.\n'
+             '"Suma del período": para CANTIDADES, no tasas (ej. Huevos de la Semana, '
+             'Aves Muertas, Kg de Alimento): 8 + 5 + 7 = 20. Sin esto una cantidad '
+             'se mostraría como promedio diario y las cuentas darían mal.\n'
+             '"Último valor": el del último día con dato del período (estados).')
+
     formula_mode = fields.Selection([
         ('daily', 'Valor del día (independiente)'),
         ('running_sum', 'Suma corrida (acumula el aporte de cada día)'),
@@ -225,13 +245,19 @@ class PoultryIndicator(models.Model):
         return self.search(domain)
 
     def _poultry_formula_denominator_value(self, magnitudes):
-        """Denominador de la fórmula para un lote. 'egg_units' se resuelve acá y no
-        en el recolector porque depende de Huevos por Unidad, que es propio de cada
-        indicador (12 = docena, 30 = cajón...)."""
+        """Denominador de la fórmula para un lote. Los dos casos que dependen de
+        Huevos por Unidad se resuelven acá y no en el recolector, porque esa
+        cantidad es propia de cada indicador (12 = docena, 360 = cajón...):
+        - 'egg_units': cantidad de unidades producidas (huevos / Huevos por Unidad).
+          Es el denominador de la Conversión Alimenticia (kg de alimento por docena).
+        - 'egg_group_size': la constante misma, para expresar una CANTIDAD en esa
+          unidad (ej. Huevos de la Semana en cajones = huevos / 360)."""
         self.ensure_one()
+        group_size = self.egg_group_size or 12
         if self.formula_denominator == 'egg_units':
-            group_size = self.egg_group_size or 12
             return magnitudes.get('_eggs_for_units', 0.0) / group_size if group_size else 0.0
+        if self.formula_denominator == 'egg_group_size':
+            return float(group_size)
         return magnitudes.get(self.formula_denominator, 0.0)
 
     @api.model

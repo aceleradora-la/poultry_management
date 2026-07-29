@@ -58,6 +58,11 @@
                             BASE del indicador (Aves Vivas del día, Aves Alojadas o Cantidad
                             de Aves del lote) sin tocar código.
                             <br/>
+                            Para una <strong>CANTIDAD del período</strong> (ej. Huevos de la
+                            Semana, Kg de Alimento): Denominador "Ninguno" —o "Huevos por
+                            Unidad" para verla en docenas o cajones— y
+                            <strong>Agregación Semanal = Suma del período</strong>.
+                            <br/>
                             Dejar el <strong>Modo de Cálculo vacío</strong> hace que el
                             indicador vuelva al cálculo interno de siempre.
                             <br/>
@@ -74,6 +79,7 @@
                         <group>
                             <field name="formula_factor" widget="radio" options="{'horizontal': true}"/>
                             <field name="formula_mode"/>
+                            <field name="weekly_aggregation"/>
                         </group>
                     </group>
                     <group>
