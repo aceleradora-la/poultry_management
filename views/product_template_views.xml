@@ -1,37 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Extensión de la vista de producto para agregar el campo is_egg_production -->
+    <!-- Solapa "Gestión Avícola" en la ficha del producto: agrupa toda la
+         configuración propia del módulo sin ensuciar el encabezado estándar. -->
     <record id="view_product_template_form_poultry" model="ir.ui.view">
         <field name="name">product.template.form.poultry</field>
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_form_view"/>
         <field name="arch" type="xml">
-            <!-- Agregar el campo después de "Can be Purchased" (Compras) -->
-            <!-- Buscar el contenedor padre que tiene purchase_ok y agregar nuestro campo después de ese contenedor -->
-            <xpath expr="//field[@name='purchase_ok']/parent::*" position="after">
-                <div class="o_row">
-                    <field name="is_egg_production" 
-                           string="Usar en Producción de Huevos"
-                           help="Marque este campo si este producto se utiliza en el proceso de producción de huevos."/>
-                    <label for="is_egg_production"/>
-                </div>
-                <div class="o_row">
-                    <field name="poultry_validate_kit_consumption"
-                           string="Mix Producto Avicola"
-                           help="Al finalizar una OF, valida que la suma consumida de componentes sea igual a la cantidad producida (en la misma UdM)."/>
-                    <label for="poultry_validate_kit_consumption"/>
-                </div>
-                <div class="o_row">
-                    <field name="poultry_consumption_type"
-                           string="Tipo de Consumo Avícola"
-                           help="Marca el producto como Alimento o Agua: fuente estable del tipo de consumo, usada como respaldo cuando la línea de la Lista de Materiales no lo define."/>
-                    <label for="poultry_consumption_type"/>
-                </div>
-                <group string="Cobertura de stock (tablero)" invisible="not is_storable">
-                    <field name="poultry_cover_window_days" placeholder="Desde categoría"/>
-                </group>
+            <xpath expr="//notebook" position="inside">
+                <page string="Gestión Avícola" name="poultry_management">
+                    <group>
+                        <group string="Configuración">
+                            <field name="is_egg_production"
+                                   string="Usar en Producción de Huevos"
+                                   help="Marque este campo si este producto se utiliza en el proceso de producción de huevos."/>
+                            <field name="poultry_validate_kit_consumption"
+                                   string="Mix Producto Avicola"
+                                   help="Al finalizar una OF, valida que la suma consumida de componentes sea igual a la cantidad producida (en la misma UdM)."/>
+                            <field name="poultry_consumption_type"
+                                   string="Tipo de Consumo Avícola"
+                                   help="Marca el producto como Alimento o Agua: fuente estable del tipo de consumo, usada como respaldo cuando la línea de la Lista de Materiales no lo define."/>
+                        </group>
+                        <group string="Cobertura de stock (tablero)" invisible="not is_storable">
+                            <field name="poultry_cover_window_days" placeholder="Desde categoría"/>
+                        </group>
+                    </group>
+                </page>
             </xpath>
         </field>
     </record>
 </odoo>
-
