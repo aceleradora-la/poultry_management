@@ -291,9 +291,17 @@ class PoultryEggCollection(models.Model):
             else:
                 collection.average_weight_elaborated = 0.0
 
-            # Total Peso Estimado (kg): igualdad exacta con el peso medido
-            # (evita diferencias por redondeo intermedio del promedio ponderado).
-            collection.total_weight_estimated = collection.total_weight
+            # Total Peso Estimado (kg): extrapola el Peso Medio Elaborado a TODOS
+            # los huevos del parte (incluye variantes SIN Peso Medio cargado); el
+            # Peso Medido solo suma las variantes que sí lo tienen. Si todas las
+            # variantes tienen peso, coincide exacto con el Medido (se calcula
+            # desde la razón cruda, sin redondeo intermedio del promedio).
+            if total_eggs_with_weight > 0:
+                collection.total_weight_estimated = (
+                    total_weight_grams / total_eggs_with_weight
+                    * collection.total_eggs / 1000.0)
+            else:
+                collection.total_weight_estimated = 0.0
             
             # Total Cajones: Total Huevos / 360
             if collection.total_eggs > 0:
