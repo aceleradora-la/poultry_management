@@ -23,8 +23,8 @@ FORMULA_MAP = {
     ('mortality', 'original_cumulative'): ('dead_birds', 'original_birds', '100', 'running_sum'),
     # Viabilidad: foto del estado del lote (no suma corrida), sobre Aves Alojadas.
     # Se acepta con los dos tipos históricos ('housed' y 'original_cumulative').
-    ('viability', 'housed'): ('live_birds', 'housed_birds', '100', 'snapshot'),
-    ('viability', 'original_cumulative'): ('live_birds', 'housed_birds', '100', 'snapshot'),
+    ('viability', 'housed'): ('live_birds', 'housed_or_original_birds', '100', 'snapshot'),
+    ('viability', 'original_cumulative'): ('live_birds', 'housed_or_original_birds', '100', 'snapshot'),
     ('egg_mass', 'none'): ('egg_mass_g', 'live_birds', '1', 'daily'),
     ('egg_mass', 'housed'): ('egg_mass_kg', 'housed_birds', '1', 'running_sum'),
     ('egg_weight', 'none'): ('measured_egg_g', 'eggs_with_weight', '1', 'daily'),
