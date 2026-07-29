@@ -95,9 +95,20 @@ class PoultryBatchIndicatorValue(models.Model):
         Devuelve None si no hay valores."""
         if not week_values:
             return None
+        # Agregación elegida en el indicador: manda sobre la automática de abajo.
+        # Es lo que hace posible mostrar CANTIDADES por período (Huevos de la
+        # Semana, Kg de Alimento, Aves Muertas): sin esto una cantidad diaria se
+        # agregaría como suma(num)/suma(den), que con denominador 1 da el promedio
+        # diario en vez del total del período.
+        aggregation = indicator.weekly_aggregation or 'auto'
+        if aggregation == 'sum':
+            return sum(week_values.mapped('value'))
+        if aggregation == 'last':
+            return week_values.sorted('date')[-1].value
         if indicator.category == 'mortality_count':
-            # Cantidad de aves muertas: el agregado es la SUMA de los días del
-            # balde (ni promedio ni tasa: 8 + 5 + 7 muertas = 20 en la semana).
+            # Compatibilidad: las cantidades de aves muertas creadas antes del campo
+            # Agregación Semanal se siguen sumando por su categoría. Los indicadores
+            # nuevos deben usar Agregación Semanal = Suma del período.
             return sum(week_values.mapped('value'))
         if indicator.accumulation_type not in self._RATE_ACCUMULATION_TYPES:
             return week_values.sorted('date')[-1].value
