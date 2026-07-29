@@ -406,6 +406,16 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
+        # Motor de fórmulas: calcula los indicadores que tienen Numerador,
+        # Denominador y Modo de Cálculo configurados en su ficha. Los cálculos
+        # cableados que siguen abajo solo alcanzan a los indicadores SIN fórmula
+        # (buscan con _poultry_legacy_indicator), así que nunca se pisan.
+        target_date = self._poultry_target_date()
+        magnitudes = self._poultry_collect_magnitudes(target_date)
+        if magnitudes:
+            self.env['poultry.indicator'].sudo()._poultry_apply_formulas(
+                magnitudes, self.coop_id, target_date, production=self)
+
         self._poultry_compute_consumption_indicator_values()
         self._poultry_compute_egg_production_indicator_values()
         self._poultry_compute_mortality_indicator_values()
@@ -563,12 +573,8 @@ class MrpProduction(models.Model):
             return
 
         Indicator = self.env['poultry.indicator'].sudo()
-        feed_indicator = Indicator.search(
-            [('category', '=', 'feed_consumption'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
-        water_indicator = Indicator.search(
-            [('category', '=', 'water_consumption'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
+        feed_indicator = Indicator._poultry_legacy_indicator('feed_consumption', 'none')
+        water_indicator = Indicator._poultry_legacy_indicator('water_consumption', 'none')
 
         Value = self.env['poultry.batch.indicator.value'].sudo()
         feed_g_per_bird_day = (feed_qty_kg * 1000.0 / total_birds) if feed_qty_kg > 0 else 0.0
@@ -616,20 +622,12 @@ class MrpProduction(models.Model):
             return
 
         Indicator = self.env['poultry.indicator'].sudo()
-        rate_indicator = Indicator.search(
-            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
-        cumulative_live_indicator = Indicator.search(
-            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'live'),
-             ('active', '=', True)], limit=1)
-        cumulative_housed_indicator = Indicator.search(
-            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'housed'),
-             ('active', '=', True)], limit=1)
-        rate_original_indicator = Indicator.search(
-            [('category', '=', 'egg_production'), ('accumulation_type', '=', 'original_rate'),
-             ('active', '=', True)], limit=1)
-        if (not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator
-                and not rate_original_indicator):
+        rate_indicator = Indicator._poultry_legacy_indicator('egg_production', 'none')
+        rate_original_indicator = Indicator._poultry_legacy_indicator('egg_production', 'original_rate')
+        cumulative_live_indicator = Indicator._poultry_legacy_indicator('egg_production', 'live')
+        cumulative_housed_indicator = Indicator._poultry_legacy_indicator('egg_production', 'housed')
+        if not any((rate_indicator, rate_original_indicator, cumulative_live_indicator,
+                    cumulative_housed_indicator)):
             return
 
         Value = self.env['poultry.batch.indicator.value'].sudo()
@@ -710,24 +708,14 @@ class MrpProduction(models.Model):
             return
 
         Indicator = self.env['poultry.indicator'].sudo()
-        rate_indicator = Indicator.search(
-            [('category', '=', 'mortality'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
-        cumulative_live_indicator = Indicator.search(
-            [('category', '=', 'mortality'), ('accumulation_type', '=', 'live'),
-             ('active', '=', True)], limit=1)
-        cumulative_housed_indicator = Indicator.search(
-            [('category', '=', 'mortality'), ('accumulation_type', '=', 'housed'),
-             ('active', '=', True)], limit=1)
-        cumulative_original_indicator = Indicator.search(
-            [('category', '=', 'mortality'), ('accumulation_type', '=', 'original_cumulative'),
-             ('active', '=', True)], limit=1)
+        rate_indicator = Indicator._poultry_legacy_indicator('mortality', 'none')
+        cumulative_live_indicator = Indicator._poultry_legacy_indicator('mortality', 'live')
+        cumulative_housed_indicator = Indicator._poultry_legacy_indicator('mortality', 'housed')
+        cumulative_original_indicator = Indicator._poultry_legacy_indicator('mortality', 'original_cumulative')
         # Cantidad de aves muertas (no %): categoría propia, sin ambigüedad con el
         # % semanal. El valor diario es la cantidad cruda; el agregado semanal es
         # la SUMA de los días (ver _poultry_aggregate_week_values).
-        count_indicator = Indicator.search(
-            [('category', '=', 'mortality_count'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
+        count_indicator = Indicator._poultry_legacy_indicator('mortality_count', 'none')
         if (not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator
                 and not cumulative_original_indicator and not count_indicator):
             return
@@ -797,10 +785,7 @@ class MrpProduction(models.Model):
             return
         target_date = self._poultry_target_date()
         Indicator = self.env['poultry.indicator'].sudo()
-        viability_indicator = Indicator.search(
-            [('category', '=', 'viability'),
-             ('accumulation_type', 'in', ('housed', 'original_cumulative')),
-             ('active', '=', True)], limit=1)
+        viability_indicator = Indicator._poultry_legacy_indicator('viability', ('housed', 'original_cumulative'))
         if not viability_indicator:
             return
 
@@ -878,15 +863,9 @@ class MrpProduction(models.Model):
             return
 
         Indicator = self.env['poultry.indicator'].sudo()
-        mass_housed_indicator = Indicator.search(
-            [('category', '=', 'egg_mass'), ('accumulation_type', '=', 'housed'),
-             ('active', '=', True)], limit=1)
-        mass_rate_indicator = Indicator.search(
-            [('category', '=', 'egg_mass'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
-        weight_indicator = Indicator.search(
-            [('category', '=', 'egg_weight'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
+        mass_housed_indicator = Indicator._poultry_legacy_indicator('egg_mass', 'housed')
+        mass_rate_indicator = Indicator._poultry_legacy_indicator('egg_mass', 'none')
+        weight_indicator = Indicator._poultry_legacy_indicator('egg_weight', 'none')
         if not mass_housed_indicator and not mass_rate_indicator and not weight_indicator:
             return
 
@@ -979,18 +958,10 @@ class MrpProduction(models.Model):
             return
 
         Indicator = self.env['poultry.indicator'].sudo()
-        feed_rate_indicator = Indicator.search(
-            [('category', '=', 'feed_conversion'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
-        feed_cumulative_indicator = Indicator.search(
-            [('category', '=', 'feed_conversion'), ('accumulation_type', '=', 'ratio_cumulative'),
-             ('active', '=', True)], limit=1)
-        mass_rate_indicator = Indicator.search(
-            [('category', '=', 'feed_egg_mass_conversion'), ('accumulation_type', '=', 'none'),
-             ('active', '=', True)], limit=1)
-        mass_cumulative_indicator = Indicator.search(
-            [('category', '=', 'feed_egg_mass_conversion'), ('accumulation_type', '=', 'ratio_cumulative'),
-             ('active', '=', True)], limit=1)
+        feed_rate_indicator = Indicator._poultry_legacy_indicator('feed_conversion', 'none')
+        feed_cumulative_indicator = Indicator._poultry_legacy_indicator('feed_conversion', 'ratio_cumulative')
+        mass_rate_indicator = Indicator._poultry_legacy_indicator('feed_egg_mass_conversion', 'none')
+        mass_cumulative_indicator = Indicator._poultry_legacy_indicator('feed_egg_mass_conversion', 'ratio_cumulative')
         if not any((feed_rate_indicator, feed_cumulative_indicator,
                     mass_rate_indicator, mass_cumulative_indicator)):
             return

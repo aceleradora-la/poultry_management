@@ -228,16 +228,8 @@ class PoultryWeightRecord(models.Model):
         Indicator = self.env['poultry.indicator'].sudo()
         Value = self.env['poultry.batch.indicator.value'].sudo()
         Weekly = self.env['poultry.batch.indicator.weekly.value'].sudo()
-        weight_indicator = Indicator.search([
-            ('category', '=', 'weight'),
-            ('accumulation_type', '=', 'none'),
-            ('active', '=', True),
-        ], limit=1)
-        uniformity_indicator = Indicator.search([
-            ('category', '=', 'uniformity'),
-            ('accumulation_type', '=', 'none'),
-            ('active', '=', True),
-        ], limit=1)
+        weight_indicator = Indicator._poultry_legacy_indicator('weight', 'none')
+        uniformity_indicator = Indicator._poultry_legacy_indicator('uniformity', 'none')
         indicators = weight_indicator | uniformity_indicator
         if not indicators:
             # Sin indicadores configurados no hay dónde publicar: se omite en silencio

@@ -317,10 +317,25 @@ class PoultryCoopClose(models.Model):
         dated.sort(key=lambda item: (item[0], item[1]))
         closes = self.browse([item[2].id for item in dated])
 
-        indicators = self.env['poultry.indicator'].search([
+        # NUNCA agregar acá las categorías 'weight' ni 'uniformity': sus valores reales
+        # los publica el Parte de Registro de Peso (poultry.weight.record), no las OFs,
+        # y este rebuild los borraría sin poder recalcularlos.
+        #
+        # Se incluyen las categorías históricas de los cálculos cableados Y, además,
+        # cualquier indicador con FÓRMULA cuya fuente sea el Cierre de Galpón: un
+        # indicador nuevo del motor puede tener una categoría que no esté en la lista
+        # (o ninguna, el campo es opcional) y también hay que limpiarlo antes de
+        # recalcular, si no quedarían valores viejos que el rebuild no repone.
+        Indicator = self.env['poultry.indicator']
+        weight_source_numerators = list(Indicator._POULTRY_WEIGHT_SOURCE_NUMERATORS)
+        indicators = Indicator.search([
+            ('formula_numerator', 'not in', weight_source_numerators),
+            ('category', 'not in', ('weight', 'uniformity')),
+            '|',
             ('category', 'in', ('feed_consumption', 'water_consumption', 'egg_production',
                                  'mortality', 'mortality_count', 'egg_mass', 'egg_weight',
                                  'viability', 'feed_conversion', 'feed_egg_mass_conversion')),
+            ('formula_mode', '!=', False),
         ])
         affected_batches = self.env['poultry.batch.coop.line'].search([
             ('coop_id', 'in', closes.mapped('coop_id').ids),
