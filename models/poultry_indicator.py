@@ -74,6 +74,75 @@ class PoultryIndicator(models.Model):
              'activo por combinación de Categoría + Tipo de Acumulación (si no, el '
              'cálculo no sabría a cuál de los dos escribirle).'
     )
+    # -- Fórmula configurable ---------------------------------------------------
+    # Reemplaza el cableado de cada fórmula en el código: el cálculo automático
+    # toma el numerador, el denominador y el modo de acá. Un indicador SIN Modo de
+    # Cálculo sigue usando el cálculo cableado de siempre (respaldo intacto), así
+    # que vaciar el Modo revierte ese indicador sin necesidad de tocar código.
+    # Las etiquetas son las del campo real de Odoo que cada opción toma, con el
+    # modelo de origen entre paréntesis, para que sean reconocibles en pantalla.
+    formula_numerator = fields.Selection([
+        # Del Cierre de Galpón / OF de Huevo sin Clasificar
+        ('eggs', 'Total Huevos (Parte de Producción)'),
+        ('egg_mass_g', 'Total Peso Estimado en g (Parte de Producción)'),
+        ('egg_mass_kg', 'Total Peso Estimado en Kg (Parte de Producción)'),
+        ('measured_egg_g', 'Total Peso Medido en g (Parte de Producción)'),
+        ('dead_birds', 'Cantidad de Aves Muertas (Registro de Aves Muertas)'),
+        ('feed_g', 'Alimento consumido en g (OF, componentes tipo Alimento)'),
+        ('feed_kg', 'Alimento consumido en Kg (OF, componentes tipo Alimento)'),
+        ('water_ml', 'Agua consumida en ml (OF, componentes tipo Agua)'),
+        ('water_l', 'Agua consumida en l (OF, componentes tipo Agua)'),
+        ('live_birds', 'Aves Vivas (Lote de Aves)'),
+        # Del Parte de Registro de Peso
+        ('weighed_g', 'Peso Total en g (Parte de Registro de Peso)'),
+        ('uniform_birds', 'Aves dentro de la Banda de Uniformidad (Parte de Registro de Peso)'),
+    ], string='Numerador',
+        help='Dato del día que va ARRIBA en la división. Los datos del galpón '
+             '(huevos, masa, alimento, agua) se reparten entre los lotes presentes '
+             'según su población viva, igual que hasta ahora.')
+    formula_denominator = fields.Selection([
+        ('live_birds', 'Aves Vivas del día (Lote de Aves)'),
+        # Base del % de Mortandad: las vivas ANTES de las muertas del día
+        # (vivas al cierre + muertas), no las que quedaron.
+        ('live_birds_start', 'Aves Vivas al inicio del día (Lote de Aves)'),
+        ('housed_birds', 'Aves Alojadas (Lote de Aves, base fija)'),
+        ('original_birds', 'Cantidad de Aves (Lote de Aves, base fija)'),
+        ('eggs', 'Total Huevos (Parte de Producción)'),
+        ('egg_units', 'Unidades de huevo (Total Huevos / Huevos por Unidad)'),
+        ('egg_mass_kg', 'Total Peso Estimado en Kg (Parte de Producción)'),
+        ('eggs_with_weight', 'Huevos con Peso Medio cargado (Parte de Producción)'),
+        ('weighed_birds', 'Aves Pesadas (Parte de Registro de Peso)'),
+        ('one', 'Ninguno (cantidad cruda, sin dividir)'),
+    ], string='Denominador',
+        help='Dato del día que va ABAJO en la división, o "Ninguno" para guardar '
+             'la cantidad cruda. Acá se elige la BASE del indicador: la población '
+             'viva del día, las Aves Alojadas (foto fija a la Entrada en '
+             'Producción) o la Cantidad de Aves original del lote.')
+    formula_factor = fields.Selection([
+        ('1', 'Ninguno'),
+        ('100', 'Porcentaje (×100)'),
+    ], string='Factor', default='1',
+        help='Multiplicador final. Usar Porcentaje cuando el indicador se expresa '
+             'en %. Las conversiones de unidad (Kg a g, l a ml) ya están en las '
+             'opciones del Numerador, no se hacen con el factor.')
+    formula_mode = fields.Selection([
+        ('daily', 'Valor del día (independiente)'),
+        ('running_sum', 'Suma corrida (acumula el aporte de cada día)'),
+        ('snapshot', 'Estado del lote a la fecha (foto, no suma)'),
+        ('ratio_cumulative', 'Cociente de acumulados (numerador y denominador acumulados)'),
+    ], string='Modo de Cálculo',
+        help='Cómo se combina el valor de HOY con el histórico. VACÍO = este '
+             'indicador usa el cálculo cableado de siempre (no el motor de '
+             'fórmulas): vaciarlo es la forma de revertir un indicador. '
+             '"Valor del día": independiente cada día (ej. % Ave-Día, Consumo). '
+             '"Suma corrida": el aporte del día se suma al acumulado previo, '
+             'empalmando con el histórico cargado a mano (ej. Huevos Acumulados, '
+             'MORT. Acumulada). "Estado del lote": foto directa a la fecha, sin '
+             'sumar (ej. % de Viabilidad). "Cociente de acumulados": se acumulan '
+             'numerador y denominador por separado y el valor es su cociente '
+             '(ej. Conversión Alimenticia acumulada; nunca se suman razones '
+             'diarias entre sí porque el denominador cambia día a día).')
+
     egg_group_size = fields.Integer(
         string='Huevos por Unidad (Conversión Alimenticia)', default=12,
         help='Solo aplica a la categoría Conversión Alimenticia (Alimento/Huevos): '
@@ -120,23 +189,94 @@ class PoultryIndicator(models.Model):
         for indicator in self:
             indicator.standard_count = len(indicator.standard_ids)
 
-    @api.constrains('category', 'accumulation_type', 'active')
-    def _check_unique_category_accumulation_type(self):
-        """El cálculo automático (mrp_production._poultry_compute_*) busca el
-        indicador de una categoría+tipo de acumulación con limit=1: si hay más de
-        uno activo, el resultado de esa búsqueda es arbitrario y silencioso, como
-        pasó con % Ave-Día y Huevos Acumulados Ave-Día compartiendo el mismo tipo."""
-        for indicator in self.filtered(lambda i: i.active and i.category):
+    # Datos que solo existen en el Parte de Registro de Peso (otra fuente y otro
+    # momento que el Cierre de Galpón): no se pueden mezclar con los de la OF.
+    _POULTRY_WEIGHT_SOURCE_NUMERATORS = ('weighed_g', 'uniform_birds')
+    _POULTRY_WEIGHT_SOURCE_DENOMINATORS = ('weighed_birds',)
+
+    def _poultry_formula_key(self):
+        """Identidad de la fórmula de un indicador (lo que lo hace único ante el
+        motor). Dos indicadores pueden compartir Categoría y Tipo de Acumulación
+        si sus fórmulas difieren -eso es justamente lo que habilita tener, por
+        ejemplo, % de Postura sobre Aves Vivas y sobre Aves Alojadas a la vez."""
+        self.ensure_one()
+        return (self.formula_numerator, self.formula_denominator,
+                self.formula_factor, self.formula_mode)
+
+    @api.constrains('category', 'accumulation_type', 'active',
+                    'formula_numerator', 'formula_denominator', 'formula_factor',
+                    'formula_mode')
+    def _check_unique_calculation_target(self):
+        """Dos indicadores activos no pueden competir por el mismo cálculo:
+
+        - CON fórmula (Modo de Cálculo cargado): la fórmula es la identidad, así
+          que se prohíbe repetir la MISMA combinación numerador+denominador+
+          factor+modo. Categoría y Tipo de Acumulación pueden repetirse: dos
+          variantes con distinta base son un caso legítimo y deseado.
+        - SIN fórmula: siguen usando el cálculo cableado, que busca por
+          Categoría + Tipo de Acumulación con limit=1; ahí sí no puede haber dos
+          (la búsqueda elegiría uno arbitrario y en silencio, como pasó con
+          % Ave-Día y Huevos Acumulados Ave-Día compartiendo el mismo tipo)."""
+        for indicator in self.filtered(lambda i: i.active):
+            if indicator.formula_mode:
+                twins = self.search([
+                    ('active', '=', True),
+                    ('id', '!=', indicator.id),
+                    ('formula_mode', '=', indicator.formula_mode),
+                    ('formula_numerator', '=', indicator.formula_numerator),
+                    ('formula_denominator', '=', indicator.formula_denominator),
+                    ('formula_factor', '=', indicator.formula_factor),
+                ])
+                if twins:
+                    raise ValidationError(
+                        f'El indicador "{twins[0].name}" ya tiene exactamente esta misma '
+                        f'fórmula (mismo Numerador, Denominador, Factor y Modo de Cálculo). '
+                        f'Dos indicadores con la misma fórmula recibirían el mismo valor: '
+                        f'cambiá alguno de esos campos o desactivá uno de los dos.'
+                    )
+                continue
+            if not indicator.category:
+                continue
             others = self.search_count([
                 ('category', '=', indicator.category),
                 ('accumulation_type', '=', indicator.accumulation_type),
                 ('active', '=', True),
+                ('formula_mode', '=', False),
                 ('id', '!=', indicator.id),
             ])
             if others:
                 raise ValidationError(
-                    f'Ya existe otro indicador activo con la misma Categoría '
+                    f'Ya existe otro indicador activo SIN fórmula con la misma Categoría '
                     f'({dict(indicator._fields["category"].selection).get(indicator.category)}) '
-                    f'y el mismo Tipo de Acumulación. El cálculo automático no podría '
+                    f'y el mismo Tipo de Acumulación. El cálculo cableado no podría '
                     f'distinguir a cuál de los dos escribirle.'
+                )
+
+    @api.constrains('formula_numerator', 'formula_denominator', 'formula_mode')
+    def _check_formula_coherence(self):
+        """La fórmula tiene que estar completa y no mezclar fuentes: los datos del
+        Parte de Registro de Peso no conviven con los del Cierre de Galpón (se
+        publican en momentos distintos y de modelos distintos)."""
+        for indicator in self:
+            if not (indicator.formula_mode or indicator.formula_numerator
+                    or indicator.formula_denominator):
+                continue
+            if not (indicator.formula_mode and indicator.formula_numerator
+                    and indicator.formula_denominator):
+                raise ValidationError(
+                    'Para usar el motor de fórmulas hay que cargar los tres campos: '
+                    'Numerador, Denominador y Modo de Cálculo. Para volver al cálculo '
+                    'cableado, vaciá los tres.'
+                )
+            num_is_weight = indicator.formula_numerator in self._POULTRY_WEIGHT_SOURCE_NUMERATORS
+            den_is_weight = indicator.formula_denominator in self._POULTRY_WEIGHT_SOURCE_DENOMINATORS
+            if num_is_weight and not (den_is_weight or indicator.formula_denominator == 'one'):
+                raise ValidationError(
+                    'El Numerador elegido viene del Parte de Registro de Peso, así que el '
+                    'Denominador debe ser Aves Pesadas (o Ninguno).'
+                )
+            if den_is_weight and not num_is_weight:
+                raise ValidationError(
+                    'El Denominador Aves Pesadas solo se puede usar con un Numerador del '
+                    'Parte de Registro de Peso.'
                 )
