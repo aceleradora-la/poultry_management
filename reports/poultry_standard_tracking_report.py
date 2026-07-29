@@ -360,8 +360,11 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 # Se muestra el ÚLTIMO día de la Semana de Vida (como las planillas de
                 # la granja, que registran los totales al cierre de la semana), anclada
                 # a la Fecha de Nacimiento (ver poultry.batch._poultry_week_anchor).
+                # Con COMPARACIÓN de lotes la fila semanal no lleva fecha: cada lote
+                # tiene su propio calendario (distinta Fecha de Nacimiento) y la del
+                # principal sería engañosa; la fecha de cada lote se ve al expandir.
                 week_date = (self.batch_id._poultry_week_end(week)
-                             if self.batch_id.birth_date else None)
+                             if self.batch_id.birth_date and not is_comparison else None)
                 rows.append({
                     'week': week,
                     'date': str(week_date) if week_date else None,
