@@ -30,6 +30,10 @@ export class PoultryStandardTrackingReport extends Component {
             error: null,
             hiddenIndicatorIds: {},
             expandedWeeks: {},
+            // Despliegue por día: llaves "semana:lote" abiertas (modo comparación,
+            // segundo nivel) y caché del detalle diario por semana (carga perezosa).
+            expandedBatchDays: {},
+            dailyCache: {},
         });
         onWillStart(async () => {
             try {
@@ -144,11 +148,44 @@ export class PoultryStandardTrackingReport extends Component {
         );
     }
 
-    onRowClick(week) {
-        if (!this.isComparison) {
+    async onRowClick(week) {
+        // Un lote: despliega los días de la semana. Comparación: despliega el
+        // detalle por lote (los días de cada lote se abren en el segundo nivel).
+        const willExpand = !this.state.expandedWeeks[week];
+        this.state.expandedWeeks[week] = willExpand;
+        if (willExpand && !this.isComparison) {
+            await this._loadWeekDaily(week);
+        }
+    }
+
+    async onBatchDayToggle(week, batchId) {
+        const key = `${week}:${batchId}`;
+        const willExpand = !this.state.expandedBatchDays[key];
+        this.state.expandedBatchDays[key] = willExpand;
+        if (willExpand) {
+            await this._loadWeekDaily(week);
+        }
+    }
+
+    async _loadWeekDaily(week) {
+        if (this.state.dailyCache[week]) {
             return;
         }
-        this.state.expandedWeeks[week] = !this.state.expandedWeeks[week];
+        try {
+            this.state.dailyCache[week] = await this.orm.call(
+                "poultry.standard.tracking.report.wizard",
+                "get_week_daily_data",
+                [this.wizardId, week]
+            );
+        } catch (error) {
+            this.state.error = (error && error.data && error.data.message) || String(error);
+        }
+    }
+
+    getWeekDays(week, batchId) {
+        // null = todavía cargando; el server devuelve las llaves como string.
+        const weekData = this.state.dailyCache[week];
+        return weekData ? weekData[String(batchId)] || { batch_name: "", has_daily: false, days: [] } : null;
     }
 
     getRowBatches(row) {
@@ -205,6 +242,10 @@ export class PoultryStandardTrackingReport extends Component {
     async _reload(method, arg) {
         this.state.loading = true;
         this.state.error = null;
+        // El detalle diario depende de los lotes seleccionados: se invalida al
+        // cambiar la selección o la versión (recargarlo cuesta una llamada).
+        this.state.dailyCache = {};
+        this.state.expandedBatchDays = {};
         try {
             this.state.data = await this.orm.call(
                 "poultry.standard.tracking.report.wizard",
