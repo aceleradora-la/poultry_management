@@ -95,6 +95,10 @@ class PoultryBatchIndicatorValue(models.Model):
         Devuelve None si no hay valores."""
         if not week_values:
             return None
+        if indicator.category == 'mortality_count':
+            # Cantidad de aves muertas: el agregado es la SUMA de los días del
+            # balde (ni promedio ni tasa: 8 + 5 + 7 muertas = 20 en la semana).
+            return sum(week_values.mapped('value'))
         if indicator.accumulation_type not in self._RATE_ACCUMULATION_TYPES:
             return week_values.sorted('date')[-1].value
         if indicator.category == 'mortality' and indicator.accumulation_type == 'none':

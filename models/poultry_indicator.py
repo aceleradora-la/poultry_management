@@ -14,6 +14,11 @@ class PoultryIndicator(models.Model):
     uom_id = fields.Many2one('uom.uom', string='Unidad de Medida', required=True)
     category = fields.Selection([
         ('mortality', 'Mortalidad'),
+        # Categoría propia (no 'mortality'): los cálculos eligen el indicador de
+        # cada métrica por (categoría, tipo de acumulación) con limit=1, y si la
+        # cantidad compartiera categoría con el % podría robarle el lugar según
+        # la secuencia. Con categoría separada no hay ambigüedad posible.
+        ('mortality_count', 'Mortalidad (Cantidad de Aves)'),
         ('viability', 'Viabilidad'),
         ('weight', 'Peso Corporal'),
         ('feed_consumption', 'Consumo de Alimento'),

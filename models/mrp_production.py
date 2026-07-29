@@ -610,8 +610,14 @@ class MrpProduction(models.Model):
         cumulative_original_indicator = Indicator.search(
             [('category', '=', 'mortality'), ('accumulation_type', '=', 'original_cumulative'),
              ('active', '=', True)], limit=1)
+        # Cantidad de aves muertas (no %): categoría propia, sin ambigüedad con el
+        # % semanal. El valor diario es la cantidad cruda; el agregado semanal es
+        # la SUMA de los días (ver _poultry_aggregate_week_values).
+        count_indicator = Indicator.search(
+            [('category', '=', 'mortality_count'), ('accumulation_type', '=', 'none'),
+             ('active', '=', True)], limit=1)
         if (not rate_indicator and not cumulative_live_indicator and not cumulative_housed_indicator
-                and not cumulative_original_indicator):
+                and not cumulative_original_indicator and not count_indicator):
             return
 
         Value = self.env['poultry.batch.indicator.value'].sudo()
@@ -624,6 +630,11 @@ class MrpProduction(models.Model):
             if rate_indicator:
                 Value._set_value(batch, self.coop_id, target_date, rate_indicator,
                                   daily_pct, numerator=dead * 100.0, denominator=base,
+                                  production=self)
+
+            if count_indicator:
+                Value._set_value(batch, self.coop_id, target_date, count_indicator,
+                                  float(dead), numerator=float(dead), denominator=1.0,
                                   production=self)
 
             if cumulative_live_indicator:

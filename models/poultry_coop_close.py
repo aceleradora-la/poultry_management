@@ -319,8 +319,8 @@ class PoultryCoopClose(models.Model):
 
         indicators = self.env['poultry.indicator'].search([
             ('category', 'in', ('feed_consumption', 'water_consumption', 'egg_production',
-                                 'mortality', 'egg_mass', 'egg_weight', 'viability',
-                                 'feed_conversion', 'feed_egg_mass_conversion')),
+                                 'mortality', 'mortality_count', 'egg_mass', 'egg_weight',
+                                 'viability', 'feed_conversion', 'feed_egg_mass_conversion')),
         ])
         affected_batches = self.env['poultry.batch.coop.line'].search([
             ('coop_id', 'in', closes.mapped('coop_id').ids),

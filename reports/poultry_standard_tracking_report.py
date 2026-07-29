@@ -375,7 +375,13 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
 
             result[period] = {
                 'indicators': [
-                    {'id': indicator.id, 'name': indicator.name, 'uom': indicator.uom_id.name}
+                    {
+                        'id': indicator.id,
+                        'name': indicator.name,
+                        'uom': indicator.uom_id.name,
+                        # Cantidades (aves muertas) sin decimales; el resto con 2.
+                        'decimals': 0 if indicator.category == 'mortality_count' else 2,
+                    }
                     for indicator in indicators
                 ],
                 'rows': rows,
