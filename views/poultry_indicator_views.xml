@@ -12,6 +12,11 @@
                 <field name="accumulation_type"/>
                 <field name="period_scope"/>
                 <field name="uom_id"/>
+                <!-- Vacío = este indicador usa el cálculo interno, no el motor de
+                     fórmulas. Editable en masa desde la lista para revertir varios. -->
+                <field name="formula_numerator" optional="show"/>
+                <field name="formula_denominator" optional="show"/>
+                <field name="formula_mode" optional="show"/>
                 <field name="standard_count"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
@@ -34,7 +39,6 @@
                             <field name="uom_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="category"/>
                             <field name="accumulation_type"/>
-                            <field name="egg_group_size" invisible="category != 'feed_conversion'"/>
                             <field name="period_scope" widget="radio" options="{'horizontal': true}"/>
                             <field name="sequence"/>
                         </group>
@@ -44,6 +48,32 @@
                             <field name="color_below" widget="color"/>
                             <field name="color_within" widget="color"/>
                             <field name="color_above" widget="color"/>
+                        </group>
+                    </group>
+                    <group string="Fórmula del Valor Real">
+                        <div class="text-muted mb-2" colspan="2">
+                            El Valor Real de cada día se calcula como
+                            <strong>Numerador ÷ Denominador × Factor</strong>, y el Modo de
+                            Cálculo define cómo se combina con el histórico. Acá se elige la
+                            BASE del indicador (Aves Vivas del día, Aves Alojadas o Cantidad
+                            de Aves del lote) sin tocar código.
+                            <br/>
+                            Dejar el <strong>Modo de Cálculo vacío</strong> hace que el
+                            indicador vuelva al cálculo interno de siempre.
+                            <br/>
+                            <strong>Después de cambiar la fórmula hay que correr
+                            "Recalcular Indicadores de Producción"</strong> para rehacer el
+                            pasado; los días nuevos ya salen con la fórmula nueva.
+                        </div>
+                        <group>
+                            <field name="formula_numerator"/>
+                            <field name="formula_denominator"/>
+                            <field name="egg_group_size"
+                                   invisible="formula_denominator != 'egg_units' and category != 'feed_conversion'"/>
+                        </group>
+                        <group>
+                            <field name="formula_factor" widget="radio" options="{'horizontal': true}"/>
+                            <field name="formula_mode"/>
                         </group>
                     </group>
                     <group>
@@ -67,7 +97,11 @@
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
                 <separator/>
+                <filter string="Con Fórmula" name="with_formula" domain="[('formula_mode', '!=', False)]"/>
+                <filter string="Con Cálculo Interno" name="without_formula" domain="[('formula_mode', '=', False)]"/>
+                <separator/>
                 <filter string="Por Categoría" name="by_category" context="{'group_by': 'category'}"/>
+                <filter string="Por Modo de Cálculo" name="by_formula_mode" context="{'group_by': 'formula_mode'}"/>
             </search>
         </field>
     </record>
