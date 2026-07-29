@@ -444,6 +444,119 @@ class MrpProduction(models.Model):
         self._poultry_compute_viability_indicator_values()
         self._poultry_compute_feed_conversion_indicator_values()
 
+    # -- Motor de fórmulas: recolección de datos crudos --------------------------
+
+    def _poultry_collect_magnitudes(self, target_date):
+        """Datos crudos del día por lote, para que el motor de fórmulas
+        (poultry.indicator._poultry_apply_formulas) arme cualquier indicador sin
+        que la fórmula esté cableada acá. Devuelve {batch_id: {clave: valor}} con
+        las claves que ofrecen los campos Numerador/Denominador del indicador.
+
+        Reusa exactamente las mismas fuentes que los cálculos cableados, para que
+        los números coincidan: la población viva del día
+        (_poultry_get_active_lines_and_birds), los huevos de la OF (product_qty),
+        la masa estimada de los Partes del cierre, los componentes de la OF
+        marcados como Alimento/Agua, y los Registros de Aves Muertas de la fecha.
+
+        Los datos del GALPÓN (huevos, masa, alimento, agua) se reparten entre los
+        lotes presentes según su población viva, igual que hoy. Los atributos del
+        HUEVO (gramos medidos, huevos con peso) NO se reparten: son el mismo valor
+        para todos los lotes, porque describen el huevo y no cuántas aves hay."""
+        self.ensure_one()
+        lines, birds_by_line, total_birds = self._poultry_get_active_lines_and_birds(target_date)
+        if not lines or total_birds <= 0:
+            return {}
+
+        # Huevos del galpón del día (mismo dato que usa el cálculo cableado).
+        total_eggs = self.product_qty or 0.0
+
+        # Masa de huevo: Peso Medio Elaborado extrapolado a TODOS los huevos
+        # (Total Peso Estimado del Parte), y los gramos medidos por separado.
+        collections = self.coop_close_id.egg_collection_ids.filtered(lambda c: c.state == 'done')
+        measured_mass_grams = 0.0
+        eggs_with_weight = 0.0
+        all_collection_eggs = 0.0
+        for line in collections.mapped('line_ids'):
+            all_collection_eggs += line.total_produced_reference or 0.0
+            if line.average_weight and line.total_produced_reference:
+                measured_mass_grams += line.average_weight * line.total_produced_reference
+                eggs_with_weight += line.total_produced_reference
+        avg_weight_g = (measured_mass_grams / eggs_with_weight) if eggs_with_weight else 0.0
+        estimated_mass_grams = avg_weight_g * all_collection_eggs
+
+        # Consumo de Alimento y Agua de la OF (tipo congelado en cada movimiento).
+        kg_uom = self._poultry_get_consumption_uom('uom.product_uom_kgm')
+        liter_uom = self._poultry_get_consumption_uom('uom.product_uom_litre')
+        feed_qty_kg = 0.0
+        water_qty_l = 0.0
+        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel'):
+            consumption_type = move._poultry_consumption_type()
+            if consumption_type not in ('feed', 'water'):
+                continue
+            qty = self._poultry_get_move_consumed_qty(move)
+            if consumption_type == 'feed':
+                feed_qty_kg += move.product_uom._compute_quantity(qty, kg_uom) if kg_uom else qty
+            else:
+                water_qty_l += move.product_uom._compute_quantity(qty, liter_uom) if liter_uom else qty
+
+        # Aves muertas del día por lote: los registros de esta OF y los cargados a
+        # mano para el mismo galpón y fecha (la mortandad del día es la suma).
+        dead_by_batch = {}
+        mortalities = self.env['poultry.mortality'].sudo().search([
+            ('coop_id', '=', self.coop_id.id),
+            ('date', '=', target_date),
+            ('active', '=', True),
+        ])
+        for mortality in mortalities.filtered('batch_id'):
+            dead_by_batch[mortality.batch_id.id] = (
+                dead_by_batch.get(mortality.batch_id.id, 0) + mortality.dead_count)
+
+        magnitudes = {}
+        for line in lines:
+            birds = birds_by_line.get(line.id, 0)
+            if birds <= 0:
+                continue
+            batch = line.batch_id
+            share = birds / total_birds
+            dead = dead_by_batch.get(batch.id, 0)
+            batch_eggs = total_eggs * share
+            batch_mass_g = estimated_mass_grams * share
+            batch_feed_kg = feed_qty_kg * share
+            batch_water_l = water_qty_l * share
+            magnitudes[batch.id] = {
+                'batch': batch,
+                # Numeradores
+                'eggs': batch_eggs,
+                'egg_mass_g': batch_mass_g,
+                'egg_mass_kg': batch_mass_g / 1000.0,
+                'measured_egg_g': measured_mass_grams,   # atributo del huevo: no se reparte
+                'dead_birds': float(dead),
+                'feed_kg': batch_feed_kg,
+                'feed_g': batch_feed_kg * 1000.0,
+                'water_l': batch_water_l,
+                'water_ml': batch_water_l * 1000.0,
+                # Denominadores (live_birds también sirve de numerador en Viabilidad)
+                'live_birds': float(birds),
+                # Base del % de Mortandad: las vivas ANTES de las muertas del día.
+                'live_birds_start': float(birds + dead),
+                'housed_birds': float(batch.housed_bird_count or 0.0),
+                # Aves Alojadas con respaldo en la Cantidad de Aves: base de la
+                # Viabilidad, que en crianza (sin Cambio de Período todavía) no
+                # tiene una foto alojada válida y usa las aves originales.
+                'housed_or_original_birds': float(
+                    batch.housed_bird_count
+                    if (batch.housed_bird_count and batch.production_start_date
+                        and target_date >= batch.production_start_date)
+                    else (batch.bird_count or 0.0)),
+                'original_birds': float(batch.bird_count or 0.0),
+                'eggs_with_weight': eggs_with_weight,    # atributo del huevo: no se reparte
+                'one': 1.0,
+                # egg_units depende de Huevos por Unidad, que es propio de cada
+                # indicador: lo resuelve el motor, no el recolector.
+                '_eggs_for_units': batch_eggs,
+            }
+        return magnitudes
+
     def _poultry_compute_consumption_indicator_values(self):
         """Al cerrar la OF de Huevo sin Clasificar generada por un Cierre de Galpón,
         calcula el consumo real de Alimento (g/ave-día) y Agua (ml/ave-día) sumando

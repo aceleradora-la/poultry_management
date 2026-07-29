@@ -106,6 +106,8 @@ class PoultryIndicator(models.Model):
         # (vivas al cierre + muertas), no las que quedaron.
         ('live_birds_start', 'Aves Vivas al inicio del día (Lote de Aves)'),
         ('housed_birds', 'Aves Alojadas (Lote de Aves, base fija)'),
+        ('housed_or_original_birds',
+         'Aves Alojadas, o Cantidad de Aves si el lote no entró en producción (Lote de Aves)'),
         ('original_birds', 'Cantidad de Aves (Lote de Aves, base fija)'),
         ('eggs', 'Total Huevos (Parte de Producción)'),
         ('egg_units', 'Unidades de huevo (Total Huevos / Huevos por Unidad)'),
@@ -188,6 +190,102 @@ class PoultryIndicator(models.Model):
     def _compute_standard_count(self):
         for indicator in self:
             indicator.standard_count = len(indicator.standard_ids)
+
+    # -- Motor de fórmulas: resolución ------------------------------------------
+
+    @api.model
+    def _poultry_formula_indicators(self, source='coop_close'):
+        """Indicadores activos con fórmula cargada para una fuente de datos.
+        source='coop_close' (Cierre de Galpón / OF) o 'weight_record' (Parte de
+        Registro de Peso). Los que no tienen Modo de Cálculo quedan afuera: esos
+        los sigue calculando el código cableado."""
+        domain = [('active', '=', True), ('formula_mode', '!=', False)]
+        if source == 'weight_record':
+            domain.append(('formula_numerator', 'in', list(self._POULTRY_WEIGHT_SOURCE_NUMERATORS)))
+        else:
+            domain.append(('formula_numerator', 'not in', list(self._POULTRY_WEIGHT_SOURCE_NUMERATORS)))
+        return self.search(domain)
+
+    def _poultry_formula_denominator_value(self, magnitudes):
+        """Denominador de la fórmula para un lote. 'egg_units' se resuelve acá y no
+        en el recolector porque depende de Huevos por Unidad, que es propio de cada
+        indicador (12 = docena, 30 = cajón...)."""
+        self.ensure_one()
+        if self.formula_denominator == 'egg_units':
+            group_size = self.egg_group_size or 12
+            return magnitudes.get('_eggs_for_units', 0.0) / group_size if group_size else 0.0
+        return magnitudes.get(self.formula_denominator, 0.0)
+
+    @api.model
+    def _poultry_apply_formulas(self, magnitudes_by_batch, coop, target_date,
+                                production=None, source='coop_close'):
+        """Calcula y guarda el valor del día de cada indicador con fórmula, a partir
+        de los datos crudos que recolectó la fuente (mrp.production o
+        poultry.weight.record). Es el reemplazo genérico de los cálculos cableados:
+        la fórmula sale de la ficha del indicador, no del código.
+
+        Modos:
+        - 'daily': el valor del día es numerador/denominador × factor.
+        - 'running_sum': ese aporte se SUMA al acumulado previo, empalmando con el
+          histórico cargado a mano (_poultry_previous_accumulated), para que los
+          acumulados no se reinicien donde arranca el dato del sistema.
+        - 'snapshot': foto del estado a la fecha (no suma nada).
+        - 'ratio_cumulative': acumula numerador y denominador POR SEPARADO desde el
+          día anterior y el valor es su cociente (nunca se suman razones diarias
+          entre sí, porque el denominador cambia día a día).
+
+        Se guarda numerator/denominator crudos (sin el factor) igual que los
+        cálculos cableados, para que la agregación semanal no cambie."""
+        indicators = self._poultry_formula_indicators(source)
+        if not indicators or not magnitudes_by_batch:
+            return
+        Value = self.env['poultry.batch.indicator.value'].sudo()
+        # El helper del empalme es genérico (no usa el registro de la OF), así que
+        # se puede llamar sobre un recordset vacío de mrp.production.
+        Production = self.env['mrp.production'].sudo()
+        for magnitudes in magnitudes_by_batch.values():
+            batch = magnitudes['batch']
+            in_production = bool(
+                batch.housed_bird_count and batch.production_start_date
+                and target_date >= batch.production_start_date)
+            for indicator in indicators:
+                numerator = magnitudes.get(indicator.formula_numerator)
+                if numerator is None:
+                    continue
+                denominator = indicator._poultry_formula_denominator_value(magnitudes)
+                # Mismos guards que el cálculo cableado: las bases fijas de Aves
+                # Alojadas y los cocientes de acumulados solo corren desde la
+                # Fecha de Entrada en Producción (antes no hay base válida).
+                needs_production = (indicator.formula_denominator == 'housed_birds'
+                                    or indicator.formula_mode == 'ratio_cumulative')
+                if needs_production and not in_production:
+                    continue
+                if not denominator:
+                    continue
+                factor = float(indicator.formula_factor or '1')
+                daily_value = numerator / denominator * factor
+
+                if indicator.formula_mode == 'ratio_cumulative':
+                    previous = Value.search([
+                        ('batch_id', '=', batch.id),
+                        ('indicator_id', '=', indicator.id),
+                        ('date', '<', target_date),
+                    ], order='date desc', limit=1)
+                    new_numerator = (previous.numerator if previous else 0.0) + numerator
+                    new_denominator = (previous.denominator if previous else 0.0) + denominator
+                    value = (new_numerator / new_denominator * factor) if new_denominator else 0.0
+                    Value._set_value(batch, coop, target_date, indicator, value,
+                                     numerator=new_numerator, denominator=new_denominator,
+                                     production=production)
+                    continue
+
+                value = daily_value
+                if indicator.formula_mode == 'running_sum':
+                    value += Production._poultry_previous_accumulated(
+                        batch, indicator, target_date)
+                Value._set_value(batch, coop, target_date, indicator, value,
+                                 numerator=numerator * factor, denominator=denominator,
+                                 production=production)
 
     # Datos que solo existen en el Parte de Registro de Peso (otra fuente y otro
     # momento que el Cierre de Galpón): no se pueden mezclar con los de la OF.
