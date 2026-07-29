@@ -175,7 +175,7 @@
                                         <td class="text-center"
                                             t-att-class="cell.out_of_range ? 'fw-bold' : ''"
                                             t-att-style="cell.real_color ? ('color: ' + cell.real_color + ';') : ''">
-                                            <t t-if="cell.real_value !== null" t-esc="cell.real_value.toFixed(2)"/>
+                                            <t t-if="cell.real_value !== null" t-esc="cell.real_value.toFixed(indicator.decimals !== undefined ? indicator.decimals : 2)"/>
                                         </td>
                                     </t>
                                 </tr>
@@ -215,7 +215,7 @@
                                                 </td>
                                                 <td class="text-center small"
                                                     t-att-style="bv and bv.real_color ? ('color: ' + bv.real_color + '; font-weight: 500;') : ''">
-                                                    <t t-if="bv" t-esc="bv.real_value.toFixed(2)"/>
+                                                    <t t-if="bv" t-esc="bv.real_value.toFixed(indicator.decimals !== undefined ? indicator.decimals : 2)"/>
                                                 </td>
                                             </t>
                                         </tr>
@@ -273,7 +273,7 @@
                         <t t-if="dcell">
                             <t t-if="dcell.count !== undefined"
                                t-esc="dcell.count + ' (' + dcell.real_value.toFixed(2) + '%)'"/>
-                            <t t-else="" t-esc="dcell.real_value.toFixed(2)"/>
+                            <t t-else="" t-esc="dcell.real_value.toFixed(indicator.decimals !== undefined ? indicator.decimals : 2)"/>
                         </t>
                     </td>
                 </t>
