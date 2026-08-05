@@ -119,13 +119,19 @@ class PoultryIndicator(models.Model):
         ('water_ml', 'Agua consumida en ml (OF, componentes tipo Agua)'),
         ('water_l', 'Agua consumida en l (OF, componentes tipo Agua)'),
         ('live_birds', 'Aves Vivas (Lote de Aves)'),
+        ('production_cost', 'Costo de la OF (botón Valoración de la Orden de Fabricación)'),
         # Del Parte de Registro de Peso
         ('weighed_g', 'Peso Total en g (Parte de Registro de Peso)'),
         ('uniform_birds', 'Aves dentro de la Banda de Uniformidad (Parte de Registro de Peso)'),
     ], string='Numerador',
         help='Dato del día que va ARRIBA en la división. Los datos del galpón '
-             '(huevos, masa, alimento, agua) se reparten entre los lotes presentes '
-             'según su población viva, igual que hasta ahora.')
+             '(huevos, masa, alimento, agua, costo) se reparten entre los lotes '
+             'presentes según su población viva, igual que hasta ahora.\n'
+             'El "Costo de la OF" es la suma de las capas de valuación de los '
+             'componentes consumidos: lo mismo que muestra el botón Valoración de '
+             'la Orden de Fabricación. Solo existe una vez que la OF está Hecha; '
+             'si no hay valuación, el indicador no se calcula ese día (en vez de '
+             'mostrar cero).')
     formula_denominator = fields.Selection([
         ('live_birds', 'Aves Vivas del día (Lote de Aves)'),
         # Base del % de Mortandad: las vivas ANTES de las muertas del día
@@ -248,6 +254,7 @@ class PoultryIndicator(models.Model):
         'dead_birds': 'Aves muertas', 'feed_g': 'Alimento (g)', 'feed_kg': 'Alimento (Kg)',
         'water_ml': 'Agua (ml)', 'water_l': 'Agua (l)', 'live_birds': 'Aves vivas',
         'weighed_g': 'Peso pesado (g)', 'uniform_birds': 'Aves en banda',
+        'production_cost': 'Costo de la OF',
         'live_birds_start': 'Aves vivas al inicio del día',
         'housed_birds': 'Aves alojadas',
         'housed_or_original_birds': 'Aves alojadas (o cantidad de aves)',
