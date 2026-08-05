@@ -105,6 +105,28 @@ class PoultryBatchIndicatorValue(models.Model):
             return sum(week_values.mapped('value'))
         if aggregation == 'last':
             return week_values.sorted('date')[-1].value
+
+        if aggregation == 'auto' and indicator.formula_mode:
+            # Con fórmula cargada, la agregación automática se deriva de la FÓRMULA
+            # y no de Categoría/Tipo de Acumulación: así configurar un indicador es
+            # completar solo la sección Fórmula del Valor Real, sin depender de los
+            # campos de arriba (que quedan para organizar y para los indicadores
+            # que todavía usan el cálculo interno).
+            if indicator.formula_mode in ('running_sum', 'snapshot', 'ratio_cumulative'):
+                # Acumulados y estados: el valor del período es el del último día
+                # con dato (nunca se suman ni promedian entre sí).
+                return week_values.sorted('date')[-1].value
+            if indicator.formula_denominator == 'live_birds_start':
+                # Tasa sobre las aves vivas al INICIO del período (ej. % de
+                # Mortandad): base fija del primer día con dato, no suma de
+                # denominadores (eso daría un promedio ponderado por "ave-día").
+                first_day_denominator = week_values.sorted('date')[0].denominator
+                return (sum(week_values.mapped('numerator')) / first_day_denominator
+                        if first_day_denominator else 0.0)
+            total_denominator = sum(week_values.mapped('denominator'))
+            return (sum(week_values.mapped('numerator')) / total_denominator
+                    if total_denominator else 0.0)
+
         if indicator.category == 'mortality_count':
             # Compatibilidad: las cantidades de aves muertas creadas antes del campo
             # Agregación Semanal se siguen sumando por su categoría. Los indicadores

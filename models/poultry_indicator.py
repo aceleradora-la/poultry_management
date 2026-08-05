@@ -31,7 +31,11 @@ class PoultryIndicator(models.Model):
         ('feed_egg_mass_conversion', 'Conversión Alimenticia (Alimento/Masa de Huevo)'),
     ], string='Categoría', index=True,
         help='Agrupación funcional del indicador, según las tablas de rendimiento del '
-             'proveedor de genética (Período de Crianza / Período de Producción).')
+             'proveedor de genética (Período de Crianza / Período de Producción).\n'
+             'Si el indicador tiene FÓRMULA cargada, este campo es solo organizativo '
+             '(agrupa y filtra en las listas): el cálculo sale de la fórmula. Es '
+             'obligatorio en cambio para los indicadores que usan el cálculo interno, '
+             'porque es como el sistema sabe cuál es cuál.')
     sequence = fields.Integer(string='Secuencia', default=10)
     active = fields.Boolean(string='Activo', default=True)
     period_scope = fields.Selection([
@@ -50,7 +54,10 @@ class PoultryIndicator(models.Model):
         ('original_cumulative', 'Acumulado / Estado sobre Aves Originales del Lote'),
         ('ratio_cumulative', 'Acumulado desde Inicio de Producción (cociente de acumulados)'),
     ], string='Tipo de Acumulación', default='none', required=True,
-        help='OJO: esto NO indica si el cálculo divide por aves vivas, alojadas u '
+        help='Si el indicador tiene FÓRMULA cargada, este campo es solo organizativo: '
+             'lo que manda es el Modo de Cálculo de la fórmula. Aplica a los '
+             'indicadores que usan el cálculo interno.\n'
+             'OJO: esto NO indica si el cálculo divide por aves vivas, alojadas u '
              'originales (eso ya lo hace la fórmula de cada indicador, sea cual sea '
              'este campo). Lo que distingue es si el valor de HOY se guarda solo, o '
              'se le SUMA/actualiza sobre el de AYER. "Ninguno" y "Diario sobre Aves '
