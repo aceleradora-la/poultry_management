@@ -148,15 +148,15 @@
     <!-- El menú padre "Reportes" está definido en poultry_menus.xml -->
     <menuitem id="menu_poultry_batch_indicator_weekly_value"
               name="Valores Reales Semanales"
-              parent="menu_poultry_reports"
+              parent="menu_poultry_reports_real_values"
               action="action_poultry_batch_indicator_weekly_value"
-              sequence="17"/>
+              sequence="10"/>
 
     <!-- Carga de histórico manual: va en Reportes, junto a los Valores Reales. -->
     <menuitem id="menu_poultry_indicator_manual_load"
               name="Carga Manual de Indicadores"
-              parent="menu_poultry_reports"
+              parent="menu_poultry_reports_manual_load"
               action="action_poultry_indicator_manual_load"
-              sequence="18"
+              sequence="20"
               groups="poultry_management.poultry_manager"/>
 </odoo>

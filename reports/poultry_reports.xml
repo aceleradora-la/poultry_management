@@ -52,28 +52,28 @@
     <!-- Menús de Reportes (el menú padre "Reportes" está definido en poultry_menus.xml) -->
     <menuitem id="menu_poultry_production_report" 
               name="Producción" 
-              parent="menu_poultry_reports" 
+              parent="menu_poultry_reports_operation" 
               action="action_poultry_production_report_direct" 
               sequence="10"/>
 
     <menuitem id="menu_poultry_stock_move_report" 
               name="Movimientos de Productos" 
-              parent="menu_poultry_reports" 
+              parent="menu_poultry_reports_operation" 
               action="action_poultry_stock_move_report" 
-              sequence="15"/>
+              sequence="20"/>
 
     <menuitem id="menu_poultry_mortality_report"
               name="Mortalidad"
-              parent="menu_poultry_reports"
+              parent="menu_poultry_reports_operation"
               action="action_poultry_mortality_report"
-              sequence="20"/>
+              sequence="30"/>
 
     <!-- Carga manual de mortandad: visible solo para el grupo con permiso especial. -->
     <menuitem id="menu_poultry_mortality_manual"
               name="Carga Manual de Mortandad"
-              parent="menu_poultry_reports"
+              parent="menu_poultry_reports_manual_load"
               action="action_poultry_mortality_manual"
               groups="poultry_management.group_poultry_mortality_manual"
-              sequence="21"/>
+              sequence="10"/>
 </odoo>
 

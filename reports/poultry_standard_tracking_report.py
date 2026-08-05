@@ -673,6 +673,14 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         self.ensure_one()
         if not self.batch_id:
             raise UserError('Debe seleccionar un Lote de Aves antes de generar el reporte.')
+        if self.axis == 'calendar_week' and not self.comparison_batch_ids:
+            # Con un solo lote, el eje calendario no aporta nada sobre el de Semana
+            # de Vida (mismas filas, corridas). Se valida server-side y no solo en
+            # la vista, porque el formulario no protege una llamada por RPC.
+            raise UserError(
+                'El reporte por Semana Calendario compara lotes entre sí: elegí al '
+                'menos un Lote a Comparar, o usá el reporte por Semana de Vida.'
+            )
         self.get_report_data()
         return {
             'type': 'ir.actions.client',
