@@ -231,8 +231,6 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 f'Estándar para esta genética, o elíjala en el campo Versión de Estándar.'
             )
 
-        Weekly = self.env['poultry.batch.indicator.weekly.value']
-        Standard = self.env['poultry.genetics.standard']
         result = {}
         report_batches = self._get_report_batches()
         is_comparison = len(report_batches) > 1
@@ -245,144 +243,8 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 result[period] = {'indicators': [], 'rows': []}
                 continue
             indicators = self._get_relevant_indicators(period)
-            weekly_values = Weekly.search([
-                ('batch_id', 'in', report_batches.ids),
-                ('period', '=', period),
-            ])
-            standard_weeks = Standard.search([
-                ('version_id', '=', version.id),
-                ('period', '=', period),
-                ('active', '=', True),
-            ]).mapped('week')
-            weeks = sorted(set(weekly_values.mapped('week')) | set(standard_weeks))
-            # El estándar de la genética llega hasta el final de la vida del lote
-            # (semana 100), así que unirlo con las semanas que tienen dato real
-            # arrastraba decenas de filas futuras con solo Bajo/Alto. Se corta en
-            # la última semana CON dato real: las semanas intermedias sin dato sí
-            # se muestran (son huecos del pasado, no futuro). Si el lote todavía
-            # no tiene ningún real -lote recién creado- se deja el estándar
-            # completo, para poder consultarlo.
-            real_weeks = set(weekly_values.mapped('week'))
-            if real_weeks:
-                last_real_week = max(real_weeks)
-                weeks = [week for week in weeks if week <= last_real_week]
-
-            # El reporte muestra solo días TERMINADOS: hoy nunca cuenta (el día no
-            # cerró). Para la columna Aves Vivas, la fecha de referencia de la
-            # semana en curso es AYER; las semanas futuras quedan vacías.
-            today = fields.Date.context_today(self)
-            yesterday = today - timedelta(days=1)
-
-            # Semana en curso: el agregado semanal PERSISTIDO incluye los valores
-            # de hoy (lo consume el pivot de Valores Semanales, que no corta). El
-            # reporte en cambio la recalcula al vuelo desde los valores diarios
-            # con fecha < hoy, para no mostrar nunca un día sin terminar. Al día
-            # siguiente el mismo recálculo incorpora solo el día ya cerrado. Solo
-            # puede haber una semana en curso por lote → 1 búsqueda por lote.
-            Value = self.env['poultry.batch.indicator.value']
-            current_overrides = {}
-            for batch in report_batches:
-                if not batch.birth_date:
-                    continue
-                current_week = batch._poultry_week_of(today)
-                week_start = batch._poultry_week_start(current_week)
-                day_values = Value.search([
-                    ('batch_id', '=', batch.id),
-                    ('indicator_id', 'in', indicators.ids),
-                    ('date', '>=', week_start),
-                    ('date', '<', today),
-                ])
-                for indicator in indicators:
-                    ind_values = day_values.filtered(
-                        lambda v, ind=indicator: v.indicator_id == ind)
-                    current_overrides[(batch.id, indicator.id, current_week)] = \
-                        Value._poultry_aggregate_week_values(indicator, ind_values)
-
-            rows = []
-            for week in weeks:
-                cells = {}
-                # Aves Vivas al último día de la semana (o a AYER si la semana está
-                # en curso), por lote y consolidado (suma de los seleccionados).
-                # None = sin dato (lote sin asignación vigente o semana futura),
-                # distinto de 0 (todas las aves muertas).
-                live_by_batch = {}
-                for batch in report_batches:
-                    week_start = batch._poultry_week_start(week) if batch.birth_date else False
-                    if not week_start or week_start > yesterday:
-                        live_by_batch[batch.id] = None
-                        continue
-                    ref_date = min(batch._poultry_week_end(week), yesterday)
-                    live_by_batch[batch.id] = batch._poultry_get_live_bird_count_on(ref_date)
-                live_values = [v for v in live_by_batch.values() if v is not None]
-                for indicator in indicators:
-                    matches = weekly_values.filtered(
-                        lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk)
-                    # Bajo/Alto siempre se recalculan contra la Versión elegida en el
-                    # reporte (nunca se toman del Bajo/Alto guardado en el Valor Real,
-                    # que quedó congelado contra la Versión predeterminada de la genética
-                    # al momento del cálculo). Así cambiar de Versión en pantalla sí
-                    # actualiza el rango, tenga o no la semana un Valor Real ya calculado.
-                    standard, value_low, value_high = self._get_standard_range(version, indicator, week)
-                    has_standard = bool(standard)
-                    # Valor de cada lote seleccionado en esta semana, y consolidado
-                    # ponderado por la Cantidad de Aves de cada lote (un lote de
-                    # 32.000 aves pesa más que uno de 5.000, no promedio simple).
-                    batch_values = []
-                    total_weight = 0.0
-                    total_weighted = 0.0
-                    for batch in report_batches:
-                        batch_match = matches.filtered(lambda m, b=batch: m.batch_id == b)
-                        if not batch_match:
-                            continue
-                        batch_real = batch_match[0].real_value
-                        # Semana en curso de origen Sistema: usar el recálculo sin
-                        # el día de hoy (None = sin días terminados → sin Real).
-                        # Los valores manuales son histórico y no se tocan.
-                        override_key = (batch.id, indicator.id, week)
-                        if batch_match[0].source == 'system' and override_key in current_overrides:
-                            batch_real = current_overrides[override_key]
-                            if batch_real is None:
-                                continue
-                        weight = batch.bird_count or 1
-                        total_weight += weight
-                        total_weighted += batch_real * weight
-                        batch_values.append({
-                            'batch_id': batch.id,
-                            'batch_name': batch.name,
-                            'bird_count': batch.bird_count,
-                            'date': str(batch._poultry_week_end(week))
-                                    if batch.birth_date else None,
-                            'real_value': batch_real,
-                            'real_color': self._get_real_color(
-                                indicator, batch_real, value_low, value_high, has_standard),
-                        })
-                    real_value = (total_weighted / total_weight) if batch_values else None
-                    cells[indicator.id] = {
-                        'value_low': value_low,
-                        'value_high': value_high,
-                        'real_value': real_value,
-                        'has_standard': has_standard,
-                        'out_of_range': has_standard and real_value is not None and (
-                            real_value < value_low or real_value > value_high),
-                        'real_color': self._get_real_color(
-                            indicator, real_value, value_low, value_high, has_standard),
-                        'batch_values': batch_values if is_comparison else [],
-                    }
-                # Se muestra el ÚLTIMO día de la Semana de Vida (como las planillas de
-                # la granja, que registran los totales al cierre de la semana), anclada
-                # a la Fecha de Nacimiento (ver poultry.batch._poultry_week_anchor).
-                # Con COMPARACIÓN de lotes la fila semanal no lleva fecha: cada lote
-                # tiene su propio calendario (distinta Fecha de Nacimiento) y la del
-                # principal sería engañosa; la fecha de cada lote se ve al expandir.
-                week_date = (self.batch_id._poultry_week_end(week)
-                             if self.batch_id.birth_date and not is_comparison else None)
-                rows.append({
-                    'week': week,
-                    'date': str(week_date) if week_date else None,
-                    'live_birds': sum(live_values) if live_values else None,
-                    'live_birds_by_batch': live_by_batch,
-                    'cells': cells,
-                })
+            rows = self._build_rows_life_week(
+                period, version, report_batches, is_comparison, indicators)
 
             result[period] = {
                 'indicators': [
@@ -397,7 +259,165 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 ],
                 'rows': rows,
             }
-        result['header'] = {
+        result['header'] = self._build_header(report_batches, is_comparison, version)
+        return result
+
+    def _build_rows_life_week(self, period, version, report_batches, is_comparison, indicators):
+        """Filas del reporte con eje SEMANA DE VIDA: una fila por semana de vida del
+        lote, tomadas de los agregados semanales persistidos
+        (poultry.batch.indicator.weekly.value) unidos con las semanas que tienen
+        estándar cargado.
+
+        Es el armado original del reporte, extraído sin cambios de get_report_data()
+        al agregarse el segundo eje (Semana Calendario)."""
+        Weekly = self.env['poultry.batch.indicator.weekly.value']
+        Standard = self.env['poultry.genetics.standard']
+        weekly_values = Weekly.search([
+            ('batch_id', 'in', report_batches.ids),
+            ('period', '=', period),
+        ])
+        standard_weeks = Standard.search([
+            ('version_id', '=', version.id),
+            ('period', '=', period),
+            ('active', '=', True),
+        ]).mapped('week')
+        weeks = sorted(set(weekly_values.mapped('week')) | set(standard_weeks))
+        # El estándar de la genética llega hasta el final de la vida del lote
+        # (semana 100), así que unirlo con las semanas que tienen dato real
+        # arrastraba decenas de filas futuras con solo Bajo/Alto. Se corta en
+        # la última semana CON dato real: las semanas intermedias sin dato sí
+        # se muestran (son huecos del pasado, no futuro). Si el lote todavía
+        # no tiene ningún real -lote recién creado- se deja el estándar
+        # completo, para poder consultarlo.
+        real_weeks = set(weekly_values.mapped('week'))
+        if real_weeks:
+            last_real_week = max(real_weeks)
+            weeks = [week for week in weeks if week <= last_real_week]
+
+        # El reporte muestra solo días TERMINADOS: hoy nunca cuenta (el día no
+        # cerró). Para la columna Aves Vivas, la fecha de referencia de la
+        # semana en curso es AYER; las semanas futuras quedan vacías.
+        today = fields.Date.context_today(self)
+        yesterday = today - timedelta(days=1)
+
+        # Semana en curso: el agregado semanal PERSISTIDO incluye los valores
+        # de hoy (lo consume el pivot de Valores Semanales, que no corta). El
+        # reporte en cambio la recalcula al vuelo desde los valores diarios
+        # con fecha < hoy, para no mostrar nunca un día sin terminar. Al día
+        # siguiente el mismo recálculo incorpora solo el día ya cerrado. Solo
+        # puede haber una semana en curso por lote → 1 búsqueda por lote.
+        Value = self.env['poultry.batch.indicator.value']
+        current_overrides = {}
+        for batch in report_batches:
+            if not batch.birth_date:
+                continue
+            current_week = batch._poultry_week_of(today)
+            week_start = batch._poultry_week_start(current_week)
+            day_values = Value.search([
+                ('batch_id', '=', batch.id),
+                ('indicator_id', 'in', indicators.ids),
+                ('date', '>=', week_start),
+                ('date', '<', today),
+            ])
+            for indicator in indicators:
+                ind_values = day_values.filtered(
+                    lambda v, ind=indicator: v.indicator_id == ind)
+                current_overrides[(batch.id, indicator.id, current_week)] = \
+                    Value._poultry_aggregate_week_values(indicator, ind_values)
+
+        rows = []
+        for week in weeks:
+            cells = {}
+            # Aves Vivas al último día de la semana (o a AYER si la semana está
+            # en curso), por lote y consolidado (suma de los seleccionados).
+            # None = sin dato (lote sin asignación vigente o semana futura),
+            # distinto de 0 (todas las aves muertas).
+            live_by_batch = {}
+            for batch in report_batches:
+                week_start = batch._poultry_week_start(week) if batch.birth_date else False
+                if not week_start or week_start > yesterday:
+                    live_by_batch[batch.id] = None
+                    continue
+                ref_date = min(batch._poultry_week_end(week), yesterday)
+                live_by_batch[batch.id] = batch._poultry_get_live_bird_count_on(ref_date)
+            live_values = [v for v in live_by_batch.values() if v is not None]
+            for indicator in indicators:
+                matches = weekly_values.filtered(
+                    lambda w, ind=indicator, wk=week: w.indicator_id == ind and w.week == wk)
+                # Bajo/Alto siempre se recalculan contra la Versión elegida en el
+                # reporte (nunca se toman del Bajo/Alto guardado en el Valor Real,
+                # que quedó congelado contra la Versión predeterminada de la genética
+                # al momento del cálculo). Así cambiar de Versión en pantalla sí
+                # actualiza el rango, tenga o no la semana un Valor Real ya calculado.
+                standard, value_low, value_high = self._get_standard_range(version, indicator, week)
+                has_standard = bool(standard)
+                # Valor de cada lote seleccionado en esta semana, y consolidado
+                # ponderado por la Cantidad de Aves de cada lote (un lote de
+                # 32.000 aves pesa más que uno de 5.000, no promedio simple).
+                batch_values = []
+                total_weight = 0.0
+                total_weighted = 0.0
+                for batch in report_batches:
+                    batch_match = matches.filtered(lambda m, b=batch: m.batch_id == b)
+                    if not batch_match:
+                        continue
+                    batch_real = batch_match[0].real_value
+                    # Semana en curso de origen Sistema: usar el recálculo sin
+                    # el día de hoy (None = sin días terminados → sin Real).
+                    # Los valores manuales son histórico y no se tocan.
+                    override_key = (batch.id, indicator.id, week)
+                    if batch_match[0].source == 'system' and override_key in current_overrides:
+                        batch_real = current_overrides[override_key]
+                        if batch_real is None:
+                            continue
+                    weight = batch.bird_count or 1
+                    total_weight += weight
+                    total_weighted += batch_real * weight
+                    batch_values.append({
+                        'batch_id': batch.id,
+                        'batch_name': batch.name,
+                        'bird_count': batch.bird_count,
+                        'date': str(batch._poultry_week_end(week))
+                                if batch.birth_date else None,
+                        'real_value': batch_real,
+                        'real_color': self._get_real_color(
+                            indicator, batch_real, value_low, value_high, has_standard),
+                    })
+                real_value = (total_weighted / total_weight) if batch_values else None
+                cells[indicator.id] = {
+                    'value_low': value_low,
+                    'value_high': value_high,
+                    'real_value': real_value,
+                    'has_standard': has_standard,
+                    'out_of_range': has_standard and real_value is not None and (
+                        real_value < value_low or real_value > value_high),
+                    'real_color': self._get_real_color(
+                        indicator, real_value, value_low, value_high, has_standard),
+                    'batch_values': batch_values if is_comparison else [],
+                }
+            # Se muestra el ÚLTIMO día de la Semana de Vida (como las planillas de
+            # la granja, que registran los totales al cierre de la semana), anclada
+            # a la Fecha de Nacimiento (ver poultry.batch._poultry_week_anchor).
+            # Con COMPARACIÓN de lotes la fila semanal no lleva fecha: cada lote
+            # tiene su propio calendario (distinta Fecha de Nacimiento) y la del
+            # principal sería engañosa; la fecha de cada lote se ve al expandir.
+            week_date = (self.batch_id._poultry_week_end(week)
+                         if self.batch_id.birth_date and not is_comparison else None)
+            rows.append({
+                'week': week,
+                'date': str(week_date) if week_date else None,
+                'live_birds': sum(live_values) if live_values else None,
+                'live_birds_by_batch': live_by_batch,
+                'cells': cells,
+            })
+
+        return rows
+
+    def _build_header(self, report_batches, is_comparison, version):
+        """Encabezado del reporte: genética, versión elegida y una entrada por
+        lote seleccionado. Extraído de get_report_data() al separar los ejes,
+        porque es común a los dos."""
+        return {
             'report_period': self.report_period or False,
             'batch_id': self.batch_id.id,
             'batch_name': self.batch_id.name,
@@ -432,7 +452,6 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 for info in [self._get_batch_coop_info(batch)]
             ],
         }
-        return result
 
     def _get_standard_range(self, version, indicator, week):
         period_type = 'crianza' if week <= (self.genetics_id.rearing_end_week or 17) else 'produccion'
