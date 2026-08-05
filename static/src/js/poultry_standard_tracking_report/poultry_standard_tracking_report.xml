@@ -196,12 +196,22 @@
                                                 <i t-att-class="'fa ' + (state.expandedBatchDays[row.week + ':' + batchRow.batch_id] ? 'fa-caret-down' : 'fa-caret-right')"/>
                                             </td>
                                             <td class="text-center o_poultry_col_week">
-                                                <span class="badge rounded-pill text-bg-secondary">
+                                                <!-- Las aves del lote van en el título del badge:
+                                                     antes ocupaban el colspan que ahora usan las
+                                                     columnas Bajo/Alto de cada lote. -->
+                                                <span class="badge rounded-pill text-bg-secondary"
+                                                      t-att-title="batchRow.bird_count ? (batchRow.bird_count + ' aves') : ''">
                                                     <t t-esc="batchRow.name"/>
                                                 </span>
                                             </td>
+                                            <!-- Con eje calendario, la fecha es la misma para
+                                                 todos los lotes: acá va lo que los distingue,
+                                                 su Semana de Vida. -->
                                             <td class="text-center text-nowrap small text-muted o_poultry_col_date">
-                                                <t t-esc="batchRow.date or '-'"/>
+                                                <t t-if="isCalendarAxis">
+                                                    <t t-if="batchRow.life_week">Sem. <t t-esc="batchRow.life_week"/></t>
+                                                </t>
+                                                <t t-else="" t-esc="batchRow.date or '-'"/>
                                             </td>
                                             <td class="text-center small text-muted">
                                                 <t t-if="batchRow.live_birds !== null and batchRow.live_birds !== undefined"
@@ -209,11 +219,18 @@
                                             </td>
                                             <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
                                                 <t t-set="bv" t-value="batchRow.values[indicator.id]"/>
-                                                <td class="text-center small text-muted" colspan="2">
-                                                    <t t-if="indicator_index === 0"
-                                                       t-esc="batchRow.bird_count ? (batchRow.bird_count + ' aves') : ''"/>
+                                                <!-- Bajo/Alto de ESTE lote: en el eje calendario
+                                                     cada uno tiene su Semana de Vida y por lo
+                                                     tanto su propio rango. -->
+                                                <td class="text-center small text-muted">
+                                                    <t t-if="bv and bv.has_standard" t-esc="bv.value_low.toFixed(2)"/>
+                                                </td>
+                                                <td class="text-center small text-muted">
+                                                    <t t-if="bv and bv.has_standard" t-esc="bv.value_high.toFixed(2)"/>
                                                 </td>
                                                 <td class="text-center small"
+                                                    t-att-title="bv and bv.is_partial ? 'Semana incompleta' : ''"
+                                                    t-att-class="bv and bv.is_partial ? 'fst-italic' : ''"
                                                     t-att-style="bv and bv.real_color ? ('color: ' + bv.real_color + '; font-weight: 500;') : ''">
                                                     <t t-if="bv" t-esc="bv.real_value.toFixed(indicator.decimals !== undefined ? indicator.decimals : 2)"/>
                                                 </td>

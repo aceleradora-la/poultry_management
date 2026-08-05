@@ -400,9 +400,18 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         'batch_id': batch.id,
                         'batch_name': batch.name,
                         'bird_count': batch.bird_count,
+                        'life_week': week,
                         'date': str(batch._poultry_week_end(week))
                                 if batch.birth_date else None,
                         'real_value': batch_real,
+                        # Bajo/Alto también en el detalle por lote: en este eje todos
+                        # comparten la Semana de Vida, así que el rango es el mismo de
+                        # la fila, pero mostrarlo permite leer cada lote contra su
+                        # estándar sin volver la vista a la fila agrupada.
+                        'value_low': value_low,
+                        'value_high': value_high,
+                        'has_standard': has_standard,
+                        'is_partial': False,
                         'real_color': self._get_real_color(
                             indicator, batch_real, value_low, value_high, has_standard),
                     })
@@ -431,6 +440,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 'date': str(week_date) if week_date else None,
                 'live_birds': sum(live_values) if live_values else None,
                 'live_birds_by_batch': live_by_batch,
+                'batch_rows': self._build_batch_rows(cells, live_by_batch),
                 'cells': cells,
             })
 
@@ -572,9 +582,35 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 'date': str(sunday),
                 'live_birds': sum(live_values) if live_values else None,
                 'live_birds_by_batch': live_by_batch,
+                'batch_rows': self._build_batch_rows(cells, live_by_batch),
                 'cells': cells,
             })
         return rows
+
+    @api.model
+    def _build_batch_rows(self, cells, live_by_batch):
+        """Detalle por lote de una fila, reagrupando los valores que cada celda
+        guarda en 'batch_values'. Se precalcula acá -y no en cada consumidor- para
+        que la pantalla, el PDF y el Excel muestren exactamente el mismo detalle.
+
+        Devuelve una lista con un elemento por lote: sus datos, y 'values' con la
+        celda que le corresponde en cada indicador."""
+        batch_rows = {}
+        for indicator_id, cell in cells.items():
+            for batch_value in cell.get('batch_values') or []:
+                batch_id = batch_value['batch_id']
+                if batch_id not in batch_rows:
+                    batch_rows[batch_id] = {
+                        'batch_id': batch_id,
+                        'name': batch_value['batch_name'],
+                        'bird_count': batch_value.get('bird_count'),
+                        'life_week': batch_value.get('life_week'),
+                        'date': batch_value.get('date'),
+                        'live': live_by_batch.get(batch_id),
+                        'values': {},
+                    }
+                batch_rows[batch_id]['values'][indicator_id] = batch_value
+        return list(batch_rows.values())
 
     def _build_header(self, report_batches, is_comparison, version):
         """Encabezado del reporte: genética, versión elegida y una entrada por
