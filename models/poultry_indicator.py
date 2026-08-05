@@ -12,6 +12,25 @@ class PoultryIndicator(models.Model):
     name = fields.Char(string='Nombre', required=True, index=True)
     code = fields.Char(string='Código', index=True)
     uom_id = fields.Many2one('uom.uom', string='Unidad de Medida', required=True)
+    # Gobierna QUÉ se completa en el formulario: la Fórmula o la configuración del
+    # cálculo interno. Es un campo de presentación -el motor sigue decidiendo por
+    # formula_mode-, pero mantenerlos sincronizados (ver _onchange y el constraint)
+    # evita el estado confuso de tener las dos configuraciones a la vez.
+    calculation_source = fields.Selection([
+        ('formula', 'Fórmula configurable'),
+        ('legacy', 'Cálculo interno del sistema'),
+    ], string='Cómo se calcula', default='formula', required=True,
+        help='"Fórmula configurable": el Valor Real se define acá mismo eligiendo '
+             'Numerador, Denominador y Modo de Cálculo. Es la forma recomendada y '
+             'permite crear variantes (ej. el mismo indicador sobre Aves Vivas y '
+             'sobre Aves Alojadas).\n'
+             '"Cálculo interno del sistema": el valor lo calcula el código del '
+             'módulo, identificando al indicador por su Categoría y Tipo de '
+             'Acumulación. Es como funcionaba antes; sirve para volver atrás si una '
+             'fórmula no da lo esperado.')
+    formula_preview = fields.Char(
+        string='Fórmula', compute='_compute_formula_preview',
+        help='Cómo queda la fórmula configurada, en una línea.')
     category = fields.Selection([
         ('mortality', 'Mortalidad'),
         # Categoría propia (no 'mortality'): los cálculos eligen el indicador de
@@ -221,6 +240,74 @@ class PoultryIndicator(models.Model):
         for indicator in self:
             indicator.standard_count = len(indicator.standard_ids)
 
+    # Etiquetas cortas para la vista previa (las del Selection son largas a
+    # propósito, para que se entiendan al elegirlas en el desplegable).
+    _POULTRY_SHORT_LABELS = {
+        'eggs': 'Huevos', 'egg_mass_g': 'Masa de huevo (g)',
+        'egg_mass_kg': 'Masa de huevo (Kg)', 'measured_egg_g': 'Peso medido (g)',
+        'dead_birds': 'Aves muertas', 'feed_g': 'Alimento (g)', 'feed_kg': 'Alimento (Kg)',
+        'water_ml': 'Agua (ml)', 'water_l': 'Agua (l)', 'live_birds': 'Aves vivas',
+        'weighed_g': 'Peso pesado (g)', 'uniform_birds': 'Aves en banda',
+        'live_birds_start': 'Aves vivas al inicio del día',
+        'housed_birds': 'Aves alojadas',
+        'housed_or_original_birds': 'Aves alojadas (o cantidad de aves)',
+        'original_birds': 'Cantidad de aves', 'egg_units': 'Unidades de huevo',
+        'eggs_with_weight': 'Huevos con peso', 'weighed_birds': 'Aves pesadas',
+    }
+    _POULTRY_MODE_LABELS = {
+        'daily': 'valor del día', 'running_sum': 'suma corrida',
+        'snapshot': 'estado a la fecha', 'ratio_cumulative': 'cociente de acumulados',
+    }
+    _POULTRY_AGGREGATION_LABELS = {
+        'sum': 'suma del período', 'last': 'último valor del período',
+    }
+
+    @api.depends('calculation_source', 'formula_numerator', 'formula_denominator',
+                 'formula_factor', 'formula_mode', 'weekly_aggregation',
+                 'egg_group_size', 'category', 'accumulation_type')
+    def _compute_formula_preview(self):
+        """Resumen legible de cómo se calcula el indicador, para verlo de un vistazo
+        en la lista y en el formulario sin tener que leer cuatro campos."""
+        categories = dict(self._fields['category'].selection)
+        for indicator in self:
+            if indicator.calculation_source != 'formula' or not indicator.formula_mode:
+                label = categories.get(indicator.category) or 'sin configurar'
+                indicator.formula_preview = f'Cálculo interno del sistema ({label})'
+                continue
+            numerator = self._POULTRY_SHORT_LABELS.get(
+                indicator.formula_numerator, indicator.formula_numerator or '?')
+            if indicator.formula_denominator == 'one':
+                expression = numerator
+            elif indicator.formula_denominator == 'egg_group_size':
+                expression = f'{numerator} ÷ {indicator.egg_group_size or 12}'
+            else:
+                denominator = self._POULTRY_SHORT_LABELS.get(
+                    indicator.formula_denominator, indicator.formula_denominator or '?')
+                if indicator.formula_denominator == 'egg_units':
+                    denominator = f'{denominator} (÷{indicator.egg_group_size or 12})'
+                expression = f'{numerator} ÷ {denominator}'
+            if indicator.formula_factor == '100':
+                expression += ' × 100'
+            detail = self._POULTRY_MODE_LABELS.get(indicator.formula_mode, '')
+            aggregation = self._POULTRY_AGGREGATION_LABELS.get(indicator.weekly_aggregation)
+            if aggregation:
+                detail = f'{detail}, {aggregation}' if detail else aggregation
+            indicator.formula_preview = f'{expression} · {detail}' if detail else expression
+
+    @api.onchange('calculation_source')
+    def _onchange_calculation_source(self):
+        """Deja una sola configuración cargada: al elegir Cálculo interno se limpia
+        la fórmula (así el motor no lo toma), y al elegir Fórmula se propone el modo
+        más común para no dejar el campo obligatorio vacío."""
+        for indicator in self:
+            if indicator.calculation_source == 'legacy':
+                indicator.formula_numerator = False
+                indicator.formula_denominator = False
+                indicator.formula_mode = False
+                indicator.weekly_aggregation = 'auto'
+            elif not indicator.formula_mode:
+                indicator.formula_mode = 'daily'
+
     # -- Motor de fórmulas: resolución ------------------------------------------
 
     @api.model
@@ -404,21 +491,34 @@ class PoultryIndicator(models.Model):
                     f'distinguir a cuál de los dos escribirle.'
                 )
 
-    @api.constrains('formula_numerator', 'formula_denominator', 'formula_mode')
+    @api.constrains('calculation_source', 'formula_numerator', 'formula_denominator',
+                    'formula_mode', 'category')
     def _check_formula_coherence(self):
-        """La fórmula tiene que estar completa y no mezclar fuentes: los datos del
-        Parte de Registro de Peso no conviven con los del Cierre de Galpón (se
-        publican en momentos distintos y de modelos distintos)."""
+        """La configuración tiene que estar completa y ser una sola: o la fórmula, o
+        el cálculo interno. Además, la fórmula no puede mezclar fuentes: los datos
+        del Parte de Registro de Peso no conviven con los del Cierre de Galpón (se
+        publican en momentos distintos y desde modelos distintos)."""
         for indicator in self:
-            if not (indicator.formula_mode or indicator.formula_numerator
-                    or indicator.formula_denominator):
+            if indicator.calculation_source == 'legacy':
+                if indicator.formula_mode:
+                    raise ValidationError(
+                        f'El indicador "{indicator.name}" está configurado como Cálculo '
+                        f'interno del sistema, así que no puede tener una fórmula cargada. '
+                        f'Elegí "Fórmula configurable" o vaciá el Modo de Cálculo.'
+                    )
+                if not indicator.category:
+                    raise ValidationError(
+                        f'El indicador "{indicator.name}" usa el Cálculo interno del '
+                        f'sistema: hay que indicar la Categoría, que es como el sistema '
+                        f'sabe qué valor le corresponde.'
+                    )
                 continue
             if not (indicator.formula_mode and indicator.formula_numerator
                     and indicator.formula_denominator):
                 raise ValidationError(
-                    'Para usar el motor de fórmulas hay que cargar los tres campos: '
-                    'Numerador, Denominador y Modo de Cálculo. Para volver al cálculo '
-                    'cableado, vaciá los tres.'
+                    f'El indicador "{indicator.name}" usa Fórmula configurable: hay que '
+                    f'cargar Numerador, Denominador y Modo de Cálculo. Si querés que lo '
+                    f'calcule el sistema, elegí "Cálculo interno del sistema".'
                 )
             num_is_weight = indicator.formula_numerator in self._POULTRY_WEIGHT_SOURCE_NUMERATORS
             den_is_weight = indicator.formula_denominator in self._POULTRY_WEIGHT_SOURCE_DENOMINATORS

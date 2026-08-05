@@ -8,15 +8,14 @@
                 <field name="sequence" widget="handle"/>
                 <field name="code"/>
                 <field name="name"/>
-                <field name="category"/>
-                <field name="accumulation_type"/>
                 <field name="period_scope"/>
                 <field name="uom_id"/>
-                <!-- Vacío = este indicador usa el cálculo interno, no el motor de
-                     fórmulas. Editable en masa desde la lista para revertir varios. -->
-                <field name="formula_numerator" optional="show"/>
-                <field name="formula_denominator" optional="show"/>
-                <field name="formula_mode" optional="show"/>
+                <!-- Resumen de cómo se calcula, en una línea: evita tener que abrir
+                     cada indicador para entender su fórmula. -->
+                <field name="formula_preview"/>
+                <field name="calculation_source" optional="hide"/>
+                <field name="category" optional="hide"/>
+                <field name="accumulation_type" optional="hide"/>
                 <field name="standard_count"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
@@ -32,64 +31,114 @@
                     <field name="active" widget="boolean_toggle"/>
                 </header>
                 <sheet>
-                    <group>
+                    <div class="oe_title">
+                        <label for="name" string="Indicador"/>
+                        <h1><field name="name" placeholder="Ej: Peso Corporal"/></h1>
+                        <h3 class="text-muted"><field name="formula_preview" readonly="1"/></h3>
+                    </div>
+                    <group string="Identificación">
                         <group>
                             <field name="code" placeholder="Ej: PESO_CORP"/>
-                            <field name="name" placeholder="Ej: Peso Corporal"/>
                             <field name="uom_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="category"/>
-                            <field name="accumulation_type"/>
+                        </group>
+                        <group>
                             <field name="period_scope" widget="radio" options="{'horizontal': true}"/>
                             <field name="sequence"/>
                         </group>
-                        <group>
-                            <field name="real_value_source" placeholder="Ej: poultry.egg.collection:average_weight_elaborated"/>
-                            <field name="notes" placeholder="Información adicional sobre este indicador..."/>
-                            <field name="color_below" widget="color"/>
-                            <field name="color_within" widget="color"/>
-                            <field name="color_above" widget="color"/>
-                        </group>
                     </group>
-                    <group string="Fórmula del Valor Real">
+
+                    <!-- Un solo lugar decide qué se completa abajo: o la Fórmula, o la
+                         configuración del cálculo interno. Nunca las dos a la vez. -->
+                    <group string="¿Cómo se calcula el Valor Real?">
+                        <field name="calculation_source" widget="radio" nolabel="1" colspan="2"/>
+                    </group>
+
+                    <group string="Fórmula del Valor Real" invisible="calculation_source != 'formula'">
                         <div class="text-muted mb-2" colspan="2">
-                            El Valor Real de cada día se calcula como
-                            <strong>Numerador ÷ Denominador × Factor</strong>, y el Modo de
-                            Cálculo define cómo se combina con el histórico. Acá se elige la
-                            BASE del indicador (Aves Vivas del día, Aves Alojadas o Cantidad
-                            de Aves del lote) sin tocar código.
+                            Valor de cada día = <strong>Numerador ÷ Denominador × Factor</strong>.
+                            Acá se elige la BASE del indicador (Aves Vivas del día, Aves
+                            Alojadas o Cantidad de Aves del lote) sin tocar código, y el Modo
+                            de Cálculo define cómo se combina con el histórico.
                             <br/>
                             Para una <strong>CANTIDAD del período</strong> (ej. Huevos de la
                             Semana, Kg de Alimento): Denominador "Ninguno" —o "Huevos por
                             Unidad" para verla en docenas o cajones— y
                             <strong>Agregación Semanal = Suma del período</strong>.
                             <br/>
-                            Dejar el <strong>Modo de Cálculo vacío</strong> hace que el
-                            indicador vuelva al cálculo interno de siempre.
-                            <br/>
-                            <strong>Después de cambiar la fórmula hay que correr
-                            "Recalcular Indicadores de Producción"</strong> para rehacer el
-                            pasado; los días nuevos ya salen con la fórmula nueva.
+                            <strong>Al cambiar una fórmula, correr "Recalcular Indicadores de
+                            Producción"</strong> para rehacer el pasado; los días nuevos ya
+                            salen con la fórmula nueva.
                         </div>
                         <group>
-                            <field name="formula_numerator"/>
-                            <field name="formula_denominator"/>
-                            <!-- Visible con los dos denominadores que lo usan: "Unidades
-                                 de huevo" (Conversión Alimenticia) y "Huevos por Unidad"
-                                 (cantidades en docenas o cajones); y por categoría, para
-                                 los indicadores que todavía usan el cálculo interno. -->
+                            <field name="formula_numerator"
+                                   required="calculation_source == 'formula'"/>
+                            <field name="formula_denominator"
+                                   required="calculation_source == 'formula'"/>
+                            <!-- Visible con los dos denominadores que lo usan: "Unidades de
+                                 huevo" (Conversión Alimenticia) y "Huevos por Unidad"
+                                 (cantidades en docenas o cajones). -->
                             <field name="egg_group_size"
-                                   invisible="formula_denominator not in ('egg_units', 'egg_group_size') and category != 'feed_conversion'"/>
+                                   invisible="formula_denominator not in ('egg_units', 'egg_group_size')"/>
                         </group>
                         <group>
                             <field name="formula_factor" widget="radio" options="{'horizontal': true}"/>
-                            <field name="formula_mode"/>
+                            <field name="formula_mode"
+                                   required="calculation_source == 'formula'"/>
                             <field name="weekly_aggregation"/>
                         </group>
                     </group>
-                    <group>
-                        <field name="applicable_version_ids" widget="many2many_tags"
-                               placeholder="Vacío = aplica a todas las Versiones de Estándar"/>
+
+                    <group string="Cálculo Interno del Sistema" invisible="calculation_source != 'legacy'">
+                        <div class="text-muted mb-2" colspan="2">
+                            El valor lo calcula el código del módulo, que identifica al
+                            indicador por su <strong>Categoría y Tipo de Acumulación</strong>
+                            (por eso no puede haber dos activos con la misma combinación).
+                            Es como funcionaba antes del motor de fórmulas: sirve para volver
+                            atrás si una fórmula no da lo esperado.
+                        </div>
+                        <group>
+                            <field name="category" required="calculation_source == 'legacy'"/>
+                            <field name="egg_group_size"
+                                   invisible="category != 'feed_conversion'"/>
+                        </group>
+                        <group>
+                            <field name="accumulation_type"/>
+                        </group>
                     </group>
+
+                    <group string="Clasificación (solo organiza listas y filtros)"
+                           invisible="calculation_source != 'formula'">
+                        <group>
+                            <field name="category" placeholder="Opcional"/>
+                        </group>
+                        <group>
+                            <field name="accumulation_type"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Presentación en el Reporte" name="presentation">
+                            <group>
+                                <group string="Colores del Valor Real">
+                                    <field name="color_below" widget="color"/>
+                                    <field name="color_within" widget="color"/>
+                                    <field name="color_above" widget="color"/>
+                                </group>
+                                <group string="Alcance">
+                                    <field name="applicable_version_ids" widget="many2many_tags"
+                                           placeholder="Vacío = todas las Versiones de Estándar"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <group>
+                                <field name="real_value_source"
+                                       placeholder="Ej: poultry.egg.collection:average_weight_elaborated"/>
+                            </group>
+                            <field name="notes" nolabel="1"
+                                   placeholder="Información adicional sobre este indicador..."/>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -107,9 +156,10 @@
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
                 <separator/>
-                <filter string="Con Fórmula" name="with_formula" domain="[('formula_mode', '!=', False)]"/>
-                <filter string="Con Cálculo Interno" name="without_formula" domain="[('formula_mode', '=', False)]"/>
+                <filter string="Con Fórmula" name="with_formula" domain="[('calculation_source', '=', 'formula')]"/>
+                <filter string="Con Cálculo Interno" name="without_formula" domain="[('calculation_source', '=', 'legacy')]"/>
                 <separator/>
+                <filter string="Por Cómo se Calcula" name="by_calculation_source" context="{'group_by': 'calculation_source'}"/>
                 <filter string="Por Categoría" name="by_category" context="{'group_by': 'category'}"/>
                 <filter string="Por Modo de Cálculo" name="by_formula_mode" context="{'group_by': 'formula_mode'}"/>
             </search>
