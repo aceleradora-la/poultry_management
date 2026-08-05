@@ -425,6 +425,32 @@ class MrpProduction(models.Model):
 
     # -- Motor de fórmulas: recolección de datos crudos --------------------------
 
+    def _poultry_production_cost(self):
+        """Costo real de esta OF: la suma de las capas de valuación de los
+        componentes consumidos, o sea lo que Odoo muestra en el botón "Valoración"
+        (las líneas negativas, la salida de stock). Es el costo con el que el stock
+        salió realmente, ya congelado por Odoo -no se recalcula con el precio de
+        coste de hoy-, así que el histórico no cambia si después se actualiza un
+        precio.
+
+        Devuelve None (no 0.0) cuando no hay valuación disponible, para que el
+        indicador de costo quede sin valor ese día en vez de mostrar un cero
+        engañoso: pasa si la contabilidad de stock no está instalada, o si la OF
+        todavía no se marcó como Hecha (las capas se crean recién ahí)."""
+        self.ensure_one()
+        Move = self.env['stock.move']
+        if 'stock_valuation_layer_ids' not in Move._fields:
+            # Sin contabilidad de stock (stock_account) no existen las capas: el
+            # módulo sigue funcionando, solo que sin indicadores de costo.
+            return None
+        layers = self.sudo().move_raw_ids.filtered(
+            lambda m: m.state != 'cancel').mapped('stock_valuation_layer_ids')
+        if not layers:
+            return None
+        # Las capas de consumo son negativas (sale del stock): el costo es su
+        # valor absoluto.
+        return abs(sum(layers.mapped('value')))
+
     def _poultry_collect_magnitudes(self, target_date):
         """Datos crudos del día por lote, para que el motor de fórmulas
         (poultry.indicator._poultry_apply_formulas) arme cualquier indicador sin
@@ -478,6 +504,9 @@ class MrpProduction(models.Model):
             else:
                 water_qty_l += move.product_uom._compute_quantity(qty, liter_uom) if liter_uom else qty
 
+        # Costo real del día (capas de valuación de los componentes consumidos).
+        production_cost = self._poultry_production_cost()
+
         # Aves muertas del día por lote: los registros de esta OF y los cargados a
         # mano para el mismo galpón y fecha (la mortandad del día es la suma).
         dead_by_batch = {}
@@ -505,6 +534,11 @@ class MrpProduction(models.Model):
                 'batch': batch,
                 # Numeradores
                 'eggs': batch_eggs,
+                # Costo del día repartido entre los lotes del galpón, igual que el
+                # resto de los datos del galpón. Ausente (no cero) si la OF no
+                # tiene valuación: así el indicador de costo no se calcula ese día.
+                **({'production_cost': production_cost * share}
+                   if production_cost is not None else {}),
                 'egg_mass_g': batch_mass_g,
                 'egg_mass_kg': batch_mass_g / 1000.0,
                 'measured_egg_g': measured_mass_grams,   # atributo del huevo: no se reparte
