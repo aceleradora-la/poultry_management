@@ -189,24 +189,15 @@ export class PoultryStandardTrackingReport extends Component {
     }
 
     getRowBatches(row) {
-        const map = {};
-        for (const indicator of this.visibleIndicators) {
-            const cell = row.cells[indicator.id];
-            for (const bv of (cell && cell.batch_values) || []) {
-                if (!map[bv.batch_id]) {
-                    map[bv.batch_id] = {
-                        batch_id: bv.batch_id,
-                        name: bv.batch_name,
-                        bird_count: bv.bird_count,
-                        date: bv.date,
-                        live_birds: (row.live_birds_by_batch || {})[bv.batch_id],
-                        values: {},
-                    };
-                }
-                map[bv.batch_id].values[indicator.id] = bv;
-            }
-        }
-        return Object.values(map);
+        // El detalle por lote lo precalcula el servidor (row.batch_rows), para que
+        // la pantalla, el PDF y el Excel muestren exactamente lo mismo.
+        return row.batch_rows || [];
+    }
+
+    get isCalendarAxis() {
+        // Del header, no de los params de la acción: así sobrevive a los refrescos
+        // (cambiar de lote o de versión rearma los datos con su propio header).
+        return !!(this.header && this.header.axis === "calendar_week");
     }
 
     async onAddBatch(ev) {
