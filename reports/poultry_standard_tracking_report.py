@@ -277,6 +277,9 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         'uom': indicator.uom_id.name,
                         # Cantidades (aves muertas) sin decimales; el resto con 2.
                         'decimals': 0 if indicator.category == 'mortality_count' else 2,
+                        # El componente arranca ocultando los que no van por defecto;
+                        # el usuario los agrega desde el desplegable Indicadores.
+                        'visible_by_default': indicator.visible_by_default,
                     }
                     for indicator in indicators
                 ],

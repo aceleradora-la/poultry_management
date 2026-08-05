@@ -13,6 +13,7 @@
                 <!-- Resumen de cómo se calcula, en una línea: evita tener que abrir
                      cada indicador para entender su fórmula. -->
                 <field name="formula_preview"/>
+                <field name="visible_by_default" widget="boolean_toggle" optional="show"/>
                 <!-- Marca los indicadores cuya configuración cambió y todavía no se
                      recalcularon: se ven de un vistazo en la lista. -->
                 <field name="values_outdated" widget="boolean_toggle" optional="show"/>
@@ -63,6 +64,7 @@
                         <group>
                             <field name="period_scope" widget="radio" options="{'horizontal': true}"/>
                             <field name="sequence"/>
+                            <field name="visible_by_default"/>
                         </group>
                     </group>
 

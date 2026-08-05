@@ -62,6 +62,12 @@ class PoultryIndicator(models.Model):
              'porque es como el sistema sabe cuál es cuál.')
     sequence = fields.Integer(string='Secuencia', default=10)
     active = fields.Boolean(string='Activo', default=True)
+    visible_by_default = fields.Boolean(
+        string='Mostrar por defecto en los reportes', default=True,
+        help='Sin tildar, el indicador no aparece al abrir el reporte y el usuario lo '
+             'agrega cuando lo necesita desde el desplegable Indicadores. Útil para los '
+             'de consulta ocasional, sin tener que ocultarlos a mano cada vez. No afecta '
+             'el cálculo: el valor se guarda igual.')
     period_scope = fields.Selection([
         ('crianza', 'Crianza'),
         ('produccion', 'Producción'),
