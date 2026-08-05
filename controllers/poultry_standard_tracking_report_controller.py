@@ -53,6 +53,7 @@ class PoultryStandardTrackingReportController(http.Controller):
                 })
             return real_color_formats[color]
 
+        is_calendar = header.get('axis') == 'calendar_week'
         period_sheets = (('crianza', 'Recría'), ('produccion', 'Parámetros productivos'))
         if wizard.report_period:
             # Reporte fijado a un período (menús Crianza/Producción dedicados):
@@ -75,8 +76,12 @@ class PoultryStandardTrackingReportController(http.Controller):
             sheet.freeze_panes(header_row + 2, 3)
 
             indicators = period_data['indicators']
-            sheet.merge_range(header_row, 0, header_row + 1, 0, 'Edad', header_format)
-            sheet.merge_range(header_row, 1, header_row + 1, 1, 'Fecha', header_format)
+            # Mismos rótulos que en pantalla: con eje calendario la fila es una
+            # semana real y la primera columna queda para el lote del detalle.
+            sheet.merge_range(header_row, 0, header_row + 1, 0,
+                              'Lote' if is_calendar else 'Edad', header_format)
+            sheet.merge_range(header_row, 1, header_row + 1, 1,
+                              'Semana (cierra)' if is_calendar else 'Fecha', header_format)
             sheet.merge_range(header_row, 2, header_row + 1, 2, 'Aves Vivas', header_format)
             col = 3
             for indicator in indicators:
@@ -91,7 +96,10 @@ class PoultryStandardTrackingReportController(http.Controller):
 
             row = header_row + 2
             for line in period_data['rows']:
-                sheet.write(row, 0, line['week'], header_format)
+                if is_calendar:
+                    sheet.write_blank(row, 0, None, header_format)
+                else:
+                    sheet.write(row, 0, line['week'], header_format)
                 sheet.write(row, 1, line['date'], header_format)
                 if line.get('live_birds') is not None:
                     sheet.write(row, 2, line['live_birds'], cell_format)
@@ -113,6 +121,38 @@ class PoultryStandardTrackingReportController(http.Controller):
                         sheet.write_blank(row, col + 2, None, real_format)
                     col += 3
                 row += 1
+
+                # Detalle por lote: en el eje calendario ES el reporte (cada lote con
+                # su Semana de Vida y su estándar), así que se escribe siempre, como
+                # filas agrupadas que Excel deja plegar.
+                if not is_calendar:
+                    continue
+                for batch_row in line.get('batch_rows') or []:
+                    sheet.write(row, 0, batch_row['name'], cell_format)
+                    life_week = batch_row.get('life_week')
+                    sheet.write(row, 1, 'Sem. %s' % life_week if life_week else '', cell_format)
+                    if batch_row.get('live') is not None:
+                        sheet.write(row, 2, batch_row['live'], cell_format)
+                    else:
+                        sheet.write_blank(row, 2, None, cell_format)
+                    col = 3
+                    for indicator in indicators:
+                        bv = (batch_row['values'].get(indicator['id'])
+                              or batch_row['values'].get(str(indicator['id'])))
+                        if bv and bv.get('has_standard'):
+                            sheet.write(row, col, bv['value_low'], cell_format)
+                            sheet.write(row, col + 1, bv['value_high'], cell_format)
+                        else:
+                            sheet.write_blank(row, col, None, cell_format)
+                            sheet.write_blank(row, col + 1, None, cell_format)
+                        if bv:
+                            sheet.write(row, col + 2, bv['real_value'],
+                                        get_real_format(bv.get('real_color')))
+                        else:
+                            sheet.write_blank(row, col + 2, None, real_format)
+                        col += 3
+                    sheet.set_row(row, None, None, {'level': 1})
+                    row += 1
 
         workbook.close()
         buffer.seek(0)

@@ -42,6 +42,7 @@
                         </div>
 
                         <t t-set="report_data" t-value="doc.get_report_data()"/>
+                        <t t-set="axis" t-value="report_data['header'].get('axis')"/>
                         <t t-foreach="[('crianza', 'Crianza'), ('produccion', 'Producción')]" t-as="period_entry">
                             <t t-set="period_key" t-value="period_entry[0]"/>
                             <t t-set="period_label" t-value="period_entry[1]"/>
@@ -52,10 +53,12 @@
                                     <thead>
                                         <tr>
                                             <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
-                                                Edad
+                                                <t t-if="axis == 'calendar_week'">Lote</t>
+                                                <t t-else="">Edad</t>
                                             </th>
                                             <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
-                                                Fecha
+                                                <t t-if="axis == 'calendar_week'">Semana (cierra)</t>
+                                                <t t-else="">Fecha</t>
                                             </th>
                                             <th rowspan="2" style="vertical-align: middle; text-align: center; background: none !important; color: #333 !important;">
                                                 Aves Vivas
@@ -77,7 +80,7 @@
                                     <tbody>
                                         <tr t-foreach="period_data['rows']" t-as="row">
                                             <td style="text-align: center; font-weight: bold; white-space: nowrap;">
-                                                <t t-esc="row['week']"/>
+                                                <t t-if="axis != 'calendar_week'" t-esc="row['week']"/>
                                             </td>
                                             <td style="text-align: center; white-space: nowrap;">
                                                 <t t-esc="row['date']"/>
@@ -100,6 +103,37 @@
                                                 </td>
                                             </t>
                                         </tr>
+                                        <!-- Detalle por lote: en pantalla se despliega, pero el
+                                             PDF no tiene interacción y en el eje calendario el
+                                             detalle ES el reporte (cada lote con su Semana de
+                                             Vida y su estándar), así que va impreso siempre. -->
+                                        <t t-if="axis == 'calendar_week'">
+                                            <tr t-foreach="row.get('batch_rows') or []" t-as="batch_row"
+                                                style="background-color: #f8f9fa;">
+                                                <td style="text-align: center; white-space: nowrap;">
+                                                    <t t-esc="batch_row['name']"/>
+                                                </td>
+                                                <td style="text-align: center; white-space: nowrap;">
+                                                    <t t-if="batch_row.get('life_week')">Sem. <t t-esc="batch_row['life_week']"/></t>
+                                                </td>
+                                                <td style="text-align: center; white-space: nowrap;">
+                                                    <t t-if="batch_row.get('live') is not None" t-esc="batch_row['live']"/>
+                                                </td>
+                                                <t t-foreach="period_data['indicators']" t-as="indicator">
+                                                    <t t-set="bv" t-value="batch_row['values'].get(indicator['id'])"/>
+                                                    <td style="text-align: center;">
+                                                        <t t-if="bv and bv.get('has_standard')" t-esc="'%.2f' % bv['value_low']"/>
+                                                    </td>
+                                                    <td style="text-align: center;">
+                                                        <t t-if="bv and bv.get('has_standard')" t-esc="'%.2f' % bv['value_high']"/>
+                                                    </td>
+                                                    <td t-attf-style="text-align: center;#{' color: %s;' % bv['real_color'] if bv and bv.get('real_color') else ''}">
+                                                        <t t-if="bv"
+                                                           t-esc="('%.{}f'.format(indicator.get('decimals', 2))) % bv['real_value']"/>
+                                                    </td>
+                                                </t>
+                                            </tr>
+                                        </t>
                                     </tbody>
                                 </table>
                             </t>
