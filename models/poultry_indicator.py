@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 
 class PoultryIndicator(models.Model):
@@ -31,6 +31,11 @@ class PoultryIndicator(models.Model):
     formula_preview = fields.Char(
         string='Fórmula', compute='_compute_formula_preview',
         help='Cómo queda la fórmula configurada, en una línea.')
+    values_outdated = fields.Boolean(
+        string='Valores desactualizados', default=False, copy=False,
+        help='Se marca solo cuando cambia la forma de calcular este indicador: los '
+             'Valores Reales ya guardados siguen siendo los de la configuración '
+             'anterior hasta que se recalculen.')
     category = fields.Selection([
         ('mortality', 'Mortalidad'),
         # Categoría propia (no 'mortality'): los cálculos eligen el indicador de
@@ -301,6 +306,57 @@ class PoultryIndicator(models.Model):
                 detail = f'{detail}, {aggregation}' if detail else aggregation
             indicator.formula_preview = f'{expression} · {detail}' if detail else expression
 
+    # Cambiar cualquiera de estos campos cambia el número que da el indicador, así
+    # que los valores ya guardados quedan viejos hasta recalcular.
+    _POULTRY_CALCULATION_FIELDS = (
+        'calculation_source', 'formula_numerator', 'formula_denominator',
+        'formula_factor', 'formula_mode', 'weekly_aggregation', 'egg_group_size',
+        'category', 'accumulation_type',
+    )
+
+    def write(self, vals):
+        """Marca el indicador como desactualizado cuando cambia su forma de calcular:
+        los Valores Reales guardados se calcularon con la configuración anterior y no
+        se rehacen solos. La ficha muestra un aviso con el botón para recalcular."""
+        touched = [f for f in self._POULTRY_CALCULATION_FIELDS if f in vals]
+        outdated = self.browse()
+        if touched and 'values_outdated' not in vals:
+            # Se compara ANTES del super: después los valores viejos ya no están.
+            outdated = self.filtered(
+                lambda i: any((vals[f] or False) != (i[f] or False) for f in touched))
+        result = super().write(vals)
+        if outdated:
+            super(PoultryIndicator, outdated).write({'values_outdated': True})
+        return result
+
+    def action_recompute_indicator(self):
+        """Recalcula los Valores Reales de ESTE indicador (y solo de este), en toda
+        la historia. Es el recálculo acotado del aviso "valores desactualizados":
+        los indicadores restantes no se tocan."""
+        self.ensure_one()
+        if self.calculation_source != 'formula':
+            raise UserError(
+                'Este indicador usa el Cálculo interno del sistema, que identifica los '
+                'indicadores por Categoría: no se puede recalcular de a uno. Usá '
+                'Configuración → Configuración General → Recalcular Indicadores de '
+                'Producción.'
+            )
+        count = self.env['poultry.coop.close'].sudo()._poultry_rebuild_all_indicator_values(
+            only_indicators=self)
+        self.values_outdated = False
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Indicador recalculado',
+                'message': (f'Se recalcularon los valores de "{self.name}" en '
+                            f'{count} Cierres de Galpón. El resto de los indicadores '
+                            f'no se tocó.'),
+                'type': 'success',
+                'sticky': False,
+            },
+        }
+
     @api.onchange('calculation_source')
     def _onchange_calculation_source(self):
         """Deja una sola configuración cargada: al elegir Cálculo interno se limpia
@@ -366,7 +422,7 @@ class PoultryIndicator(models.Model):
 
     @api.model
     def _poultry_apply_formulas(self, magnitudes_by_batch, coop, target_date,
-                                production=None, source='coop_close'):
+                                production=None, source='coop_close', only_indicators=None):
         """Calcula y guarda el valor del día de cada indicador con fórmula, a partir
         de los datos crudos que recolectó la fuente (mrp.production o
         poultry.weight.record). Es el reemplazo genérico de los cálculos cableados:
@@ -385,6 +441,10 @@ class PoultryIndicator(models.Model):
         Se guarda numerator/denominator crudos (sin el factor) igual que los
         cálculos cableados, para que la agregación semanal no cambie."""
         indicators = self._poultry_formula_indicators(source)
+        if only_indicators is not None:
+            # Recálculo acotado a un indicador (botón de la ficha): no se tocan los
+            # valores de los demás.
+            indicators = indicators & only_indicators
         if not indicators or not magnitudes_by_batch:
             return
         Value = self.env['poultry.batch.indicator.value'].sudo()

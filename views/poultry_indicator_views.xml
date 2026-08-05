@@ -13,6 +13,9 @@
                 <!-- Resumen de cómo se calcula, en una línea: evita tener que abrir
                      cada indicador para entender su fórmula. -->
                 <field name="formula_preview"/>
+                <!-- Marca los indicadores cuya configuración cambió y todavía no se
+                     recalcularon: se ven de un vistazo en la lista. -->
+                <field name="values_outdated" widget="boolean_toggle" optional="show"/>
                 <field name="calculation_source" optional="hide"/>
                 <field name="category" optional="hide"/>
                 <field name="accumulation_type" optional="hide"/>
@@ -31,6 +34,22 @@
                     <field name="active" widget="boolean_toggle"/>
                 </header>
                 <sheet>
+                    <!-- Aviso al cambiar la forma de calcular: los Valores Reales
+                         guardados siguen siendo los de la configuración anterior
+                         hasta recalcular. El botón recalcula SOLO este indicador. -->
+                    <div class="alert alert-warning d-flex align-items-center justify-content-between"
+                         role="alert" invisible="not values_outdated">
+                        <div>
+                            <strong>Los valores guardados quedaron desactualizados.</strong>
+                            Cambió la forma de calcular este indicador, pero los Valores
+                            Reales que ya estaban guardados se calcularon con la
+                            configuración anterior.
+                        </div>
+                        <button name="action_recompute_indicator" type="object"
+                                string="Recalcular este indicador" class="btn-warning"
+                                invisible="calculation_source != 'formula'"/>
+                    </div>
+                    <field name="values_outdated" invisible="1"/>
                     <div class="oe_title">
                         <label for="name" string="Indicador"/>
                         <h1><field name="name" placeholder="Ej: Peso Corporal"/></h1>
@@ -155,6 +174,9 @@
                 <separator/>
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Valores Desactualizados" name="outdated"
+                        domain="[('values_outdated', '=', True)]"/>
                 <separator/>
                 <filter string="Con Fórmula" name="with_formula" domain="[('calculation_source', '=', 'formula')]"/>
                 <filter string="Con Cálculo Interno" name="without_formula" domain="[('calculation_source', '=', 'legacy')]"/>
