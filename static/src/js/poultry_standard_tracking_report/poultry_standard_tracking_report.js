@@ -49,6 +49,18 @@ export class PoultryStandardTrackingReport extends Component {
                 ]);
                 this.state.data = data;
                 this.state.batches = batches;
+                // Indicadores marcados para no mostrarse por defecto: arrancan
+                // ocultos y el usuario los agrega desde el desplegable si los
+                // necesita. Solo al abrir: después manda lo que elija en pantalla.
+                const hidden = {};
+                for (const period of ["crianza", "produccion"]) {
+                    for (const indicator of (data[period] || {}).indicators || []) {
+                        if (indicator.visible_by_default === false) {
+                            hidden[indicator.id] = true;
+                        }
+                    }
+                }
+                this.state.hiddenIndicatorIds = hidden;
             } catch (error) {
                 this.state.error = (error && error.data && error.data.message) || String(error);
             } finally {
