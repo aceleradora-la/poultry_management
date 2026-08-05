@@ -12,12 +12,23 @@
                 <group>
                     <field name="report_period" invisible="1"/>
                     <field name="genetics_id" invisible="1"/>
+                    <field name="axis" invisible="1"/>
                     <field name="batch_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                    <!-- El reporte por Semana Calendario existe para comparar lotes:
+                         con uno solo no aporta nada sobre el de Semana de Vida. -->
                     <field name="comparison_batch_ids" widget="many2many_tags"
+                           required="axis == 'calendar_week'"
                            domain="[('genetics_id', '=', genetics_id), ('id', '!=', batch_id), ('active', '=', True)]"
                            options="{'no_create': True, 'no_create_edit': True}"/>
                     <field name="version_id" options="{'no_create': True, 'no_create_edit': True}"
                            placeholder="Versión predeterminada de la genética"/>
+                    <!-- Solo en eje calendario: acota cuántas semanas se agregan al
+                         vuelo desde los valores diarios (el eje de Semana de Vida usa
+                         los agregados ya guardados y no necesita rango). -->
+                    <field name="date_from" invisible="axis != 'calendar_week'"
+                           required="axis == 'calendar_week'"/>
+                    <field name="date_to" invisible="axis != 'calendar_week'"
+                           required="axis == 'calendar_week'"/>
                 </group>
                 <footer>
                     <button name="action_generate" type="object" string="Ver Reporte" class="btn-primary"/>
@@ -45,15 +56,48 @@
         <field name="context">{'default_report_period': 'produccion'}</field>
     </record>
 
+    <!-- Mismo asistente y mismo componente, con el Eje del Reporte en Semana
+         Calendario: una fila por semana real (cierra domingo) y el detalle de cada
+         lote adentro, con su Semana de Vida. -->
+    <record id="action_poultry_standard_calendar_wizard_crianza" model="ir.actions.act_window">
+        <field name="name">Estándares Semana - Crianza</field>
+        <field name="res_model">poultry.standard.tracking.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_poultry_standard_tracking_report_wizard_form"/>
+        <field name="target">new</field>
+        <field name="context">{'default_report_period': 'crianza', 'default_axis': 'calendar_week'}</field>
+    </record>
+
+    <record id="action_poultry_standard_calendar_wizard_produccion" model="ir.actions.act_window">
+        <field name="name">Estándares Semana - Producción</field>
+        <field name="res_model">poultry.standard.tracking.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_poultry_standard_tracking_report_wizard_form"/>
+        <field name="target">new</field>
+        <field name="context">{'default_report_period': 'produccion', 'default_axis': 'calendar_week'}</field>
+    </record>
+
     <menuitem id="menu_poultry_standard_tracking_report"
-              name="Seguimiento Estándares - Crianza"
-              parent="menu_poultry_reports"
+              name="Crianza"
+              parent="menu_poultry_reports_standards_life_week"
               action="action_poultry_standard_tracking_wizard_crianza"
-              sequence="25"/>
+              sequence="10"/>
 
     <menuitem id="menu_poultry_standard_tracking_report_produccion"
-              name="Seguimiento Estándares - Producción"
-              parent="menu_poultry_reports"
+              name="Producción"
+              parent="menu_poultry_reports_standards_life_week"
               action="action_poultry_standard_tracking_wizard_produccion"
-              sequence="26"/>
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_standard_calendar_crianza"
+              name="Crianza"
+              parent="menu_poultry_reports_standards_calendar_week"
+              action="action_poultry_standard_calendar_wizard_crianza"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_standard_calendar_produccion"
+              name="Producción"
+              parent="menu_poultry_reports_standards_calendar_week"
+              action="action_poultry_standard_calendar_wizard_produccion"
+              sequence="20"/>
 </odoo>

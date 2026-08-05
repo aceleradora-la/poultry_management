@@ -129,8 +129,17 @@
                         <thead>
                             <tr>
                                 <th rowspan="2" style="width: 28px;" class="o_poultry_col_caret"/>
-                                <th rowspan="2" class="align-middle text-center o_poultry_col_week">Edad</th>
-                                <th rowspan="2" class="align-middle text-center o_poultry_col_date">Fecha</th>
+                                <!-- Con eje calendario la fila es una semana real: la primera
+                                     columna queda para el lote (al desplegar) y la segunda
+                                     muestra la fecha de cierre. -->
+                                <th rowspan="2" class="align-middle text-center o_poultry_col_week">
+                                    <t t-if="isCalendarAxis">Lote</t>
+                                    <t t-else="">Edad</t>
+                                </th>
+                                <th rowspan="2" class="align-middle text-center o_poultry_col_date">
+                                    <t t-if="isCalendarAxis">Semana (cierra)</t>
+                                    <t t-else="">Fecha</t>
+                                </th>
                                 <th rowspan="2" class="align-middle text-center">Aves Vivas</th>
                                 <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
                                     <th colspan="3" class="text-center">
@@ -154,9 +163,12 @@
                                         <i t-att-class="'fa ' + (state.expandedWeeks[row.week] ? 'fa-caret-down' : 'fa-caret-right')"/>
                                     </td>
                                     <td class="text-center fw-bold text-nowrap o_poultry_col_week">
-                                        <t t-esc="row.week"/>
+                                        <!-- En eje calendario la clave de fila ES la fecha, que
+                                             se muestra en la columna de al lado. -->
+                                        <t t-if="!isCalendarAxis" t-esc="row.week"/>
                                     </td>
-                                    <td class="text-center text-nowrap o_poultry_col_date">
+                                    <td class="text-center text-nowrap o_poultry_col_date"
+                                        t-att-class="isCalendarAxis ? 'fw-bold' : ''">
                                         <t t-esc="row.date"/>
                                     </td>
                                     <!-- Aves vivas al último día de la semana (semana en curso:

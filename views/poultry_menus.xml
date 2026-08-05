@@ -64,18 +64,47 @@
               parent="menu_poultry_management_root" 
               sequence="40"/>
 
+    <!-- Submenús de Reportes. Los padres NO llevan groups: Odoo oculta solo un
+         menú padre cuando todos sus hijos están ocultos para el usuario. Los hijos
+         se declaran en sus propios archivos (este se carga primero, así siempre
+         encuentran al padre). -->
+    <menuitem id="menu_poultry_reports_operation"
+              name="Operación"
+              parent="menu_poultry_reports"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_reports_manual_load"
+              name="Carga Manual"
+              parent="menu_poultry_reports"
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_reports_real_values"
+              name="Valores Reales"
+              parent="menu_poultry_reports"
+              sequence="30"/>
+
+    <menuitem id="menu_poultry_reports_standards_life_week"
+              name="Estándares Semana Vida"
+              parent="menu_poultry_reports"
+              sequence="40"/>
+
+    <menuitem id="menu_poultry_reports_standards_calendar_week"
+              name="Estándares Semana"
+              parent="menu_poultry_reports"
+              sequence="50"/>
+
     <menuitem id="menu_poultry_stock_dashboard"
               name="Cobertura de stock"
-              parent="menu_poultry_reports"
+              parent="menu_poultry_reports_operation"
               action="action_poultry_stock_dashboard"
-              sequence="12"
+              sequence="40"
               groups="stock.group_stock_user"/>
 
     <menuitem id="menu_poultry_batch_indicator_value"
               name="Valores Reales de Indicadores"
-              parent="menu_poultry_reports"
+              parent="menu_poultry_reports_real_values"
               action="action_poultry_batch_indicator_value"
-              sequence="15"/>
+              sequence="20"/>
 
     <!-- Menú: Configuración -->
     <menuitem id="menu_poultry_configuration"

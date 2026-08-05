@@ -78,13 +78,14 @@ export class PoultryStandardTrackingReport extends Component {
     }
 
     get title() {
+        const base = this.isCalendarAxis ? "Estándares Semana" : "Estándares Semana Vida";
         if (this.fixedPeriod === "crianza") {
-            return "Seguimiento Estándares - Crianza";
+            return `${base} - Crianza`;
         }
         if (this.fixedPeriod === "produccion") {
-            return "Seguimiento Estándares - Producción";
+            return `${base} - Producción`;
         }
-        return "Seguimiento de Estándares";
+        return base;
     }
 
     get currentData() {
