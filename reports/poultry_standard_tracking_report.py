@@ -29,6 +29,15 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         ('day', 'Día'),
         ('week', 'Semana'),
     ], string='Granularidad', required=True, default='week')
+    axis = fields.Selection([
+        ('life_week', 'Semana de Vida'),
+        ('calendar_week', 'Semana Calendario'),
+    ], string='Eje del Reporte', default='life_week', required=True,
+        help='"Semana de Vida": una fila por semana de vida del lote (la de siempre). '
+             'Comparando lotes, cada uno cae en fechas distintas.\n'
+             '"Semana Calendario": una fila por semana real del calendario (cierra '
+             'domingo, como las planillas). Sirve para ver qué pasó en la granja esa '
+             'semana con todos los lotes a la vez, cada uno con su Semana de Vida.')
     report_period = fields.Selection([
         ('crianza', 'Crianza'),
         ('produccion', 'Producción'),
@@ -111,26 +120,36 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         return self.get_report_data()
 
     def get_week_daily_data(self, week):
-        """Detalle diario de una Semana de Vida, para el despliegue por día del
-        reporte en pantalla (carga perezosa: el componente lo pide recién al
-        desplegar la semana y lo cachea). Devuelve, por lote del reporte:
+        """Detalle diario de una semana, para el despliegue por día del reporte en
+        pantalla (carga perezosa: el componente lo pide recién al desplegar la
+        semana y lo cachea). Devuelve, por lote del reporte:
             { '<batch_id>': {'batch_name': str, 'has_daily': bool,
                              'days': [{'date': str, 'live_birds': int|None,
                                        'cells': {indicator_id: {'real_value': float,
                                                  'count': int  # solo mortandad diaria
                                        }}}]} }
+        'week' llega como número (Semana de Vida, con límites propios de cada lote)
+        o como 'YYYY-MM-DD' del domingo de cierre (Semana Calendario, con los mismos
+        límites para todos). El detalle diario es idéntico en los dos ejes: lo único
+        que cambia es cómo se delimita la semana.
+
         Solo días TERMINADOS (hoy nunca, misma regla que el resto del reporte).
         Sin comparación contra estándar: no existe estándar diario."""
         self.ensure_one()
         today = fields.Date.context_today(self)
         Value = self.env['poultry.batch.indicator.value']
+        calendar_sunday = fields.Date.to_date(week) if isinstance(week, str) else None
         result = {}
         for batch in self._get_report_batches():
-            if not batch.birth_date:
+            if not batch.birth_date and calendar_sunday is None:
                 result[str(batch.id)] = {'batch_name': batch.name, 'has_daily': False, 'days': []}
                 continue
-            week_start = batch._poultry_week_start(week)
-            week_end = batch._poultry_week_end(week)
+            if calendar_sunday is not None:
+                week_start = calendar_sunday - timedelta(days=6)
+                week_end = calendar_sunday
+            else:
+                week_start = batch._poultry_week_start(week)
+                week_end = batch._poultry_week_end(week)
             last_day = min(week_end, today - timedelta(days=1))
             values = Value.search([
                 ('batch_id', '=', batch.id),
@@ -243,8 +262,12 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 result[period] = {'indicators': [], 'rows': []}
                 continue
             indicators = self._get_relevant_indicators(period)
-            rows = self._build_rows_life_week(
-                period, version, report_batches, is_comparison, indicators)
+            if self.axis == 'calendar_week':
+                rows = self._build_rows_calendar_week(
+                    period, version, report_batches, is_comparison, indicators)
+            else:
+                rows = self._build_rows_life_week(
+                    period, version, report_batches, is_comparison, indicators)
 
             result[period] = {
                 'indicators': [
@@ -413,11 +436,152 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
 
         return rows
 
+    @api.model
+    def _poultry_calendar_week_bounds(self, day):
+        """(lunes, domingo) de la semana calendario que contiene 'day'. La granja
+        cierra la semana el DOMINGO, así que la fila se identifica por esa fecha."""
+        monday = day - timedelta(days=day.weekday())
+        return monday, monday + timedelta(days=6)
+
+    def _build_rows_calendar_week(self, period, version, report_batches, is_comparison, indicators):
+        """Filas del reporte con eje SEMANA CALENDARIO: una fila por semana real del
+        calendario (lunes a domingo), con el detalle de cada lote adentro.
+
+        A diferencia del eje Semana de Vida, acá NO sirven los agregados semanales
+        persistidos (están numerados por semana de vida, que difiere entre lotes):
+        se agregan al vuelo los valores DIARIOS de cada lote dentro de cada semana
+        calendario, con el mismo helper que usa el agregado persistido
+        (_poultry_aggregate_week_values), que respeta la Agregación Semanal
+        configurada en el indicador.
+
+        La fila de la semana NO lleva estándar: los lotes tienen edades distintas y
+        un Bajo/Alto común no significaría nada. El estándar va en la línea de cada
+        lote, según SU Semana de Vida.
+
+        El corte "solo días terminados" queda incorporado en el propio dominio de
+        búsqueda (date <= ayer), así que acá no hace falta el recálculo puntual de
+        la semana en curso que sí necesita el eje Semana de Vida."""
+        self.ensure_one()
+        Value = self.env['poultry.batch.indicator.value']
+        today = fields.Date.context_today(self)
+        yesterday = today - timedelta(days=1)
+
+        birth_dates = [b.birth_date for b in report_batches if b.birth_date]
+        if not birth_dates or not indicators:
+            return []
+        date_lo = max(self.date_from, min(birth_dates)) if self.date_from else min(birth_dates)
+        date_hi = min(self.date_to, yesterday) if self.date_to else yesterday
+        if date_lo > date_hi:
+            return []
+
+        # Una sola búsqueda para todo el rango: el índice único
+        # (batch_id, indicator_id, date) la resuelve como un range scan, y los
+        # subconjuntos por semana se arman con browse() sobre registros ya en caché.
+        values = Value.search([
+            ('batch_id', 'in', report_batches.ids),
+            ('indicator_id', 'in', indicators.ids),
+            ('date', '>=', date_lo),
+            ('date', '<=', date_hi),
+        ])
+        if not values:
+            return []
+
+        groups = {}       # (batch_id, indicator_id, lunes) -> [ids de valores diarios]
+        days_seen = {}    # (batch_id, lunes) -> {fechas con dato}
+        for value in values:
+            monday, _sunday = self._poultry_calendar_week_bounds(value.date)
+            groups.setdefault((value.batch_id.id, value.indicator_id.id, monday), []).append(value.id)
+            days_seen.setdefault((value.batch_id.id, monday), set()).add(value.date)
+
+        rows = []
+        for monday in sorted({key[2] for key in groups}):
+            sunday = monday + timedelta(days=6)
+            cells = {}
+            # Aves vivas al cierre de la semana (o a AYER si todavía no cerró).
+            live_by_batch = {}
+            for batch in report_batches:
+                ref_date = min(sunday, yesterday)
+                live_by_batch[batch.id] = (batch._poultry_get_live_bird_count_on(ref_date)
+                                            if batch.birth_date and batch.birth_date <= ref_date
+                                            else None)
+            live_values = [v for v in live_by_batch.values() if v is not None]
+
+            for indicator in indicators:
+                batch_values = []
+                total_weight = 0.0
+                total_weighted = 0.0
+                for batch in report_batches:
+                    value_ids = groups.get((batch.id, indicator.id, monday))
+                    if not value_ids:
+                        continue
+                    week_values = Value.browse(value_ids)
+                    real = Value._poultry_aggregate_week_values(indicator, week_values)
+                    if real is None:
+                        continue
+                    # Semana de Vida del lote en esta semana calendario: la del día
+                    # de cierre. Con la convención de la granja (Fecha de Nacimiento
+                    # en el día desde el que se cuentan las semanas) las dos semanas
+                    # coinciden exactamente; si el lote nació otro día, la semana
+                    # calendario cubre dos semanas de vida y se toma la del cierre.
+                    life_week = batch._poultry_week_of(sunday)
+                    standard, value_low, value_high = self._get_standard_range(
+                        version, indicator, life_week)
+                    has_standard = bool(standard)
+                    # Semana incompleta (arranque del lote, o la semana en curso):
+                    # una CANTIDAD acumulada sobre menos de 7 días queda por debajo
+                    # del estándar sin que eso signifique nada, así que no se pinta.
+                    is_partial = len(days_seen.get((batch.id, monday), ())) < 7
+                    color = self._get_real_color(
+                        indicator, real, value_low, value_high, has_standard)
+                    if is_partial and indicator.weekly_aggregation == 'sum':
+                        color = False
+                    weight = batch.bird_count or 1
+                    total_weight += weight
+                    total_weighted += real * weight
+                    batch_values.append({
+                        'batch_id': batch.id,
+                        'batch_name': batch.name,
+                        'bird_count': batch.bird_count,
+                        'life_week': life_week,
+                        'date': str(sunday),
+                        'real_value': real,
+                        'value_low': value_low,
+                        'value_high': value_high,
+                        'has_standard': has_standard,
+                        'is_partial': is_partial,
+                        'real_color': color,
+                    })
+                real_value = (total_weighted / total_weight) if batch_values else None
+                # Sin Bajo/Alto en la fila agrupada, pero se conservan las claves
+                # neutralizadas para que pantalla, PDF y Excel no tengan que
+                # ramificar (sus t-if de has_standard ya dejan la celda vacía).
+                cells[indicator.id] = {
+                    'value_low': 0.0,
+                    'value_high': 0.0,
+                    'has_standard': False,
+                    'out_of_range': False,
+                    'real_color': False,
+                    'real_value': real_value,
+                    'batch_values': batch_values,
+                }
+            rows.append({
+                # Clave de fila: la fecha del domingo. El componente la usa igual
+                # que el número de semana del otro eje (estado de despliegue, caché
+                # del detalle diario), así que no hay que tocar su manejo de estado.
+                'week': str(sunday),
+                'date': str(sunday),
+                'live_birds': sum(live_values) if live_values else None,
+                'live_birds_by_batch': live_by_batch,
+                'cells': cells,
+            })
+        return rows
+
     def _build_header(self, report_batches, is_comparison, version):
         """Encabezado del reporte: genética, versión elegida y una entrada por
         lote seleccionado. Extraído de get_report_data() al separar los ejes,
         porque es común a los dos."""
         return {
+            'axis': self.axis,
             'report_period': self.report_period or False,
             'batch_id': self.batch_id.id,
             'batch_name': self.batch_id.name,
