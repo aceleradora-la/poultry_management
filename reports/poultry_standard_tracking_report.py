@@ -255,6 +255,17 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 ('active', '=', True),
             ]).mapped('week')
             weeks = sorted(set(weekly_values.mapped('week')) | set(standard_weeks))
+            # El estándar de la genética llega hasta el final de la vida del lote
+            # (semana 100), así que unirlo con las semanas que tienen dato real
+            # arrastraba decenas de filas futuras con solo Bajo/Alto. Se corta en
+            # la última semana CON dato real: las semanas intermedias sin dato sí
+            # se muestran (son huecos del pasado, no futuro). Si el lote todavía
+            # no tiene ningún real -lote recién creado- se deja el estándar
+            # completo, para poder consultarlo.
+            real_weeks = set(weekly_values.mapped('week'))
+            if real_weeks:
+                last_real_week = max(real_weeks)
+                weeks = [week for week in weeks if week <= last_real_week]
 
             # El reporte muestra solo días TERMINADOS: hoy nunca cuenta (el día no
             # cerró). Para la columna Aves Vivas, la fecha de referencia de la
