@@ -429,11 +429,17 @@ class MrpProduction(models.Model):
                 return manual.real_value
         return 0.0
 
-    def _poultry_compute_all_indicator_values(self):
+    def _poultry_compute_all_indicator_values(self, only_indicators=None):
         """Punto de entrada único para calcular todos los indicadores reales derivados
         de esta OF de Huevo sin Clasificar (consumo + producción de huevos). Se llama
         tanto desde button_mark_done() (tiempo real) como desde el recálculo histórico
-        (poultry.coop.close._poultry_rebuild_all_indicator_values)."""
+        (poultry.coop.close._poultry_rebuild_all_indicator_values).
+
+        only_indicators: recordset de poultry.indicator para recalcular SOLO esos
+        (botón "Recalcular este indicador" de la ficha), sin tocar los valores de
+        los demás. Los cálculos cableados se saltean en ese caso: identifican al
+        indicador por categoría, no reciben un filtro, y recalcular todo sería
+        justamente lo que el usuario está evitando."""
         self.ensure_one()
         if not self.coop_close_id or not self.coop_id:
             return
@@ -445,7 +451,11 @@ class MrpProduction(models.Model):
         magnitudes = self._poultry_collect_magnitudes(target_date)
         if magnitudes:
             self.env['poultry.indicator'].sudo()._poultry_apply_formulas(
-                magnitudes, self.coop_id, target_date, production=self)
+                magnitudes, self.coop_id, target_date, production=self,
+                only_indicators=only_indicators)
+
+        if only_indicators is not None:
+            return
 
         self._poultry_compute_consumption_indicator_values()
         self._poultry_compute_egg_production_indicator_values()

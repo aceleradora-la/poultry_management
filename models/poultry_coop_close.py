@@ -259,7 +259,8 @@ class PoultryCoopClose(models.Model):
             })
 
     @api.model
-    def _poultry_rebuild_all_indicator_values(self, date_from=None, date_to=None, coops=None):
+    def _poultry_rebuild_all_indicator_values(self, date_from=None, date_to=None, coops=None,
+                                              only_indicators=None):
         """Reconstruye desde cero (borra y recalcula) los valores reales derivados de
         Cierres de Galpón: Consumo (Alimento/Agua), Producción de Huevos (% Ave-Día,
         Huevos Acumulados Ave-Día), Mortandad, Masa de Huevo, Peso del Huevo, Viabilidad
@@ -277,6 +278,11 @@ class PoultryCoopClose(models.Model):
         (mismo criterio que mrp.production._poultry_target_date, que es la fecha a
         la que la OF imputó sus valores). Filtrar por la fecha del cierre dejaría
         afuera OFs cuya fecha se corrigió hacia adentro del rango, y viceversa.
+
+        only_indicators (opcional): recordset de poultry.indicator para borrar y
+        recalcular SOLO esos indicadores, dejando intactos los valores del resto.
+        Lo usa el botón "Recalcular este indicador" de la ficha, para no rehacer
+        toda la granja al ajustar una fórmula.
 
         coops (opcional): acota el rebuild a los Cierres de esos galpones, para no
         recalcular toda la granja al corregir una sola OF. Se expande a los demás
@@ -337,6 +343,10 @@ class PoultryCoopClose(models.Model):
                                  'viability', 'feed_conversion', 'feed_egg_mass_conversion')),
             ('formula_mode', '!=', False),
         ])
+        if only_indicators is not None:
+            # Recálculo de un solo indicador: se borran y recalculan únicamente sus
+            # valores, los del resto quedan intactos.
+            indicators = indicators & only_indicators
         affected_batches = self.env['poultry.batch.coop.line'].search([
             ('coop_id', 'in', closes.mapped('coop_id').ids),
         ]).mapped('batch_id')
@@ -375,6 +385,7 @@ class PoultryCoopClose(models.Model):
         for _eff, _close_id, close in dated:  # orden cronológico por fecha efectiva
             production = close.unclassified_production_id
             if production and production.coop_id:
-                production._poultry_compute_all_indicator_values()
+                production._poultry_compute_all_indicator_values(
+                    only_indicators=only_indicators)
                 count += 1
         return count
