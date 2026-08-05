@@ -73,8 +73,12 @@
                         <group>
                             <field name="formula_numerator"/>
                             <field name="formula_denominator"/>
+                            <!-- Visible con los dos denominadores que lo usan: "Unidades
+                                 de huevo" (Conversión Alimenticia) y "Huevos por Unidad"
+                                 (cantidades en docenas o cajones); y por categoría, para
+                                 los indicadores que todavía usan el cálculo interno. -->
                             <field name="egg_group_size"
-                                   invisible="formula_denominator != 'egg_units' and category != 'feed_conversion'"/>
+                                   invisible="formula_denominator not in ('egg_units', 'egg_group_size') and category != 'feed_conversion'"/>
                         </group>
                         <group>
                             <field name="formula_factor" widget="radio" options="{'horizontal': true}"/>

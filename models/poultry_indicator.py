@@ -166,11 +166,14 @@ class PoultryIndicator(models.Model):
              'diarias entre sí porque el denominador cambia día a día).')
 
     egg_group_size = fields.Integer(
-        string='Huevos por Unidad (Conversión Alimenticia)', default=12,
-        help='Solo aplica a la categoría Conversión Alimenticia (Alimento/Huevos): '
-             'cantidad de huevos que forman la unidad contra la que se divide el '
-             'consumo de alimento (12 = docena, 30 = cajón, 1 = por huevo individual, '
-             'etc., según cómo se quiera expresar el indicador).'
+        string='Huevos por Unidad', default=12,
+        help='Cuántos huevos forman la unidad en la que se expresa el indicador: '
+             '12 = docena, 360 = cajón, 1 = por huevo individual.\n'
+             'Lo usan los dos denominadores que hablan de unidades de huevo:\n'
+             '- "Huevos por Unidad": para ver una CANTIDAD en esa unidad '
+             '(ej. Huevos de la Semana en cajones = huevos / 360).\n'
+             '- "Unidades de huevo": para dividir POR las unidades producidas '
+             '(ej. Conversión Alimenticia = Kg de alimento por docena).'
     )
     color_below = fields.Char(
         string='Color por Debajo del Rango', default='#dc3545',
