@@ -609,7 +609,10 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                         'bird_count': batch_value.get('bird_count'),
                         'life_week': batch_value.get('life_week'),
                         'date': batch_value.get('date'),
-                        'live': live_by_batch.get(batch_id),
+                        # Mismo nombre que en la fila de la semana y en el detalle
+                        # diario: los tres consumidores (pantalla, PDF, Excel) leen
+                        # 'live_birds' y no hay que recordar una excepción acá.
+                        'live_birds': live_by_batch.get(batch_id),
                         'values': {},
                     }
                 batch_rows[batch_id]['values'][indicator_id] = batch_value

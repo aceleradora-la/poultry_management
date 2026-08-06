@@ -117,7 +117,7 @@
                                                     <t t-if="batch_row.get('life_week')">Sem. <t t-esc="batch_row['life_week']"/></t>
                                                 </td>
                                                 <td style="text-align: center; white-space: nowrap;">
-                                                    <t t-if="batch_row.get('live') is not None" t-esc="batch_row['live']"/>
+                                                    <t t-if="batch_row.get('live_birds') is not None" t-esc="batch_row['live_birds']"/>
                                                 </td>
                                                 <t t-foreach="period_data['indicators']" t-as="indicator">
                                                     <t t-set="bv" t-value="batch_row['values'].get(indicator['id'])"/>
