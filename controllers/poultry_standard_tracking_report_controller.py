@@ -131,8 +131,8 @@ class PoultryStandardTrackingReportController(http.Controller):
                     sheet.write(row, 0, batch_row['name'], cell_format)
                     life_week = batch_row.get('life_week')
                     sheet.write(row, 1, 'Sem. %s' % life_week if life_week else '', cell_format)
-                    if batch_row.get('live') is not None:
-                        sheet.write(row, 2, batch_row['live'], cell_format)
+                    if batch_row.get('live_birds') is not None:
+                        sheet.write(row, 2, batch_row['live_birds'], cell_format)
                     else:
                         sheet.write_blank(row, 2, None, cell_format)
                     col = 3
