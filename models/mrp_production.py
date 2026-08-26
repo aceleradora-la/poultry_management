@@ -134,8 +134,8 @@ class MrpProduction(models.Model):
         """Valor acumulado previo desde el cual continuar la suma corrida de un
         indicador acumulado (empalme). Devuelve, en este orden de prioridad:
         1) el último Valor Real DIARIO del sistema anterior a target_date;
-        2) si no hay, el último Valor Real SEMANAL MANUAL de una semana anterior a la
-           de target_date (dato histórico cargado a mano, ej. el acumulado al final de
+        2) si no hay, el último Valor Real SEMANAL MANUAL con Fecha del Dato anterior
+           a target_date (dato histórico cargado a mano, ej. el acumulado al final de
            la crianza antes de empezar a usar Odoo);
         3) 0.0 si no hay ninguno.
         Así los acumulados del sistema (que arrancan cuando ya hay datos) continúan
@@ -149,13 +149,28 @@ class MrpProduction(models.Model):
         if previous:
             return previous.value
         if batch.birth_date and target_date >= batch.birth_date:
-            target_week = batch._poultry_week_of(target_date)
-            manual = self.env['poultry.batch.indicator.weekly.value'].sudo().search([
+            Weekly = self.env['poultry.batch.indicator.weekly.value'].sudo()
+            base = [
                 ('batch_id', '=', batch.id),
                 ('indicator_id', '=', indicator.id),
                 ('source', '=', 'manual'),
-                ('week', '<', target_week),
-            ], order='week desc', limit=1)
+            ]
+            # Se busca por FECHA DEL DATO, no por número de semana. El histórico
+            # manual viene de planillas cuya semana no coincide con la Semana de
+            # Vida de Odoo, y los datos diarios casi siempre arrancan en MEDIO de
+            # una semana. Con 'week < semana_actual' ese último valor manual queda
+            # descartado justo cuando el empalme cae dentro de su semana, y las
+            # bajas de esos días no las toma nadie: el acumulado sigue corrido
+            # hacia abajo por esa misma diferencia para siempre.
+            manual = Weekly.search(
+                base + [('manual_date', '<', target_date)],
+                order='manual_date desc', limit=1)
+            if not manual:
+                # Cargas viejas sin Fecha del Dato: se cae al criterio por semana.
+                manual = Weekly.search(
+                    base + [('manual_date', '=', False),
+                            ('week', '<', batch._poultry_week_of(target_date))],
+                    order='week desc', limit=1)
             if manual:
                 return manual.real_value
         return 0.0
