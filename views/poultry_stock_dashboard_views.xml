@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Heredar la búsqueda estándar de variantes: el panel lateral no se renderiza bien con una search "primary" mínima. -->
+    <!-- Vista derivada (mode="primary"): hereda la búsqueda estándar de variantes pero NO se
+         inyecta en el resto de las búsquedas de product.product. Como extensión, su <searchpanel>
+         se sumaba al del Reporte de Existencias (stock.product_search_form_view_stock_report) y
+         rompía esa pantalla con "Search tag can only contain one search panel". -->
     <record id="product_product_search_poultry_cover" model="ir.ui.view">
         <field name="name">product.product.search.poultry.cover</field>
         <field name="model">product.product</field>
         <field name="inherit_id" ref="product.product_search_form_view"/>
+        <field name="mode">primary</field>
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
                 <separator/>
