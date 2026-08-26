@@ -232,9 +232,12 @@ class PoultryBatchIndicatorValue(models.Model):
 
         real_value = self._poultry_aggregate_week_values(
             indicator, week_values, batch=batch,
-            # Día de cierre de la semana, sin pasarse del último día calculado:
-            # con la semana en curso el cierre todavía no llegó.
-            reference_date=min(week_date_to, target_date))
+            # Día de cierre de la semana, sin pasarse de AYER (último día
+            # terminado): con la semana en curso el cierre todavía no llegó.
+            # OJO: no acotar con target_date, que es el último día CON dato —
+            # eso devuelve justo el día que este cambio busca evitar.
+            reference_date=min(week_date_to,
+                               fields.Date.context_today(self) - timedelta(days=1)))
 
         period = 'crianza' if week <= (batch.genetics_id.rearing_end_week or 17) else 'produccion'
         # Bajo/Alto según la Versión de Estándar predeterminada de la genética del lote,
