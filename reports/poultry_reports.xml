@@ -1,123 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Reportes de Producción -->
-    <record id="action_poultry_production_report_wizard" model="ir.actions.act_window">
-        <field name="name">Reporte de Producción por Galpón</field>
-        <field name="res_model">poultry.production.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Reportes de Mortalidad -->
-    <record id="action_poultry_mortality_report_wizard" model="ir.actions.act_window">
-        <field name="name">Reporte de Mortalidad</field>
-        <field name="res_model">poultry.mortality.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Reportes Comparativos -->
-    <record id="action_poultry_comparison_report_wizard" model="ir.actions.act_window">
-        <field name="name">Reporte Comparativo (Real vs Estándar)</field>
-        <field name="res_model">poultry.comparison.report.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
-
-    <!-- Vistas de Wizard -->
-    <record id="view_poultry_production_report_wizard_form" model="ir.ui.view">
-        <field name="name">poultry.production.report.wizard.form</field>
-        <field name="model">poultry.production.report.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Reporte de Producción">
-                <sheet>
-                    <group>
-                        <group>
-                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                            <field name="group_by_date"/>
-                        </group>
-                    </group>
-                </sheet>
-                <footer>
-                    <button name="action_generate_report" string="Generar Reporte" type="object" class="oe_highlight"/>
-                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
+    <!-- Acción directa para Reporte de Producción con Pivot (basado en líneas) -->
+    <record id="action_poultry_production_report_direct" model="ir.actions.act_window">
+        <field name="name">Reporte de Producción</field>
+        <field name="res_model">poultry.egg.collection.line</field>
+        <field name="view_mode">pivot,graph,list,form</field>
+        <field name="search_view_id" ref="view_poultry_egg_collection_line_search_report"/>
+        <field name="domain">[('collection_id.state', 'in', ['completed', 'done'])]</field>
+        <field name="context">{
+            'pivot_measures': ['total_produced_reference', 'total_boxes', 'average_weight_elaborated_aggregated', 'pivot_row_distribution_percent'],
+            'pivot_row_groupby': ['collection_date:day'],
+            'pivot_column_groupby': ['collection_coop_id'],
+            'graph_measure': 'total_produced_reference',
+            'graph_groupbys': ['collection_date:month', 'collection_coop_id'],
+            'search_default_order': 'collection_date desc',
+            'search_default_part_state_done': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay líneas de producción en el rango y filtros seleccionados.
+            </p>
+            <p>
+                Por defecto solo se muestran partes <strong>Procesadas</strong>. Para ver
+                <strong>Procesadas y Completadas</strong>, desactive «Solo Procesada» (queda el conjunto
+                permitido por la acción) o active el filtro «Procesada y Completada».
+            </p>
         </field>
     </record>
 
-    <record id="view_poultry_mortality_report_wizard_form" model="ir.ui.view">
-        <field name="name">poultry.mortality.report.wizard.form</field>
-        <field name="model">poultry.mortality.report.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Reporte de Mortalidad">
-                <sheet>
-                    <group>
-                        <group>
-                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                            <field name="compare_with_standards"/>
-                        </group>
-                    </group>
-                </sheet>
-                <footer>
-                    <button name="action_generate_report" string="Generar Reporte" type="object" class="oe_highlight"/>
-                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
+    <!-- Acción: Movimientos de Productos Avícolas -->
+    <record id="action_poultry_stock_move_report" model="ir.actions.act_window">
+        <field name="name">Movimientos de Productos</field>
+        <field name="res_model">stock.move</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="view_id" ref="view_poultry_stock_move_tree"/>
+        <field name="search_view_id" ref="view_poultry_stock_move_search"/>
+        <field name="domain">[('product_id.product_tmpl_id.is_egg_production', '=', True)]</field>
+        <field name="context">{'search_default_filter_poultry_products': 1, 'search_default_filter_done': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Movimientos de inventario de productos Avícolas
+            </p>
+            <p>
+                Este reporte muestra todos los movimientos de inventario de productos
+                marcados como "Usar en Producción de Huevos". Las columnas Huevos y Cajones
+                muestran las cantidades convertidas usando la misma lógica del Reporte de Producción.
+            </p>
         </field>
     </record>
 
-    <record id="view_poultry_comparison_report_wizard_form" model="ir.ui.view">
-        <field name="name">poultry.comparison.report.wizard.form</field>
-        <field name="model">poultry.comparison.report.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Reporte Comparativo">
-                <sheet>
-                    <group>
-                        <group>
-                            <field name="genetics_id" required="1" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                            <field name="report_type" widget="radio" options="{'horizontal': true}"/>
-                        </group>
-                    </group>
-                </sheet>
-                <footer>
-                    <button name="action_generate_report" string="Generar Reporte" type="object" class="oe_highlight"/>
-                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <!-- Menús de Reportes -->
-    <menuitem id="menu_poultry_reports" 
-              name="Reportes" 
-              parent="menu_poultry_management_root" 
-              sequence="60"/>
-
+    <!-- Menús de Reportes (el menú padre "Reportes" está definido en poultry_menus.xml) -->
     <menuitem id="menu_poultry_production_report" 
-              name="Producción por Galpón" 
-              parent="menu_poultry_reports" 
-              action="action_poultry_production_report_wizard" 
+              name="Producción" 
+              parent="menu_poultry_reports_operation" 
+              action="action_poultry_production_report_direct" 
               sequence="10"/>
 
-    <menuitem id="menu_poultry_mortality_report" 
-              name="Mortalidad" 
-              parent="menu_poultry_reports" 
-              action="action_poultry_mortality_report_wizard" 
+    <menuitem id="menu_poultry_stock_move_report" 
+              name="Movimientos de Productos" 
+              parent="menu_poultry_reports_operation" 
+              action="action_poultry_stock_move_report" 
               sequence="20"/>
 
-    <menuitem id="menu_poultry_comparison_report" 
-              name="Comparativo (Real vs Estándar)" 
-              parent="menu_poultry_reports" 
-              action="action_poultry_comparison_report_wizard" 
+    <menuitem id="menu_poultry_mortality_report"
+              name="Mortalidad"
+              parent="menu_poultry_reports_operation"
+              action="action_poultry_mortality_report"
               sequence="30"/>
+
+    <!-- Carga manual de mortandad: visible solo para el grupo con permiso especial. -->
+    <menuitem id="menu_poultry_mortality_manual"
+              name="Carga Manual de Mortandad"
+              parent="menu_poultry_reports_manual_load"
+              action="action_poultry_mortality_manual"
+              groups="poultry_management.group_poultry_mortality_manual"
+              sequence="10"/>
 </odoo>
 

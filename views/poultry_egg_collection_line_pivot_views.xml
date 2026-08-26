@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de búsqueda para Reporte de Producción (filtros predefinidos) -->
+    <record id="view_poultry_egg_collection_line_search_report" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.search.report</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Líneas de Producción">
+                <field name="collection_date" string="Fecha"/>
+                <field name="collection_coop_id" string="Galpón"/>
+                <field name="product_variant_id" string="Producto"/>
+                <separator/>
+                <filter string="Hoy" name="filter_today"
+                        domain="[('collection_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Fecha" name="filter_date" date="collection_date"/>
+                <separator/>
+                <!-- Estado del parte: el dominio de la acción ya limita a completada/procesada; estos filtros acotan más. -->
+                <group string="Estado del parte" expand="0">
+                    <filter string="Solo Procesada" name="part_state_done"
+                            domain="[('collection_id.state', '=', 'done')]"/>
+                    <filter string="Solo Completada" name="part_state_completed"
+                            domain="[('collection_id.state', '=', 'completed')]"/>
+                    <filter string="Procesada y Completada" name="part_state_both"
+                            domain="[('collection_id.state', 'in', ['completed', 'done'])]"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Vista Gráfico para Líneas de Recolección -->
+    <record id="view_poultry_egg_collection_line_graph" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.graph</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <graph string="Reporte de Producción" type="line">
+                <field name="collection_date"/>
+                <field name="total_produced_reference" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Vista Pivot para Líneas de Recolección -->
+    <record id="view_poultry_egg_collection_line_pivot" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.pivot</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Reporte de Producción" default_order="collection_date desc">
+                <field name="collection_date" type="row" interval="day"/>
+                <field name="collection_coop_id" type="col"/>
+                <field name="attribute_value_id" type="row" string="Valor del Atributo"/>
+                <field name="total_produced_reference" type="measure" string="Total Huevos"/>
+                <field name="total_boxes" type="measure" string="Total Cajones"/>
+                <field name="average_weight_elaborated_aggregated" type="measure" string="Peso Medio Elaborado (g)"/>
+                <field name="pivot_row_distribution_percent" type="measure" string="% Distribución" widget="percentage"/>
+            </pivot>
+        </field>
+    </record>
+    
+    <!-- Vista Tree para Líneas de Recolección (para el reporte) -->
+    <record id="view_poultry_egg_collection_line_tree_report" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.line.tree.report</field>
+        <field name="model">poultry.egg.collection.line</field>
+        <field name="arch" type="xml">
+            <list string="Líneas de Producción" default_order="collection_date desc">
+                <field name="collection_id"/>
+                <field name="product_variant_id" string="Producto"/>
+                <field name="collection_date" string="Fecha"/>
+                <field name="collection_coop_id" string="Galpón"/>
+                <field name="total_produced_reference" string="Total Huevos"/>
+                <field name="total_boxes" string="Total Cajones"/>
+                <field name="average_weight" string="Peso Medio"/>
+                <field name="produced_box" string="Final PT"/>
+                <field name="produced_map" string="Final PI"/>
+                <field name="produced_egg" string="Final Huevo"/>
+                <field name="weight_distribution_percent" string="% del Parte" widget="percentage"/>
+            </list>
+        </field>
+    </record>
+</odoo>
+

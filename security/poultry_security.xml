@@ -9,5 +9,56 @@
         <field name="name">Usuario Avícola</field>
         <field name="category_id" ref="base.module_category_manufacturing"/>
     </record>
+
+    <record id="poultry_cancel_processed_collection" model="res.groups">
+        <field name="name">Cancelar Partes Procesados</field>
+        <field name="category_id" ref="base.module_category_manufacturing"/>
+    </record>
+
+    <record id="poultry_delete_coop_close" model="res.groups">
+        <field name="name">Eliminar Cierres de Galpón</field>
+        <field name="category_id" ref="base.module_category_manufacturing"/>
+        <field name="comment">Permite eliminar cierres de galpón en estado Borrador.</field>
+    </record>
+
+    <!-- Permiso especial: carga manual de mortandad (día por día y por lote) desde el
+         Reporte de Mortandad, para registrar aves muertas de fechas anteriores. -->
+    <record id="group_poultry_mortality_manual" model="res.groups">
+        <field name="name">Mortandad: Carga Manual</field>
+        <field name="category_id" ref="base.module_category_manufacturing"/>
+        <field name="implied_ids" eval="[(4, ref('poultry_user'))]"/>
+        <field name="comment">Permite crear y editar manualmente registros de mortandad
+            (día por día y por lote) desde el Reporte de Mortandad, y corregir las Aves
+            Muertas y la Fecha de Recolección/Postura de OFs de cierre ya procesadas
+            (con resincronización y recálculo automáticos). La carga automática desde
+            la Orden de Fabricación no requiere este permiso.</field>
+    </record>
+
+    <!-- Los usuarios/gestores sin el permiso especial solo pueden operar sobre los
+         registros generados por la OF (production_id definido); no pueden crear ni
+         editar registros manuales (production_id vacío). No restringe la lectura. -->
+    <record id="rule_poultry_mortality_auto_only" model="ir.rule">
+        <field name="name">Mortandad: solo registros generados por OF</field>
+        <field name="model_id" ref="model_poultry_mortality"/>
+        <field name="groups" eval="[(4, ref('poultry_user')), (4, ref('poultry_manager'))]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+        <field name="domain_force">[('production_id', '!=', False)]</field>
+    </record>
+
+    <!-- El grupo de carga manual puede crear/editar/eliminar cualquier registro
+         (incluidos los manuales, production_id vacío). -->
+    <record id="rule_poultry_mortality_manual_all" model="ir.rule">
+        <field name="name">Mortandad: carga manual (todos los registros)</field>
+        <field name="model_id" ref="model_poultry_mortality"/>
+        <field name="groups" eval="[(4, ref('group_poultry_mortality_manual'))]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
 </odoo>
 

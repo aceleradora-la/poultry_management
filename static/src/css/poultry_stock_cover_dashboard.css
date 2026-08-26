@@ -1,0 +1,71 @@
+/* Tablero Cobertura de stock: discos de semáforo con días dentro del círculo. */
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk {
+    width: 4.5rem;
+    height: 4.5rem;
+    min-width: 4.5rem;
+    min-height: 4.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.05;
+    text-align: center;
+    padding: 4px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* Contenido Odoo del campo dentro del disco */
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk .o_field_widget,
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk span {
+    font-weight: 700;
+    font-size: inherit;
+    line-height: 1.05;
+    text-align: center;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--red {
+    background-color: #dc3545;
+    color: #fff !important;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--yellow {
+    background-color: #e6ac00;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--yellow * {
+    color: #1a1a1a !important;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--green {
+    background-color: #198754;
+    color: #fff !important;
+}
+
+.o_poultry_stock_cover_dashboard .o_poultry_cover_disk--neutral {
+    background-color: #adb5bd;
+    color: #fff !important;
+}
+
+/* Tarjeta según semáforo REAL: borde izq + fondo suave (mismo criterio que columna Kanban). */
+.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_disk-group--real .o_poultry_cover_disk--red) {
+    border-inline-start: 3px solid #dc3545;
+    background-color: rgba(220, 53, 69, 0.06);
+}
+
+.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_disk-group--real .o_poultry_cover_disk--yellow) {
+    border-inline-start: 3px solid #e6ac00;
+    background-color: rgba(230, 172, 0, 0.06);
+}
+
+.o_poultry_stock_cover_dashboard .oe_kanban_card:has(.o_poultry_cover_disk-group--real .o_poultry_cover_disk--green) {
+    border-inline-start: 3px solid #198754;
+    background-color: rgba(25, 135, 84, 0.06);
+}

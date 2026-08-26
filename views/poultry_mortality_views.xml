@@ -1,90 +1,155 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Reporte de Mortandad (solo lectura). El alta se hace desde la solapa
+         "Aves Muertas" de la OF de Huevo sin Clasificar; acá solo se consulta.
+         Aves Vivas y % Mortandad son valores puntuales por (lote, fecha), calculados
+         (no almacenados): se muestran por fila en la lista, no se agregan en el pivot. -->
     <record id="view_poultry_mortality_tree" model="ir.ui.view">
-        <field name="name">poultry.mortality.tree</field>
+        <field name="name">poultry.mortality.report.tree</field>
         <field name="model">poultry.mortality</field>
         <field name="arch" type="xml">
-            <list string="Registros de Mortalidad">
-                <field name="name"/>
+            <list string="Mortandad" create="false" edit="false" delete="false">
                 <field name="date"/>
                 <field name="coop_id"/>
-                <field name="genetics_id"/>
                 <field name="batch_id"/>
-                <field name="dead_count"/>
+                <field name="genetics_id"/>
                 <field name="batch_age_weeks"/>
-                <field name="active" widget="boolean_toggle"/>
+                <field name="assigned_bird_count"/>
+                <field name="dead_count" sum="Muertas"/>
+                <field name="live_bird_count"/>
+                <field name="mortality_pct" digits="[16,2]"/>
+                <field name="production_id" optional="show"/>
             </list>
         </field>
     </record>
 
+    <record id="view_poultry_mortality_pivot" model="ir.ui.view">
+        <field name="name">poultry.mortality.report.pivot</field>
+        <field name="model">poultry.mortality</field>
+        <field name="arch" type="xml">
+            <pivot string="Mortandad">
+                <field name="coop_id" type="row"/>
+                <field name="batch_id" type="row"/>
+                <field name="date" interval="week" type="col"/>
+                <field name="dead_count" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_poultry_mortality_search" model="ir.ui.view">
+        <field name="name">poultry.mortality.report.search</field>
+        <field name="model">poultry.mortality</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Mortandad">
+                <field name="coop_id"/>
+                <field name="genetics_id"/>
+                <field name="batch_id"/>
+                <field name="date"/>
+                <field name="production_id"/>
+                <separator/>
+                <filter string="Últimos 7 días" name="last_7_days"
+                        domain="[('date', '&gt;=', (datetime.datetime.now() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Últimos 30 días" name="last_30_days"
+                        domain="[('date', '&gt;=', (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
+                <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
+                <filter string="Por Semana" name="by_week" context="{'group_by': 'date:week'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_mortality_report" model="ir.actions.act_window">
+        <field name="name">Mortandad</field>
+        <field name="res_model">poultry.mortality</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="view_id" ref="view_poultry_mortality_tree"/>
+        <field name="search_view_id" ref="view_poultry_mortality_search"/>
+        <field name="domain">[('active', '=', True)]</field>
+        <field name="context">{'search_default_by_coop': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Todavía no hay registros de mortandad.
+            </p>
+            <p>
+                Las aves muertas se registran automáticamente desde la solapa
+                <strong>Aves Muertas</strong> de la Orden de Fabricación de Huevo sin Clasificar
+                (Cierre de Galpón). Los usuarios con el permiso <strong>Mortandad: Carga Manual</strong>
+                pueden además cargar registros a mano (día por día y por lote) desde este reporte.
+            </p>
+        </field>
+    </record>
+
+    <!-- Formulario de registro de mortandad. La edición efectiva está gobernada por las
+         reglas de registro (ir.rule): solo el grupo "Mortandad: Carga Manual" puede crear
+         o editar registros manuales (production_id vacío). -->
     <record id="view_poultry_mortality_form" model="ir.ui.view">
         <field name="name">poultry.mortality.form</field>
         <field name="model">poultry.mortality</field>
         <field name="arch" type="xml">
-            <form string="Registro de Aves Muertas">
-                <header>
-                    <field name="active" widget="boolean_toggle"/>
-                </header>
+            <form string="Registro de Mortandad">
                 <sheet>
-                    <widget name="web_ribbon" title="Activo" bg_color="text-success" 
-                            invisible="not active"/>
                     <group>
                         <group>
-                            <field name="name" placeholder="Ej: MORT-0001"/>
                             <field name="date"/>
-                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="genetics_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="coop_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="genetics_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="batch_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="dead_count"/>
                         </group>
                         <group>
-                            <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
-                            <field name="dead_count"/>
+                            <field name="production_id" readonly="1"/>
                             <field name="batch_age_weeks" readonly="1"/>
-                            <field name="notes" placeholder="Notas adicionales..."/>
+                            <field name="assigned_bird_count" readonly="1"/>
+                            <field name="live_bird_count" readonly="1"/>
+                            <field name="mortality_pct" digits="[16,2]" readonly="1"/>
                         </group>
                     </group>
+                    <field name="notes" placeholder="Notas..."/>
                 </sheet>
             </form>
         </field>
     </record>
 
-    <record id="view_poultry_mortality_search" model="ir.ui.view">
-        <field name="name">poultry.mortality.search</field>
+    <!-- Lista editable para la carga manual (día por día y por lote). Se abre desde el
+         menú "Carga Manual de Mortandad", gateado al grupo "Mortandad: Carga Manual".
+         Las reglas de registro (ir.rule) son la barrera real a nivel de datos. -->
+    <record id="view_poultry_mortality_manual_tree" model="ir.ui.view">
+        <field name="name">poultry.mortality.manual.tree</field>
         <field name="model">poultry.mortality</field>
         <field name="arch" type="xml">
-            <search string="Buscar Registros de Mortalidad">
-                <field name="name"/>
-                <field name="coop_id"/>
-                <field name="genetics_id"/>
-                <field name="batch_id"/>
+            <list string="Carga Manual de Mortandad" editable="bottom">
                 <field name="date"/>
-                <separator/>
-                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
-                <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
-                <separator/>
-                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
-                <filter string="Por Genética" name="by_genetics" context="{'group_by': 'genetics_id'}"/>
-                <filter string="Por Fecha" name="by_date" context="{'group_by': 'date'}"/>
-                <filter string="Últimos 7 días" name="last_7_days" 
-                        domain="[('date', '>=', (datetime.datetime.now() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
-                <filter string="Últimos 30 días" name="last_30_days" 
-                        domain="[('date', '>=', (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
-            </search>
+                <field name="coop_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                <field name="genetics_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                <field name="batch_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                <field name="dead_count"/>
+                <field name="assigned_bird_count" readonly="1" optional="show"/>
+                <field name="live_bird_count" readonly="1" optional="show"/>
+                <field name="mortality_pct" digits="[16,2]" readonly="1" optional="show"/>
+                <field name="production_id" readonly="1" optional="hide"/>
+            </list>
         </field>
     </record>
 
-    <record id="action_poultry_mortality" model="ir.actions.act_window">
-        <field name="name">Registro de Aves Muertas</field>
+    <!-- Acción de carga manual (lista editable + formulario). El menú que la abre está
+         gateado al grupo "Mortandad: Carga Manual" (ver reports/poultry_reports.xml). -->
+    <record id="action_poultry_mortality_manual" model="ir.actions.act_window">
+        <field name="name">Carga Manual de Mortandad</field>
         <field name="res_model">poultry.mortality</field>
         <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_poultry_mortality_manual_tree"/>
+        <field name="search_view_id" ref="view_poultry_mortality_search"/>
+        <field name="context">{'search_default_by_coop': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Crear un nuevo registro de mortalidad
+                Cargá mortandad a mano
             </p>
             <p>
-                Registre diariamente la cantidad de aves muertas por galpón y genética.
-                Esta información se utilizará para comparar con los estándares de la genética.
+                Registrá aves muertas por día y por lote para fechas anteriores. Requiere el
+                permiso <strong>Mortandad: Carga Manual</strong>.
             </p>
         </field>
     </record>
 </odoo>
-

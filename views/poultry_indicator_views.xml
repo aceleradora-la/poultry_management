@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_indicator_tree" model="ir.ui.view">
+        <field name="name">poultry.indicator.tree</field>
+        <field name="model">poultry.indicator</field>
+        <field name="arch" type="xml">
+            <list string="Indicadores de Genética">
+                <field name="sequence" widget="handle"/>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="period_scope"/>
+                <field name="uom_id"/>
+                <!-- Resumen de cómo se calcula, en una línea: evita tener que abrir
+                     cada indicador para entender su fórmula. -->
+                <field name="formula_preview"/>
+                <field name="visible_by_default" widget="boolean_toggle" optional="show"/>
+                <!-- Marca los indicadores cuya configuración cambió y todavía no se
+                     recalcularon: se ven de un vistazo en la lista. -->
+                <field name="values_outdated" widget="boolean_toggle" optional="show"/>
+                <field name="calculation_source" optional="hide"/>
+                <field name="category" optional="hide"/>
+                <field name="accumulation_type" optional="hide"/>
+                <field name="standard_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_indicator_form" model="ir.ui.view">
+        <field name="name">poultry.indicator.form</field>
+        <field name="model">poultry.indicator</field>
+        <field name="arch" type="xml">
+            <form string="Indicador de Genética">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <!-- Aviso al cambiar la forma de calcular: los Valores Reales
+                         guardados siguen siendo los de la configuración anterior
+                         hasta recalcular. El botón recalcula SOLO este indicador. -->
+                    <div class="alert alert-warning d-flex align-items-center justify-content-between"
+                         role="alert" invisible="not values_outdated">
+                        <div>
+                            <strong>Los valores guardados quedaron desactualizados.</strong>
+                            Cambió la forma de calcular este indicador, pero los Valores
+                            Reales que ya estaban guardados se calcularon con la
+                            configuración anterior.
+                        </div>
+                        <button name="action_recompute_indicator" type="object"
+                                string="Recalcular este indicador" class="btn-warning"
+                                invisible="calculation_source != 'formula'"/>
+                    </div>
+                    <field name="values_outdated" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="name" string="Indicador"/>
+                        <h1><field name="name" placeholder="Ej: Peso Corporal"/></h1>
+                        <h3 class="text-muted"><field name="formula_preview" readonly="1"/></h3>
+                    </div>
+                    <group string="Identificación">
+                        <group>
+                            <field name="code" placeholder="Ej: PESO_CORP"/>
+                            <field name="uom_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                        </group>
+                        <group>
+                            <field name="period_scope" widget="radio" options="{'horizontal': true}"/>
+                            <field name="sequence"/>
+                            <field name="visible_by_default"/>
+                        </group>
+                    </group>
+
+                    <!-- Un solo lugar decide qué se completa abajo: o la Fórmula, o la
+                         configuración del cálculo interno. Nunca las dos a la vez. -->
+                    <group string="¿Cómo se calcula el Valor Real?">
+                        <field name="calculation_source" widget="radio" nolabel="1" colspan="2"/>
+                    </group>
+
+                    <group string="Fórmula del Valor Real" invisible="calculation_source != 'formula'">
+                        <div class="text-muted mb-2" colspan="2">
+                            Valor de cada día = <strong>Numerador ÷ Denominador × Factor</strong>.
+                            Acá se elige la BASE del indicador (Aves Vivas del día, Aves
+                            Alojadas o Cantidad de Aves del lote) sin tocar código, y el Modo
+                            de Cálculo define cómo se combina con el histórico.
+                            <br/>
+                            Para una <strong>CANTIDAD del período</strong> (ej. Huevos de la
+                            Semana, Kg de Alimento): Denominador "Ninguno" —o "Huevos por
+                            Unidad" para verla en docenas o cajones— y
+                            <strong>Agregación Semanal = Suma del período</strong>.
+                            <br/>
+                            <strong>Al cambiar una fórmula, correr "Recalcular Indicadores de
+                            Producción"</strong> para rehacer el pasado; los días nuevos ya
+                            salen con la fórmula nueva.
+                        </div>
+                        <group>
+                            <field name="formula_numerator"
+                                   required="calculation_source == 'formula'"/>
+                            <field name="formula_denominator"
+                                   required="calculation_source == 'formula'"/>
+                            <!-- Visible con los dos denominadores que lo usan: "Unidades de
+                                 huevo" (Conversión Alimenticia) y "Huevos por Unidad"
+                                 (cantidades en docenas o cajones). -->
+                            <field name="egg_group_size"
+                                   invisible="formula_denominator not in ('egg_units', 'egg_group_size')"/>
+                        </group>
+                        <group>
+                            <field name="formula_factor" widget="radio" options="{'horizontal': true}"/>
+                            <field name="formula_mode"
+                                   required="calculation_source == 'formula'"/>
+                            <field name="weekly_aggregation"/>
+                        </group>
+                    </group>
+
+                    <group string="Cálculo Interno del Sistema" invisible="calculation_source != 'legacy'">
+                        <div class="text-muted mb-2" colspan="2">
+                            El valor lo calcula el código del módulo, que identifica al
+                            indicador por su <strong>Categoría y Tipo de Acumulación</strong>
+                            (por eso no puede haber dos activos con la misma combinación).
+                            Es como funcionaba antes del motor de fórmulas: sirve para volver
+                            atrás si una fórmula no da lo esperado.
+                        </div>
+                        <group>
+                            <field name="category" required="calculation_source == 'legacy'"/>
+                            <field name="egg_group_size"
+                                   invisible="category != 'feed_conversion'"/>
+                        </group>
+                        <group>
+                            <field name="accumulation_type"/>
+                        </group>
+                    </group>
+
+                    <group string="Clasificación (solo organiza listas y filtros)"
+                           invisible="calculation_source != 'formula'">
+                        <group>
+                            <field name="category" placeholder="Opcional"/>
+                        </group>
+                        <group>
+                            <field name="accumulation_type"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Presentación en el Reporte" name="presentation">
+                            <group>
+                                <group string="Colores del Valor Real">
+                                    <field name="color_below" widget="color"/>
+                                    <field name="color_within" widget="color"/>
+                                    <field name="color_above" widget="color"/>
+                                </group>
+                                <group string="Alcance">
+                                    <field name="applicable_version_ids" widget="many2many_tags"
+                                           placeholder="Vacío = todas las Versiones de Estándar"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <group>
+                                <field name="real_value_source"
+                                       placeholder="Ej: poultry.egg.collection:average_weight_elaborated"/>
+                            </group>
+                            <field name="notes" nolabel="1"
+                                   placeholder="Información adicional sobre este indicador..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_indicator_search" model="ir.ui.view">
+        <field name="name">poultry.indicator.search</field>
+        <field name="model">poultry.indicator</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Indicadores">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="category"/>
+                <separator/>
+                <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Valores Desactualizados" name="outdated"
+                        domain="[('values_outdated', '=', True)]"/>
+                <separator/>
+                <filter string="Con Fórmula" name="with_formula" domain="[('calculation_source', '=', 'formula')]"/>
+                <filter string="Con Cálculo Interno" name="without_formula" domain="[('calculation_source', '=', 'legacy')]"/>
+                <separator/>
+                <filter string="Por Cómo se Calcula" name="by_calculation_source" context="{'group_by': 'calculation_source'}"/>
+                <filter string="Por Categoría" name="by_category" context="{'group_by': 'category'}"/>
+                <filter string="Por Modo de Cálculo" name="by_formula_mode" context="{'group_by': 'formula_mode'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_indicator" model="ir.actions.act_window">
+        <field name="name">Indicadores de Genética</field>
+        <field name="res_model">poultry.indicator</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear un nuevo indicador de genética
+            </p>
+            <p>
+                Los indicadores definen qué se mide en los estándares de genética
+                (ej. Mortalidad, Peso Corporal, Consumo de Alimento) y su Unidad de Medida.
+            </p>
+        </field>
+    </record>
+</odoo>

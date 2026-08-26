@@ -6,7 +6,6 @@
         <field name="arch" type="xml">
             <list string="Listas de Materiales por Galpón" decoration-success="active == True">
                 <field name="coop_id"/>
-                <field name="name"/>
                 <field name="bom_id"/>
                 <field name="bom_product_id"/>
                 <field name="start_date"/>
@@ -33,7 +32,6 @@
                             invisible="not active"/>
                     <group>
                         <group>
-                            <field name="name"/>
                             <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
                             <field name="bom_id" options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="bom_product_id" readonly="1"/>
@@ -56,7 +54,6 @@
         <field name="arch" type="xml">
             <search string="Buscar Listas de Materiales">
                 <field name="coop_id"/>
-                <field name="name"/>
                 <field name="bom_id"/>
                 <separator/>
                 <filter string="Activas" name="active" domain="[('active', '=', True)]"/>

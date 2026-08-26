@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_weight_record_tree" model="ir.ui.view">
+        <field name="name">poultry.weight.record.tree</field>
+        <field name="model">poultry.weight.record</field>
+        <field name="arch" type="xml">
+            <list string="Partes de Peso">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="coop_id"/>
+                <field name="batch_id"/>
+                <field name="batch_age_weeks"/>
+                <field name="bird_count" sum="Aves"/>
+                <field name="average_weight_g"/>
+                <field name="uniformity_pct"/>
+                <field name="cv_pct" optional="hide"/>
+                <field name="operator_id" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-muted="state == 'draft'"
+                       decoration-success="state == 'done'"
+                       decoration-danger="state == 'cancel'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_weight_record_form" model="ir.ui.view">
+        <field name="name">poultry.weight.record.form</field>
+        <field name="model">poultry.weight.record</field>
+        <field name="arch" type="xml">
+            <form string="Parte de Registro de Peso">
+                <header>
+                    <button name="action_prefill_from_previous" string="Precargar Pesada Anterior"
+                            type="object" invisible="state != 'draft' or line_ids"
+                            help="Copia las jaulas y filas del último parte confirmado de este galpón, con peso en cero. Borrá las filas de aves que ya no están."/>
+                    <button name="action_done" string="Confirmar" type="object"
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_cancel" string="Cancelar" type="object"
+                            invisible="state not in ('draft', 'done')"
+                            confirm="Al cancelar un parte confirmado se recalculan los indicadores de Peso Corporal y Uniformidad del lote. ¿Continuar?"/>
+                    <button name="action_draft" string="Volver a Borrador" type="object"
+                            invisible="state != 'cancel'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="coop_id" readonly="state != 'draft'"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="batch_id" readonly="state != 'draft'"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="operator_id" readonly="state != 'draft'"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                        </group>
+                        <group>
+                            <field name="batch_age_weeks" readonly="1"/>
+                            <field name="uniformity_band_pct" readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+                    <group string="Resultados">
+                        <group>
+                            <field name="bird_count" readonly="1"/>
+                            <field name="average_weight_g" readonly="1"/>
+                            <field name="uniformity_pct" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="cv_pct" readonly="1"/>
+                            <field name="min_weight_g" readonly="1"/>
+                            <field name="max_weight_g" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Pesos" name="weights">
+                            <field name="line_ids" nolabel="1" readonly="state != 'draft'">
+                                <list string="Pesos" editable="bottom" default_order="sequence, id">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="cage_id"
+                                           domain="[('coop_id', '=', parent.coop_id), ('active', '=', True)]"
+                                           options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="weight_g"/>
+                                    <field name="deviation_pct" readonly="1" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="notes" placeholder="Notas de la pesada..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_weight_record_search" model="ir.ui.view">
+        <field name="name">poultry.weight.record.search</field>
+        <field name="model">poultry.weight.record</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Partes de Peso">
+                <field name="name"/>
+                <field name="coop_id"/>
+                <field name="batch_id"/>
+                <field name="date"/>
+                <separator/>
+                <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Confirmados" name="done" domain="[('state', '=', 'done')]"/>
+                <separator/>
+                <filter string="Últimos 30 días" name="last_30_days"
+                        domain="[('date', '&gt;=', (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
+                <filter string="Por Semana" name="by_week" context="{'group_by': 'date:week'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_weight_record" model="ir.actions.act_window">
+        <field name="name">Pesaje de Aves</field>
+        <field name="res_model">poultry.weight.record</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_poultry_weight_record_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Registrá una pesada de aves
+            </p>
+            <p>
+                Se pesan individualmente las aves vivas de las jaulas de muestreo del
+                galpón. Al confirmar, el Peso Promedio y la Uniformidad alimentan los
+                indicadores <strong>Peso Corporal</strong> y <strong>Uniformidad</strong>
+                y se comparan contra el estándar de la genética en el Seguimiento de
+                Estándares.
+            </p>
+        </field>
+    </record>
+</odoo>

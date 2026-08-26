@@ -1,0 +1,83 @@
+/* Encabezado fijo (sticky) del Reporte de Seguimiento de Estándares.
+   El thead tiene DOS filas: la segunda necesita un top igual a la altura de la
+   primera, así que la primera se fija a una altura conocida en vez de depender
+   del contenido. Los th con rowspan=2 (Edad/Fecha/Aves Vivas) viven en la
+   primera fila, por eso el selector por fila funciona también para ellos. */
+.o_poultry_standard_tracking_report .o_content {
+    /* Contenedor de scroll del sticky: sin esto el que scrollea puede ser un
+       ancestro y el encabezado no se pega. */
+    overflow: auto;
+    /* CERO padding en el scroller: sticky se ancla al borde interior del
+       padding, y cualquier padding deja una franja (arriba y a la izquierda)
+       que el encabezado/columnas fijas no pueden alcanzar y por la que se ven
+       pasar los datos. El espaciado va como margen de los hijos (scrollea con
+       ellos y no deja franja). */
+    padding: 0;
+}
+
+.o_poultry_standard_tracking_report .o_content > * {
+    margin: 1rem;
+}
+
+.o_poultry_standard_tracking_report thead th {
+    position: sticky;
+    z-index: 2;
+    background-color: var(--o-view-background-color, #fff);
+    box-shadow: inset 0 -1px 0 #dee2e6, inset 1px 0 0 #dee2e6;
+}
+
+.o_poultry_standard_tracking_report thead tr:first-child th {
+    top: 0;
+}
+
+/* El offset de la segunda fila es la altura REAL de la primera (los nombres de
+   indicadores se parten en varias líneas, la altura no es fija): el componente
+   la mide después de cada render y la publica en esta variable. */
+.o_poultry_standard_tracking_report thead tr:last-child th {
+    top: var(--poultry-thead-row1-h, 34px);
+}
+
+/* Columnas fijas a la izquierda (Edad y Fecha, más la flechita de drilldown en
+   modo comparación). Los offsets son acumulativos y necesitan anchos conocidos:
+   caret 28px + Edad 80px (entra el badge del lote en el drilldown). La variable
+   --poultry-caret-w vale 0 sin comparación y 28px con la clase
+   o_poultry_has_caret que pone el template. */
+.o_poultry_standard_tracking_report table {
+    --poultry-caret-w: 0px;
+}
+
+.o_poultry_standard_tracking_report table.o_poultry_has_caret {
+    --poultry-caret-w: 28px;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_caret,
+.o_poultry_standard_tracking_report .o_poultry_col_week,
+.o_poultry_standard_tracking_report .o_poultry_col_date {
+    position: sticky;
+    z-index: 1;
+    background-color: var(--o-view-background-color, #fff);
+    box-shadow: inset -1px 0 0 #dee2e6, inset 0 -1px 0 #dee2e6;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_caret {
+    left: 0;
+    min-width: 28px;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_week {
+    left: var(--poultry-caret-w);
+    min-width: 80px;
+}
+
+.o_poultry_standard_tracking_report .o_poultry_col_date {
+    left: calc(var(--poultry-caret-w) + 80px);
+    min-width: 96px;
+}
+
+/* Las celdas de la esquina (encabezado + columna fija a la vez) tapan tanto a
+   las filas como a las columnas que pasan por debajo. */
+.o_poultry_standard_tracking_report thead th.o_poultry_col_caret,
+.o_poultry_standard_tracking_report thead th.o_poultry_col_week,
+.o_poultry_standard_tracking_report thead th.o_poultry_col_date {
+    z-index: 3;
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_category_form_view_poultry_cover" model="ir.ui.view">
+        <field name="name">product.category.form.poultry.cover</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="product.product_category_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='first']" position="after">
+                <group string="Cobertura de stock (tablero)" name="poultry_cover_category_group">
+                    <field name="poultry_cover_window_days"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

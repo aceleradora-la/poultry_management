@@ -6,14 +6,20 @@
         <field name="arch" type="xml">
             <list string="Recolecciones de Producción" decoration-info="state == 'draft'" 
                   decoration-warning="state == 'counted'" 
-                  decoration-success="state == 'completed' or state == 'done'">
+                  decoration-success="state == 'completed' or state == 'done'"
+                  default_order="date desc">
                 <field name="name"/>
                 <field name="coop_id"/>
-                <field name="product_id"/>
+                <field name="coop_close_id" string="Cierre"/>
+                <!-- Mostrar el PRODUCTO BASE (no la primera variante) -->
+                <field name="product_tmpl_id" string="Producto"/>
                 <field name="date"/>
-                <field name="total_produced_boxes"/>
-                <field name="production_count"/>
-                <field name="state" widget="badge" decoration-info="state == 'draft'"
+                <field name="total_eggs"/>
+                <field name="total_boxes"/>
+                <field name="total_weight"/>
+                <field name="average_weight_elaborated"/>
+                <field name="state" widget="badge" 
+                       decoration-info="state == 'draft'"
                        decoration-warning="state == 'counted'"
                        decoration-success="state == 'completed' or state == 'done'"/>
             </list>
@@ -26,23 +32,45 @@
         <field name="arch" type="xml">
             <form string="Recolección de Producción de Huevos">
                 <header>
+                    <button name="%(poultry_management.action_report_poultry_egg_collection_daily)d"
+                            type="action"
+                            string="Imprimir Parte"
+                            class="btn-secondary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_cancel_processed" type="object"
+                            string="Cancelar Parte"
+                            class="btn-danger"
+                            groups="poultry_management.poultry_cancel_processed_collection"
+                            confirm="Esto cancelará/desmantelará las Órdenes de Fabricación generadas. ¿Desea continuar?"
+                            invisible="state != 'done'"/>
                     <button name="action_count_initial" type="object" string="Registrar Cantidad Inicial" 
                             class="oe_highlight" 
                             invisible="state != 'draft'"/>
                     <button name="action_complete" type="object" string="Completar Recolección" 
                             class="oe_highlight" 
                             invisible="state != 'counted'"/>
+                    <button name="action_set_to_draft" type="object" string="Volver a Inicio" 
+                            invisible="state != 'counted'"/>
+                    <button name="action_set_to_draft" type="object" string="Volver a Bruto" 
+                            invisible="state != 'completed'"/>
                     <button name="action_generate_productions" type="object" 
-                            string="Generar Órdenes de Fabricación" 
+                            string="Procesar" 
                             class="oe_highlight" 
                             invisible="state != 'completed'"/>
-                    <button name="action_view_productions" type="object" 
-                            string="Ver Órdenes Generadas" 
-                            invisible="production_count == 0"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done"/>
+                        <button name="action_view_productions" type="object" 
+                                string="Ver Órdenes Generadas" 
+                                invisible="production_count == 0"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,counted,completed,done,cancel" 
+                               clickable="state not in ('done','cancel')"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
+                        <button name="action_view_coop_close" type="object" class="oe_stat_button"
+                                icon="fa-lock" invisible="not coop_close_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Cierre</span>
+                            </div>
+                        </button>
                         <button name="action_view_productions" type="object" class="oe_stat_button" 
                                 icon="fa-industry" invisible="production_count == 0">
                             <field name="production_count" widget="statinfo" string="Órdenes de Fabricación"/>
@@ -50,62 +78,127 @@
                     </div>
                     <widget name="web_ribbon" title="Procesada" bg_color="text-success" 
                             invisible="state != 'done'"/>
+                    <widget name="web_ribbon" title="Cancelada" bg_color="text-danger"
+                            invisible="state != 'cancel'"/>
                     <group>
                         <group>
-                            <field name="name" placeholder="Ej: REC-0001"/>
+                            <field name="name" placeholder="Se genera automáticamente" 
+                                   readonly="state != 'draft'"
+                                   help="Se genera automáticamente al seleccionar el galpón"/>
                             <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}" 
                                    readonly="state != 'draft'"/>
                             <field name="product_tmpl_id" 
                                    options="{'no_create': False, 'no_create_edit': False, 'no_open': True}" 
-                                   domain="[('type', '=', 'product'), ('active', '=', True), ('is_egg_production', '=', True)]"
+                                   domain="[('type', '=', 'consu'), ('active', '=', True), ('is_egg_production', '=', True)]"
                                    context="{'default_type': 'product', 'default_is_egg_production': True, 'search_default_active': 1}"
                                    readonly="state != 'draft'"
                                    placeholder="Seleccione un producto base. Se cargarán todas sus variantes en las líneas"/>
+                            <field name="coop_close_id" readonly="1" invisible="not coop_close_id"/>
                             <field name="date" readonly="state != 'draft'"/>
+                            <field name="operator_id" options="{'no_create': True}" 
+                                   readonly="state == 'done'"/>
                         </group>
                         <group>
-                            <group string="Totales Iniciales" invisible="state == 'draft'">
-                                <field name="total_initial_boxes" readonly="1"/>
-                                <field name="total_initial_maps" readonly="1"/>
-                                <field name="total_initial_eggs" readonly="1"/>
-                            </group>
                             <group string="Totales Finales" invisible="state == 'draft' or state == 'counted'">
-                                <field name="total_final_boxes" readonly="1"/>
-                                <field name="total_final_maps" readonly="1"/>
-                                <field name="total_final_eggs" readonly="1"/>
+                                <label for="total_eggs" string="Total Huevos"/>
+                                <field name="total_eggs" readonly="1" nolabel="1"/>
+                                <label for="total_weight" string="Total Peso Medido (Kg)"/>
+                                <field name="total_weight" readonly="1" nolabel="1"/>
+                                <label for="total_weight_estimated" string="Total Peso Estimado (Kg)"/>
+                                <field name="total_weight_estimated" readonly="1" nolabel="1"/>
+                                <label for="average_weight_elaborated" string="Peso Medio Elaborado (g)"/>
+                                <field name="average_weight_elaborated" readonly="1" nolabel="1"/>
+                                <label for="total_boxes" string="Total Cajones"/>
+                                <field name="total_boxes" readonly="1" nolabel="1"/>
                             </group>
-                            <group string="Totales Producidos" invisible="state == 'draft' or state == 'counted'">
-                                <field name="total_produced_boxes" readonly="1" class="oe_read_only"/>
-                                <field name="total_produced_maps" readonly="1"/>
-                                <field name="total_produced_eggs" readonly="1"/>
+                            <!-- Totales por Unidad: labels dinámicos por UdM (los renombra el JS) -->
+                            <group string="Totales por Unidad" invisible="state == 'draft' or state == 'counted'">
+                                <field name="uom_1_name" invisible="1"/>
+                                <field name="uom_2_name" invisible="1"/>
+                                <field name="uom_3_name" invisible="1"/>
+                                <label for="total_produced_boxes" string="Total Final"/>
+                                <field name="total_produced_boxes" readonly="1" nolabel="1"/>
+                                <label for="total_produced_maps" string="Total Final"/>
+                                <field name="total_produced_maps" readonly="1" nolabel="1"/>
+                                <label for="total_produced_eggs" string="Total Final"/>
+                                <field name="total_produced_eggs" readonly="1" nolabel="1"/>
                             </group>
                         </group>
                     </group>
                     <notebook>
                         <page string="Líneas de Recolección" name="lines">
-                            <field name="line_ids" nolabel="1" readonly="state == 'done'" context="{'default_collection_id': id}">
-                                <list string="Líneas de Recolección" editable="bottom" create="0">
-                                    <field name="product_variant_id" options="{'no_create': True, 'no_create_edit': True}"/>
-                                    <field name="product_variant_name" invisible="1"/>
-                                    <field name="collection_id" invisible="1"/>
-                                    <field name="initial_box" string="Cajón Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
-                                    <field name="initial_map" string="Maple Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
-                                    <field name="initial_egg" string="Huevo Inicial" 
-                                           invisible="collection_id.state == 'completed' or collection_id.state == 'done'"/>
-                                    <field name="final_box" string="Cajón Final" 
-                                           invisible="collection_id.state == 'draft'"/>
-                                    <field name="final_map" string="Maple Final" 
-                                           invisible="collection_id.state == 'draft'"/>
-                                    <field name="final_egg" string="Huevo Final" 
-                                           invisible="collection_id.state == 'draft'"/>
-                                    <field name="produced_box" string="Cajón Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
-                                    <field name="produced_map" string="Maple Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
-                                    <field name="produced_egg" string="Huevo Producido" readonly="1" 
-                                           invisible="collection_id.state == 'draft' or collection_id.state == 'counted'"/>
+                            <field name="line_ids" nolabel="1" readonly="state == 'done'" 
+                                   context="{'default_collection_id': id}">
+                                <list string="Líneas de Recolección" editable="bottom"
+                                      column_invisible="parent.state == 'draft'">
+                                    <!-- Mantener variante interna oculta para preservar lógica y unicidad -->
+                                    <field name="product_variant_id"
+                                           invisible="1"
+                                           column_invisible="1"
+                                           readonly="1"
+                                           force_save="1"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                    <!-- Nombres dinámicos de UdM (ocultos): los usa el JS para los encabezados -->
+                                    <field name="uom_1_name" invisible="1" column_invisible="1"/>
+                                    <field name="uom_2_name" invisible="1" column_invisible="1"/>
+                                    <field name="uom_3_name" invisible="1" column_invisible="1"/>
+                                    <!-- Mostrar solo el valor del atributo (ej. 1, 2, 3, X, S) -->
+                                    <field name="attribute_value_name"
+                                           string="Valor del Atributo"
+                                           width="160"
+                                           readonly="1"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+
+                    <!-- Columnas Iniciales: editables solo en Inicio (draft), ocultas en Bruto, visibles en Completada/Procesada -->
+                    <field name="initial_box" 
+                                           readonly="parent.state != 'draft'"
+                                           column_invisible="parent.state == 'counted'"/>
+                                    <field name="initial_map" 
+                                           readonly="parent.state != 'draft'"
+                                           column_invisible="parent.state == 'counted'"/>
+                                    <field name="initial_egg" 
+                                           readonly="parent.state != 'draft'"
+                                           column_invisible="parent.state == 'counted'"/>
+                                    
+                                    <!-- Columnas Brutas: editables solo en Bruto (counted), ocultas en Inicio -->
+                                    <field name="final_box" 
+                                           readonly="parent.state != 'counted'"
+                                           column_invisible="parent.state == 'draft'"/>
+                                    <field name="final_map" 
+                                           readonly="parent.state != 'counted'"
+                                           column_invisible="parent.state == 'draft'"/>
+                                    <field name="final_egg" 
+                                           readonly="parent.state != 'counted'"
+                                           column_invisible="parent.state == 'draft'"/>
+                                    
+                                    <!-- Columnas Finales (producidos): siempre readonly, visibles solo en Completada y Procesada -->
+                                    <field name="produced_box" 
+                                           readonly="1"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"/>
+                                    <field name="produced_map" 
+                                           readonly="1"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"/>
+                                    <field name="produced_egg" 
+                                           readonly="1"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"/>
+                                    
+                                    <!-- Peso Medio: editable solo en Bruto (counted), oculto en Inicio -->
+                                    <field name="average_weight" 
+                                           readonly="parent.state != 'counted'"
+                                           column_invisible="parent.state == 'draft'"/>
+                                    
+                                    <!-- % del Parte: siempre readonly, visible solo en Completada y Procesada -->
+                                    <field name="weight_distribution_percent" 
+                                           string="% del Parte"
+                                           readonly="1"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"
+                                           widget="percentage"/>
+                                    
+                                    <!-- Columna de huevos totales producidos: visible solo en Completada y Procesada -->
+                                    <field name="total_produced_reference" 
+                                           readonly="1"
+                                           column_invisible="parent.state == 'draft' or parent.state == 'counted'"
+                                           string="Total Huevos"/>
                                 </list>
                             </field>
                         </page>
@@ -125,6 +218,7 @@
                         </page>
                     </notebook>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -139,22 +233,43 @@
                 <field name="product_id"/>
                 <field name="date"/>
                 <separator/>
-                <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="Cantidad Inicial Registrada" name="counted" domain="[('state', '=', 'counted')]"/>
-                <filter string="Completada" name="completed" domain="[('state', '=', 'completed')]"/>
+                <filter string="Sin Procesar" name="not_done" domain="[('state', '!=', 'done'), ('state', '!=', 'cancel')]"/>
                 <filter string="Procesada" name="done" domain="[('state', '=', 'done')]"/>
+                <filter string="Cancelada" name="cancel" domain="[('state', '=', 'cancel')]"/>
+                <separator/>
+                <filter string="Inicio" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Bruto" name="counted" domain="[('state', '=', 'counted')]"/>
+                <filter string="Completada" name="completed" domain="[('state', '=', 'completed')]"/>
                 <separator/>
                 <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
-                <filter string="Por Producto" name="by_product" context="{'group_by': 'product_id'}"/>
+                <filter string="Por Producto" name="by_product" context="{'group_by': 'product_variant_id'}"/>
                 <filter string="Por Fecha" name="by_date" context="{'group_by': 'date'}"/>
             </search>
         </field>
     </record>
 
+    <record id="view_poultry_egg_collection_pivot" model="ir.ui.view">
+        <field name="name">poultry.egg.collection.pivot</field>
+        <field name="model">poultry.egg.collection</field>
+        <field name="arch" type="xml">
+            <pivot string="Reporte de Producción">
+                <field name="date" type="row" interval="day"/>
+                <field name="product_variant_id" type="row" string="Variante Producto"/>
+                <field name="coop_id" type="col"/>
+                <field name="total_eggs" type="measure"/>
+                <field name="total_weight" type="measure"/>
+                <field name="total_weight_estimated" type="measure"/>
+                <field name="total_boxes" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
     <record id="action_poultry_egg_collection" model="ir.actions.act_window">
-        <field name="name">Recolección de Producción de Huevos</field>
+        <field name="name">Producción</field>
         <field name="res_model">poultry.egg.collection</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{'search_default_not_done': 1, 'default_order': 'date desc'}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Crear una nueva recolección de producción

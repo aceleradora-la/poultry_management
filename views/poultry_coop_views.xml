@@ -9,12 +9,14 @@
                   decoration-danger="occupancy_percentage &gt;= 1.0">
                 <field name="code"/>
                 <field name="name"/>
+                <field name="coop_type"/>
                 <field name="size"/>
                 <field name="capacity"/>
                 <field name="current_birds_count"/>
+                <field name="live_bird_count"/>
                 <field name="occupancy_percentage" widget="percentage"/>
                 <field name="batch_count"/>
-                <field name="active_bom_id" invisible="1"/>
+                <field name="active_bom_name"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
@@ -39,6 +41,9 @@
                         <button name="action_view_batches" type="object" class="oe_stat_button" icon="fa-list">
                             <field name="batch_count" widget="statinfo" string="Lotes"/>
                         </button>
+                        <button name="action_view_cages" type="object" class="oe_stat_button" icon="fa-th-large">
+                            <field name="cage_count" widget="statinfo" string="Jaulas"/>
+                        </button>
                     </div>
                     <widget name="web_ribbon" title="Activo" bg_color="text-success" 
                             invisible="not active"/>
@@ -46,37 +51,72 @@
                         <group>
                             <field name="code" placeholder="Ej: GAL-001"/>
                             <field name="name" placeholder="Ej: Galpón Principal"/>
+                            <field name="coop_type"/>
                             <field name="size"/>
                             <field name="capacity"/>
                         </group>
                         <group>
                             <field name="current_birds_count" readonly="1"/>
+                            <field name="live_bird_count" readonly="1"/>
                             <field name="occupancy_percentage" widget="percentage" readonly="1"/>
-                            <field name="active_bom_id" readonly="1" 
-                                   invisible="not active_bom_id"/>
+                            <field name="active_bom_id" invisible="1"/>
+                            <field name="active_bom_name" readonly="1" 
+                                   invisible="not active_bom_name"/>
                             <field name="active_bom_start_date" readonly="1"
                                    invisible="not active_bom_id"/>
+                            <field name="sequence_prefix" 
+                                   help="Prefijo para la numeración de partes de producción (ej: REC, GP1, etc.)"/>
+                            <field name="unclassified_egg_product_id" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Producto de huevo sin clasificar para este galpón"/>
+                            <field name="unclassified_egg_bom_id" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Lista de materiales para el producto de huevo sin clasificar de este galpón"/>
+                            <field name="picking_type_id_finished" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Tipo de operación de inventario para órdenes de producción de productos terminados"/>
+                            <field name="picking_type_id_unclassified" 
+                                   options="{'no_create': True, 'no_create_edit': True}"
+                                   help="Tipo de operación de inventario para órdenes de producción de huevo sin clasificar"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="Lotes de Aves" name="batches">
-                            <field name="batch_ids" nolabel="1">
-                                <list string="Lotes Asignados" editable="bottom">
-                                    <field name="code"/>
-                                    <field name="name"/>
-                                    <field name="genetics_id"/>
-                                    <field name="birth_date"/>
-                                    <field name="assignment_date"/>
+                            <field name="coop_line_ids" nolabel="1" context="{'default_coop_id': id}">
+                                <list string="Asignaciones de Lotes" editable="bottom">
+                                    <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
                                     <field name="bird_count"/>
-                                    <field name="age_days"/>
-                                    <field name="days_in_coop"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
+                                    <field name="dead_count"/>
+                                    <field name="live_bird_count"/>
+                                    <field name="active" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Movimientos de Aves" name="movements">
+                            <field name="movement_ids" nolabel="1" readonly="1">
+                                <list string="Movimientos de Aves" default_order="date desc">
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="movement_type" widget="badge"
+                                           decoration-info="movement_type == 'ingreso'"
+                                           decoration-success="movement_type == 'traslado'"
+                                           decoration-danger="movement_type == 'retiro'"/>
+                                    <field name="batch_id"/>
+                                    <field name="origin_coop_id"/>
+                                    <field name="dest_coop_id"/>
+                                    <field name="bird_count"/>
+                                    <field name="state" widget="badge"
+                                           decoration-muted="state == 'draft'"
+                                           decoration-success="state == 'done'"
+                                           decoration-danger="state == 'cancel'"/>
                                 </list>
                             </field>
                         </page>
                         <page string="Listas de Materiales" name="boms">
-                            <field name="coop_bom_ids" nolabel="1">
+                            <field name="coop_bom_ids" nolabel="1" context="{'skip_coop_bom_overlap_check': True}">
                                 <list string="Historial de Listas de Materiales">
-                                    <field name="name"/>
                                     <field name="bom_id"/>
                                     <field name="bom_product_id"/>
                                     <field name="start_date"/>
@@ -87,7 +127,6 @@
                                     <sheet>
                                         <group>
                                             <group>
-                                                <field name="name"/>
                                                 <field name="coop_id" readonly="1"/>
                                                 <field name="bom_id" options="{'no_create': True, 'no_create_edit': True}"/>
                                                 <field name="bom_product_id" readonly="1"/>
@@ -129,7 +168,12 @@
                 <filter string="Activos" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Inactivos" name="inactive" domain="[('active', '=', False)]"/>
                 <separator/>
-                <filter string="Con Capacidad Disponible" name="available_capacity" 
+                <filter string="Recría" name="type_recria" domain="[('coop_type', '=', 'recria')]"/>
+                <filter string="Producción" name="type_produccion" domain="[('coop_type', '=', 'produccion')]"/>
+                <separator/>
+                <filter string="Por Tipo de Galpón" name="by_coop_type" context="{'group_by': 'coop_type'}"/>
+                <separator/>
+                <filter string="Con Capacidad Disponible" name="available_capacity"
                         domain="[('current_birds_count', '&lt;', 'capacity')]"/>
                 <filter string="Capacidad Llena" name="full_capacity" 
                         domain="[('current_birds_count', '&gt;=', 'capacity')]"/>
