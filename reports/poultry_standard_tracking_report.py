@@ -349,7 +349,8 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                 ind_values = day_values.filtered(
                     lambda v, ind=indicator: v.indicator_id == ind)
                 current_overrides[(batch.id, indicator.id, current_week)] = \
-                    Value._poultry_aggregate_week_values(indicator, ind_values)
+                    Value._poultry_aggregate_week_values(
+                        indicator, ind_values, batch=batch, reference_date=yesterday)
 
         rows = []
         for week in weeks:
@@ -510,10 +511,12 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         for monday in sorted({key[2] for key in groups}):
             sunday = monday + timedelta(days=6)
             cells = {}
-            # Aves vivas al cierre de la semana (o a AYER si todavía no cerró).
+            # Día de cierre de la semana (o AYER si todavía no cerró): es la fecha
+            # a la que se miran TODOS los datos de la fila -las Aves Vivas y las
+            # fotos de los indicadores- para que hablen del mismo día.
+            ref_date = min(sunday, yesterday)
             live_by_batch = {}
             for batch in report_batches:
-                ref_date = min(sunday, yesterday)
                 live_by_batch[batch.id] = (batch._poultry_get_live_bird_count_on(ref_date)
                                             if batch.birth_date and batch.birth_date <= ref_date
                                             else None)
@@ -528,7 +531,8 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
                     if not value_ids:
                         continue
                     week_values = Value.browse(value_ids)
-                    real = Value._poultry_aggregate_week_values(indicator, week_values)
+                    real = Value._poultry_aggregate_week_values(
+                        indicator, week_values, batch=batch, reference_date=ref_date)
                     if real is None:
                         continue
                     # Semana de Vida del lote en esta semana calendario: la del día
