@@ -86,8 +86,63 @@ class PoultryBatchIndicatorValue(models.Model):
         self._recompute_weekly_value(batch, indicator, target_date)
         return record
 
+    # Magnitudes que son un ESTADO del lote a una fecha: se pueden calcular
+    # cualquier día, exista o no un Parte/OF ese día, porque salen de la población
+    # del lote y no de lo que se produjo.
+    _POULTRY_POPULATION_MAGNITUDES = (
+        'live_birds', 'housed_birds', 'original_birds', 'housed_or_original_birds', 'one',
+    )
+
     @api.model
-    def _poultry_aggregate_week_values(self, indicator, week_values):
+    def _poultry_population_magnitude(self, key, batch, target_date):
+        """Valor de una magnitud de población del lote a target_date. Mismas
+        definiciones que mrp.production._poultry_collect_magnitudes, para que la
+        foto del día de cierre coincida con la del día que sí tuvo OF."""
+        if key == 'one':
+            return 1.0
+        if key == 'live_birds':
+            live = batch._poultry_get_live_bird_count_on(target_date)
+            return None if live is None else float(live)
+        if key == 'housed_birds':
+            return float(batch.housed_bird_count or 0.0)
+        if key == 'original_birds':
+            return float(batch.bird_count or 0.0)
+        if key == 'housed_or_original_birds':
+            in_production = (batch.housed_bird_count and batch.production_start_date
+                             and target_date >= batch.production_start_date)
+            return float(batch.housed_bird_count if in_production else (batch.bird_count or 0.0))
+        return None
+
+    @api.model
+    def _poultry_snapshot_on(self, indicator, batch, reference_date):
+        """Foto de un indicador 'snapshot' al DÍA DE CIERRE de la semana.
+
+        Los valores diarios solo existen los días con OF de Huevo sin Clasificar.
+        Si el día de cierre no tuvo OF, tomar "el último día con dato" devuelve el
+        estado de un día anterior, mientras la columna Aves Vivas del reporte sí
+        va al día de cierre: los dos números dejan de hablar de la misma fecha y,
+        por ejemplo, Mortandad Acumulada + Viabilidad no suma 100.
+
+        Como una foto es un ESTADO del lote (no algo que se produjo), se puede
+        calcular en el día de cierre aunque no haya OF. Devuelve None si la fórmula
+        usa alguna magnitud que sí depende de la OF: en ese caso se cae al último
+        día con dato, que es lo mejor disponible."""
+        if not (batch and reference_date and indicator.formula_mode == 'snapshot'):
+            return None
+        numerator_key = indicator.formula_numerator
+        denominator_key = indicator.formula_denominator or 'one'
+        if (numerator_key not in self._POULTRY_POPULATION_MAGNITUDES
+                or denominator_key not in self._POULTRY_POPULATION_MAGNITUDES):
+            return None
+        numerator = self._poultry_population_magnitude(numerator_key, batch, reference_date)
+        denominator = self._poultry_population_magnitude(denominator_key, batch, reference_date)
+        if numerator is None or not denominator:
+            return None
+        return numerator / denominator * float(indicator.formula_factor or '1')
+
+    @api.model
+    def _poultry_aggregate_week_values(self, indicator, week_values,
+                                       batch=None, reference_date=None):
         """Agrega un conjunto de valores DIARIOS de una misma semana al Valor Real
         semanal, según el tipo de acumulación del indicador. week_values puede ser
         la semana completa (agregado persistido) o un recorte (ej. el Reporte de
@@ -104,7 +159,8 @@ class PoultryBatchIndicatorValue(models.Model):
         if aggregation == 'sum':
             return sum(week_values.mapped('value'))
         if aggregation == 'last':
-            return week_values.sorted('date')[-1].value
+            snapshot = self._poultry_snapshot_on(indicator, batch, reference_date)
+            return snapshot if snapshot is not None else week_values.sorted('date')[-1].value
 
         if aggregation == 'auto' and indicator.formula_mode:
             # Con fórmula cargada, la agregación automática se deriva de la FÓRMULA
@@ -114,7 +170,12 @@ class PoultryBatchIndicatorValue(models.Model):
             # que todavía usan el cálculo interno).
             if indicator.formula_mode in ('running_sum', 'snapshot', 'ratio_cumulative'):
                 # Acumulados y estados: el valor del período es el del último día
-                # con dato (nunca se suman ni promedian entre sí).
+                # con dato (nunca se suman ni promedian entre sí). Las FOTOS, además,
+                # se recalculan en el día de cierre de la semana si ese día no tuvo
+                # OF, para no quedar en una fecha distinta de la de Aves Vivas.
+                snapshot = self._poultry_snapshot_on(indicator, batch, reference_date)
+                if snapshot is not None:
+                    return snapshot
                 return week_values.sorted('date')[-1].value
             if indicator.formula_denominator == 'live_birds_start':
                 # Tasa sobre las aves vivas al INICIO del período (ej. % de
@@ -169,7 +230,11 @@ class PoultryBatchIndicatorValue(models.Model):
         if not week_values:
             return
 
-        real_value = self._poultry_aggregate_week_values(indicator, week_values)
+        real_value = self._poultry_aggregate_week_values(
+            indicator, week_values, batch=batch,
+            # Día de cierre de la semana, sin pasarse del último día calculado:
+            # con la semana en curso el cierre todavía no llegó.
+            reference_date=min(week_date_to, target_date))
 
         period = 'crianza' if week <= (batch.genetics_id.rearing_end_week or 17) else 'produccion'
         # Bajo/Alto según la Versión de Estándar predeterminada de la genética del lote,
