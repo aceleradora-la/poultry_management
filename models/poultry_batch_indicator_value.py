@@ -39,10 +39,9 @@ class PoultryBatchIndicatorValue(models.Model):
 
     display_name = fields.Char(string='Nombre', compute='_compute_display_name', store=True)
 
-    _sql_constraints = [
-        ('unique_batch_indicator_date', 'unique(batch_id, indicator_id, date)',
-         'Ya existe un valor real para este lote, este indicador y esta fecha.'),
-    ]
+    _unique_batch_indicator_date = models.Constraint(
+        'UNIQUE(batch_id, indicator_id, date)',
+        'Ya existe un valor real para este lote, este indicador y esta fecha.')
 
     @api.depends('batch_id.name', 'indicator_id.name', 'date')
     def _compute_display_name(self):

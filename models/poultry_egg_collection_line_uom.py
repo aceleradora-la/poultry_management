@@ -29,8 +29,7 @@ class PoultryEggCollectionLineUom(models.Model):
     produced_qty = fields.Float(string='Cantidad Producida', default=0.0, digits=(16, 2),
                                 help='Calculado automáticamente por el sistema basándose en la producción total')
     
-    _sql_constraints = [
-        ('unique_line_uom', 'unique(line_id, uom_id)',
-         'No puede haber dos registros con la misma unidad de medida en una línea.'),
-    ]
+    _unique_line_uom = models.Constraint(
+        'UNIQUE(line_id, uom_id)',
+        'No puede haber dos registros con la misma unidad de medida en una línea.')
 

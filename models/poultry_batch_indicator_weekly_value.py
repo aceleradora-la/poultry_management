@@ -49,10 +49,9 @@ class PoultryBatchIndicatorWeeklyValue(models.Model):
 
     display_name = fields.Char(string='Nombre', compute='_compute_display_name', store=True)
 
-    _sql_constraints = [
-        ('unique_batch_indicator_week', 'unique(batch_id, indicator_id, week)',
-         'Ya existe un valor semanal para este lote, este indicador y esta semana.'),
-    ]
+    _unique_batch_indicator_week = models.Constraint(
+        'UNIQUE(batch_id, indicator_id, week)',
+        'Ya existe un valor semanal para este lote, este indicador y esta semana.')
 
     @api.depends('batch_id.name', 'indicator_id.name', 'week')
     def _compute_display_name(self):

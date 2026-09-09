@@ -23,7 +23,6 @@ class PoultryCage(models.Model):
                                  'siguen mostrándola.')
     notes = fields.Text(string='Notas')
 
-    _sql_constraints = [
-        ('unique_coop_code', 'unique(coop_id, code)',
-         'Ya existe una jaula con este código en el galpón.'),
-    ]
+    _unique_coop_code = models.Constraint(
+        'UNIQUE(coop_id, code)',
+        'Ya existe una jaula con este código en el galpón.')

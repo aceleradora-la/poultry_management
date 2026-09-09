@@ -50,15 +50,18 @@ class PoultryGeneticsStandard(models.Model):
                 f'{record.indicator_id.name} - {period_label} S{record.week}'
             )
 
-    _sql_constraints = [
-        ('unique_version_indicator_week_period', 'unique(version_id, indicator_id, week, period)',
-         'Ya existe un valor para este indicador, semana y período en esta versión.'),
-        ('week_positive', 'CHECK(week >= 1)',
-         'La semana debe ser mayor o igual a 1.'),
-        ('value_low_positive', 'CHECK(value_low >= 0)',
-         'El valor Bajo no puede ser negativo.'),
-        ('value_high_positive', 'CHECK(value_high >= 0)',
-         'El valor Alto no puede ser negativo.'),
-        ('value_high_gte_low', 'CHECK(value_high >= value_low)',
-         'El valor Alto no puede ser menor que el valor Bajo.'),
-    ]
+    _unique_version_indicator_week_period = models.Constraint(
+        'UNIQUE(version_id, indicator_id, week, period)',
+        'Ya existe un valor para este indicador, semana y período en esta versión.')
+    _week_positive = models.Constraint(
+        'CHECK(week >= 1)',
+        'La semana debe ser mayor o igual a 1.')
+    _value_low_positive = models.Constraint(
+        'CHECK(value_low >= 0)',
+        'El valor Bajo no puede ser negativo.')
+    _value_high_positive = models.Constraint(
+        'CHECK(value_high >= 0)',
+        'El valor Alto no puede ser negativo.')
+    _value_high_gte_low = models.Constraint(
+        'CHECK(value_high >= value_low)',
+        'El valor Alto no puede ser menor que el valor Bajo.')

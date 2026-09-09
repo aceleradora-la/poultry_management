@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
-from odoo.osv import expression
+from odoo.fields import Domain
 import math
 import re
 import logging
@@ -448,7 +448,7 @@ class PoultryEggCollectionLine(models.Model):
         if not domain or not field_name:
             return False
         try:
-            norm = expression.normalize_domain(domain)
+            norm = list(Domain(domain))
         except Exception:
             return False
         for item in norm:
@@ -464,7 +464,7 @@ class PoultryEggCollectionLine(models.Model):
         if not field_names:
             return domain
         try:
-            norm = expression.normalize_domain(domain)
+            norm = list(Domain(domain))
         except Exception:
             return domain
         leaves = [
@@ -475,7 +475,7 @@ class PoultryEggCollectionLine(models.Model):
             return []
         if len(leaves) == 1:
             return leaves
-        return expression.AND([[leaf] for leaf in leaves])
+        return list(Domain.AND([[leaf] for leaf in leaves]))
     
     @api.model
     def _read_group_requests_field(self, fields_list, field_name):
@@ -649,7 +649,7 @@ class PoultryEggCollectionLine(models.Model):
             # Dominio del grupo: informe + slice del pivot (fecha, galpón, atributo, etc.)
             extra = group.get('__extra_domain')
             if extra:
-                group_domain = expression.AND([list(domain or []), list(extra)])
+                group_domain = list(Domain.AND([list(domain or []), list(extra)]))
             else:
                 group_domain = list(domain or [])
 
@@ -994,7 +994,6 @@ class PoultryEggCollectionLine(models.Model):
                 res[fname]['groupable'] = False
         return res
 
-    _sql_constraints = [
-        ('unique_collection_variant', 'unique(collection_id, product_variant_id)',
-         'Ya existe una línea para esta variante en esta recolección.'),
-    ]
+    _unique_collection_variant = models.Constraint(
+        'UNIQUE(collection_id, product_variant_id)',
+        'Ya existe una línea para esta variante en esta recolección.')
