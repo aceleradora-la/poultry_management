@@ -547,6 +547,54 @@ class PoultryEggCollectionLine(models.Model):
                 line.average_weight_elaborated_aggregated = 0.0
     
     @api.model
+    def _pivot_order_newest_first(self, order, specs):
+        """Fuerza `collection_date ... desc` cuando el orden no trae direccion explicita.
+
+        Odoo 19: el pivot pide los grupos via formatted_read_grouping_sets, que
+        cuando no recibe `order` arma uno ASCENDENTE con los propios specs del
+        groupby y ya no consulta el _order del modelo (si lo hacia read_group en
+        v18). Sin esto, el Reporte de Produccion vuelve a mostrar de mas viejo a
+        mas nuevo.
+        """
+        def fixed_term(term):
+            parts = term.split()
+            if parts and parts[0].split(':')[0] == 'collection_date' and len(parts) == 1:
+                return term + ' desc'
+            return term
+
+        if order:
+            terms = [t.strip() for t in order.split(',') if t.strip()]
+            return ', '.join(fixed_term(t) for t in terms)
+        seen = list(dict.fromkeys(str(s) for s in (specs or [])))
+        return ', '.join(fixed_term(t) for t in seen) or None
+
+    @api.model
+    def formatted_read_grouping_sets(self, domain, grouping_sets, aggregates=(), *, order=None):
+        """El pivot de Odoo 19 pide TODOS sus grupos por aca — no pasa por
+        formatted_read_group ni por _read_group — asi que hay que repetir en este
+        nivel el orden por fecha descendente y la inyeccion de las medidas
+        especiales no almacenadas (mismo criterio que formatted_read_group).
+        """
+        grouping_sets = [list(gs) for gs in grouping_sets]
+        aggregates = list(aggregates or [])
+        order = self._pivot_order_newest_first(
+            order, [s for gs in grouping_sets for s in gs])
+        _special_measures = ('average_weight_elaborated_aggregated', 'pivot_row_distribution_percent')
+        avg_specs = [s for s in aggregates if isinstance(s, str)
+                     and (s == 'average_weight_elaborated_aggregated'
+                          or s.startswith('average_weight_elaborated_aggregated:'))]
+        pct_specs = [s for s in aggregates if isinstance(s, str)
+                     and (s == 'pivot_row_distribution_percent'
+                          or s.startswith('pivot_row_distribution_percent:'))]
+        aggregates_for_super = self._read_group_strip_field_specs(aggregates, _special_measures)
+        result = super().formatted_read_grouping_sets(
+            domain, grouping_sets, aggregates_for_super, order=order)
+        if avg_specs or pct_specs:
+            for gs, groups in zip(grouping_sets, result):
+                self._inject_pivot_special_measures(domain, gs, groups, avg_specs, pct_specs)
+        return result
+
+    @api.model
     def formatted_read_group(self, domain, groupby=(), aggregates=(), having=(), offset=0, limit=None, order=None):
         """
         Calcula average_weight_elaborated_aggregated (promedio ponderado) y
@@ -561,11 +609,7 @@ class PoultryEggCollectionLine(models.Model):
         """
         groupby = list(groupby or [])
         aggregates = list(aggregates or [])
-        # Pivot: cuando el primer groupby es collection_date, forzar orden desc
-        if groupby and not order:
-            first_group = groupby[0]
-            if isinstance(first_group, str) and first_group.startswith('collection_date'):
-                order = 'collection_date desc'
+        order = self._pivot_order_newest_first(order, groupby)
         _special_measures = ('average_weight_elaborated_aggregated', 'pivot_row_distribution_percent')
         # Specs reales solicitados por el pivot (pueden venir como 'campo' o 'campo:agg').
         avg_specs = [s for s in aggregates if isinstance(s, str)
@@ -578,74 +622,79 @@ class PoultryEggCollectionLine(models.Model):
         result = super().formatted_read_group(
             domain, groupby, aggregates_for_super, having=having, offset=offset, limit=limit, order=order)
 
-        # Calcular average_weight_elaborated_aggregated usando promedio ponderado
-        # IMPORTANTE: Siempre calcular desde los registros base, nunca desde valores agregados
-        # Esto evita el problema de "promedio de promedios" en el Total general
-        # Calculamos siempre, incluso si el campo no está en fields_list, porque Odoo puede necesitarlo para el Total
-        if groupby and (avg_specs or pct_specs):
-            grand_eggs_holder = [None]
-
-            def get_grand_total_eggs():
-                if grand_eggs_holder[0] is None:
-                    glines = self.search(list(domain or []))
-                    grand_eggs_holder[0] = sum(glines.mapped('total_produced_reference')) or 0.0
-                return grand_eggs_holder[0]
-
-            # El pivot hace llamadas jerárquicas y __extra_domain puede no incluir
-            # todas las dimensiones visuales a la vez. Usamos el dominio base del
-            # informe como “gran total” y el slice del grupo para cada celda.
-            for group in result:
-                # Dominio del grupo: informe + slice del pivot (fecha, galpón, atributo, etc.)
-                extra = group.get('__extra_domain')
-                if extra:
-                    group_domain = expression.AND([list(domain or []), list(extra)])
-                else:
-                    group_domain = list(domain or [])
-
-                # Buscar los registros BASE en este grupo (no usar valores agregados)
-                lines = self.search(group_domain)
-
-                # Promedio ponderado: suma(weight_total_grams) / suma(eggs_with_weight)
-                if avg_specs:
-                    if lines:
-                        total_weight = sum(lines.mapped('weight_total_grams'))
-                        total_eggs = sum(lines.mapped('eggs_with_weight'))
-                        avg_value = (total_weight / total_eggs) if (total_eggs and total_eggs > 0) else 0.0
-                    else:
-                        avg_value = 0.0
-                    for spec in avg_specs:
-                        group[spec] = avg_value
-
-                # % Distrib.: interior = celda/fila; total fila = columna/gran total; total columna = fila/gran total
-                if pct_specs:
-                    if not lines:
-                        pct_value = 0.0
-                    else:
-                        eggs_cell = sum(lines.mapped('total_produced_reference'))
-                        # Si hay columnas y esta celda es el "Total" de columnas (no acota ninguna columna),
-                        # el % de distribución no aplica y debe ser 100%.
-                        col_bases = self._infer_column_base_fields_from_groupby(groupby)
-                        if col_bases and not any(self._domain_touches_field(group_domain, f) for f in col_bases):
-                            pct_value = 1.0 if eggs_cell else 0.0
-                        else:
-                            # % = celda / total del “padre” inmediato (quitar solo la dimensión más profunda presente)
-                            dim_field = self._pivot_deepest_domain_dimension(group_domain, groupby)
-                            if not dim_field:
-                                # No hay dimensiones: es el gran total
-                                ratio = 1.0 if eggs_cell else 0.0
-                            else:
-                                denom_domain = self._domain_without_fields(group_domain, {dim_field})
-                                if denom_domain:
-                                    eggs_parent = sum(self.search(denom_domain).mapped('total_produced_reference')) or 0.0
-                                else:
-                                    # Si al quitar la dimensión “hija” no queda ninguna otra, el padre es el total general del informe
-                                    eggs_parent = get_grand_total_eggs()
-                                ratio = (eggs_cell / eggs_parent) if eggs_parent else 0.0
-                            pct_value = min(max(ratio, 0.0), 1.0)
-                    for spec in pct_specs:
-                        group[spec] = pct_value
-
+        if avg_specs or pct_specs:
+            self._inject_pivot_special_measures(domain, groupby, result, avg_specs, pct_specs)
         return result
+
+    @api.model
+    def _inject_pivot_special_measures(self, domain, groupby, groups, avg_specs, pct_specs):
+        """Calcula e inyecta por grupo las medidas no almacenadas del pivot
+        (promedio ponderado de peso y % de distribucion), siempre desde los
+        registros base para evitar promedios de promedios. `groups` son dicts
+        formateados con __extra_domain (formatted_read_group /
+        formatted_read_grouping_sets).
+        """
+        grand_eggs_holder = [None]
+
+        def get_grand_total_eggs():
+            if grand_eggs_holder[0] is None:
+                glines = self.search(list(domain or []))
+                grand_eggs_holder[0] = sum(glines.mapped('total_produced_reference')) or 0.0
+            return grand_eggs_holder[0]
+
+        # El pivot hace llamadas jerárquicas y __extra_domain puede no incluir
+        # todas las dimensiones visuales a la vez. Usamos el dominio base del
+        # informe como “gran total” y el slice del grupo para cada celda.
+        for group in groups:
+            # Dominio del grupo: informe + slice del pivot (fecha, galpón, atributo, etc.)
+            extra = group.get('__extra_domain')
+            if extra:
+                group_domain = expression.AND([list(domain or []), list(extra)])
+            else:
+                group_domain = list(domain or [])
+
+            # Buscar los registros BASE en este grupo (no usar valores agregados)
+            lines = self.search(group_domain)
+
+            # Promedio ponderado: suma(weight_total_grams) / suma(eggs_with_weight)
+            if avg_specs:
+                if lines:
+                    total_weight = sum(lines.mapped('weight_total_grams'))
+                    total_eggs = sum(lines.mapped('eggs_with_weight'))
+                    avg_value = (total_weight / total_eggs) if (total_eggs and total_eggs > 0) else 0.0
+                else:
+                    avg_value = 0.0
+                for spec in avg_specs:
+                    group[spec] = avg_value
+
+            # % Distrib.: interior = celda/fila; total fila = columna/gran total; total columna = fila/gran total
+            if pct_specs:
+                if not lines:
+                    pct_value = 0.0
+                else:
+                    eggs_cell = sum(lines.mapped('total_produced_reference'))
+                    # Si hay columnas y esta celda es el "Total" de columnas (no acota ninguna columna),
+                    # el % de distribución no aplica y debe ser 100%.
+                    col_bases = self._infer_column_base_fields_from_groupby(groupby)
+                    if col_bases and not any(self._domain_touches_field(group_domain, f) for f in col_bases):
+                        pct_value = 1.0 if eggs_cell else 0.0
+                    else:
+                        # % = celda / total del “padre” inmediato (quitar solo la dimensión más profunda presente)
+                        dim_field = self._pivot_deepest_domain_dimension(group_domain, groupby)
+                        if not dim_field:
+                            # No hay dimensiones: es el gran total
+                            ratio = 1.0 if eggs_cell else 0.0
+                        else:
+                            denom_domain = self._domain_without_fields(group_domain, {dim_field})
+                            if denom_domain:
+                                eggs_parent = sum(self.search(denom_domain).mapped('total_produced_reference')) or 0.0
+                            else:
+                                # Si al quitar la dimensión “hija” no queda ninguna otra, el padre es el total general del informe
+                                eggs_parent = get_grand_total_eggs()
+                            ratio = (eggs_cell / eggs_parent) if eggs_parent else 0.0
+                        pct_value = min(max(ratio, 0.0), 1.0)
+                for spec in pct_specs:
+                    group[spec] = pct_value
     
     def _sync_uom_values_to_legacy(self):
         """Sincroniza valores de uom_value_ids a campos legacy para mostrar en el tree"""
