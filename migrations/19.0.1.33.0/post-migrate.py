@@ -16,10 +16,28 @@ como en las guías de genética), en vez de desde 0.
 - batch_age_weeks (Mortandad, Vacunación, Parte de Peso): recomputado con la
   nueva fórmula.
 """
+import logging
+
 from odoo import api, SUPERUSER_ID
+
+_logger = logging.getLogger(__name__)
+
+# Marcador que deja esta migración al terminar. Al actualizar una base de 18.0 a
+# 19.0, Odoo corre TODAS las migraciones 19.0.1.x (la versión instalada
+# "18.0.1.N" es menor que cualquier "19.0.1.M"), incluida la gemela de esta, y
+# no tiene forma de saber que el corrimiento ya se aplicó: volvería a sumar 1 a
+# semanas que ya son 1-based. Con el marcador, la gemela se da cuenta y no toca
+# nada. Ver migrations/19.0.1.83.0, que lo deja en las bases que ya pasaron por
+# acá antes de que existiera.
+WEEK_NUMBERING_MARKER = 'poultry_management.week_numbering_1based'
 
 
 def migrate(cr, version):
+    cr.execute("SELECT 1 FROM ir_config_parameter WHERE key = %s", (WEEK_NUMBERING_MARKER,))
+    if cr.fetchone():
+        _logger.info('Poultry: Semanas de Vida ya numeradas desde 1; se omite el corrimiento.')
+        return
+
     # Corrimiento +1 en dos pasos (negativo y de vuelta) para no chocar
     # transitoriamente con la restricción unique(batch, indicator, week).
     cr.execute("UPDATE poultry_batch_indicator_weekly_value SET week = -(week + 1)")
@@ -43,3 +61,5 @@ def migrate(cr, version):
             records = env[model].with_context(active_test=False).search([])
             if records and 'batch_age_weeks' in records._fields:
                 records._compute_batch_age()
+
+    env['ir.config_parameter'].sudo().set_param(WEEK_NUMBERING_MARKER, 'True')
