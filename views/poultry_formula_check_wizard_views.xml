@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_formula_check_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.formula.check.wizard.form</field>
+        <field name="model">poultry.formula.check.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Verificar Motor de Fórmulas">
+                <sheet>
+                    <p>
+                        Compara lo que calcularía el <strong>motor de fórmulas</strong> (el
+                        Numerador, Denominador y Modo de Cálculo configurados en cada
+                        Indicador) contra los valores <strong>ya guardados</strong>, y lista
+                        las diferencias.
+                    </p>
+                    <p class="text-muted">
+                        No guarda nada: el recálculo se hace en un savepoint de base de datos
+                        y se deshace al terminar. Lo esperado es <strong>cero diferencias</strong>,
+                        porque a cada indicador se le cargó la fórmula equivalente a su
+                        cálculo anterior.
+                    </p>
+                    <group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group>
+                            <field name="tolerance"/>
+                        </group>
+                    </group>
+                    <field name="result_html" nolabel="1" readonly="1"
+                           invisible="not result_html"/>
+                </sheet>
+                <footer>
+                    <button name="action_check" string="Verificar" type="object" class="oe_highlight"/>
+                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_poultry_formula_check_wizard" model="ir.actions.act_window">
+        <field name="name">Verificar Motor de Fórmulas</field>
+        <field name="res_model">poultry.formula.check.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- El menú padre "Configuración General" está definido en poultry_menus.xml -->
+    <menuitem id="menu_poultry_formula_check_wizard"
+              name="Verificar Motor de Fórmulas"
+              parent="menu_poultry_configuration_general"
+              action="action_poultry_formula_check_wizard"
+              sequence="31"
+              groups="poultry_management.poultry_manager"/>
+</odoo>

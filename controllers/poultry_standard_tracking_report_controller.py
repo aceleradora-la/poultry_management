@@ -1,0 +1,167 @@
+# -*- coding: utf-8 -*-
+
+import io
+
+import xlsxwriter
+from werkzeug.exceptions import Forbidden
+
+from odoo import http
+from odoo.http import request
+
+
+class PoultryStandardTrackingReportController(http.Controller):
+
+    @http.route('/poultry/standard_tracking/xlsx/<int:wizard_id>', type='http', auth='user')
+    def export_xlsx(self, wizard_id, **kwargs):
+        """Exporta el Reporte de Seguimiento de Estándares a Excel, reutilizando
+        get_report_data() (el mismo método que usa el componente en pantalla),
+        para no duplicar la lógica de columnas/agregación en dos lugares."""
+        if not request.env.user.has_group('poultry_management.poultry_user'):
+            raise Forbidden()
+
+        wizard = request.env['poultry.standard.tracking.report.wizard'].browse(wizard_id)
+        if not wizard.exists():
+            raise Forbidden()
+
+        report_data = wizard.get_report_data()
+
+        buffer = io.BytesIO()
+        workbook = xlsxwriter.Workbook(buffer, {'in_memory': True})
+
+        header = report_data.get('header', {})
+        info_label_format = workbook.add_format({'bold': True})
+        header_format = workbook.add_format({
+            'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1,
+        })
+        sub_header_format = workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'border': 1,
+        })
+        cell_format = workbook.add_format({'align': 'center', 'border': 1})
+        real_format = workbook.add_format({'align': 'center', 'border': 1, 'bold': True})
+
+        # Formatos de Valor Real coloreados según la configuración de cada indicador
+        # (color_below/color_within/color_above). xlsxwriter exige un objeto Format por
+        # combinación, así que se cachean por color para no crear uno por celda.
+        real_color_formats = {}
+
+        def get_real_format(color):
+            if not color:
+                return real_format
+            if color not in real_color_formats:
+                real_color_formats[color] = workbook.add_format({
+                    'align': 'center', 'border': 1, 'bold': True, 'font_color': color,
+                })
+            return real_color_formats[color]
+
+        is_calendar = header.get('axis') == 'calendar_week'
+        period_sheets = (('crianza', 'Recría'), ('produccion', 'Parámetros productivos'))
+        if wizard.report_period:
+            # Reporte fijado a un período (menús Crianza/Producción dedicados):
+            # exportar solo la hoja correspondiente.
+            period_sheets = tuple(p for p in period_sheets if p[0] == wizard.report_period)
+        for period, sheet_name in period_sheets:
+            period_data = report_data.get(period, {'indicators': [], 'rows': []})
+            sheet = workbook.add_worksheet(sheet_name)
+
+            sheet.write(0, 0, 'Lote: %s' % (header.get('batch_name') or ''), info_label_format)
+            sheet.write(1, 0, 'Genética: %s' % (header.get('genetics_name') or ''), info_label_format)
+            sheet.write(2, 0, 'Versión de Estándar: %s' % (header.get('version_name') or ''), info_label_format)
+            sheet.write(3, 0, 'Galpón: %s' % (header.get('coop_names') or '-'), info_label_format)
+            sheet.write(4, 0, 'Fecha de Ingreso a Galpón: %s' % (header.get('coop_date_from') or '-'),
+                        info_label_format)
+            sheet.write(5, 0, 'Aves Alojadas: %s' % (header.get('bird_count') or '-'), info_label_format)
+
+            header_row = 7
+            # Columnas fijas: Edad, Fecha y Aves Vivas (base 3 para los indicadores).
+            sheet.freeze_panes(header_row + 2, 3)
+
+            indicators = period_data['indicators']
+            # Mismos rótulos que en pantalla: con eje calendario la fila es una
+            # semana real y la primera columna queda para el lote del detalle.
+            sheet.merge_range(header_row, 0, header_row + 1, 0,
+                              'Lote' if is_calendar else 'Edad', header_format)
+            sheet.merge_range(header_row, 1, header_row + 1, 1,
+                              'Semana (cierra)' if is_calendar else 'Fecha', header_format)
+            sheet.merge_range(header_row, 2, header_row + 1, 2, 'Aves Vivas', header_format)
+            col = 3
+            for indicator in indicators:
+                sheet.merge_range(header_row, col, header_row, col + 2, indicator['name'], header_format)
+                sheet.write(header_row + 1, col, 'Bajo', sub_header_format)
+                sheet.write(header_row + 1, col + 1, 'Alto', sub_header_format)
+                sheet.write(header_row + 1, col + 2, 'Real', sub_header_format)
+                col += 3
+            sheet.set_column(0, 2, 12)
+            if indicators:
+                sheet.set_column(3, col - 1, 10)
+
+            row = header_row + 2
+            for line in period_data['rows']:
+                if is_calendar:
+                    sheet.write_blank(row, 0, None, header_format)
+                else:
+                    sheet.write(row, 0, line['week'], header_format)
+                sheet.write(row, 1, line['date'], header_format)
+                if line.get('live_birds') is not None:
+                    sheet.write(row, 2, line['live_birds'], cell_format)
+                else:
+                    sheet.write_blank(row, 2, None, cell_format)
+                col = 3
+                for indicator in indicators:
+                    cell = line['cells'].get(indicator['id']) or line['cells'].get(str(indicator['id']))
+                    if cell and cell.get('has_standard'):
+                        sheet.write(row, col, cell['value_low'], cell_format)
+                        sheet.write(row, col + 1, cell['value_high'], cell_format)
+                    else:
+                        sheet.write_blank(row, col, None, cell_format)
+                        sheet.write_blank(row, col + 1, None, cell_format)
+                    real_value = cell.get('real_value') if cell else None
+                    if real_value is not None:
+                        sheet.write(row, col + 2, real_value, get_real_format(cell.get('real_color')))
+                    else:
+                        sheet.write_blank(row, col + 2, None, real_format)
+                    col += 3
+                row += 1
+
+                # Detalle por lote: en el eje calendario ES el reporte (cada lote con
+                # su Semana de Vida y su estándar), así que se escribe siempre, como
+                # filas agrupadas que Excel deja plegar.
+                if not is_calendar:
+                    continue
+                for batch_row in line.get('batch_rows') or []:
+                    sheet.write(row, 0, batch_row['name'], cell_format)
+                    life_week = batch_row.get('life_week')
+                    sheet.write(row, 1, 'Sem. %s' % life_week if life_week else '', cell_format)
+                    if batch_row.get('live_birds') is not None:
+                        sheet.write(row, 2, batch_row['live_birds'], cell_format)
+                    else:
+                        sheet.write_blank(row, 2, None, cell_format)
+                    col = 3
+                    for indicator in indicators:
+                        bv = (batch_row['values'].get(indicator['id'])
+                              or batch_row['values'].get(str(indicator['id'])))
+                        if bv and bv.get('has_standard'):
+                            sheet.write(row, col, bv['value_low'], cell_format)
+                            sheet.write(row, col + 1, bv['value_high'], cell_format)
+                        else:
+                            sheet.write_blank(row, col, None, cell_format)
+                            sheet.write_blank(row, col + 1, None, cell_format)
+                        if bv:
+                            sheet.write(row, col + 2, bv['real_value'],
+                                        get_real_format(bv.get('real_color')))
+                        else:
+                            sheet.write_blank(row, col + 2, None, real_format)
+                        col += 3
+                    sheet.set_row(row, None, None, {'level': 1})
+                    row += 1
+
+        workbook.close()
+        buffer.seek(0)
+
+        batch_code = wizard.batch_id.code or str(wizard.batch_id.id)
+        return request.make_response(
+            buffer.read(),
+            headers=[
+                ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+                ('Content-Disposition', f'attachment; filename="Seguimiento_Estandares_{batch_code}.xlsx"'),
+            ],
+        )

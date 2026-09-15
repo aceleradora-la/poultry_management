@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="poultry_management.PoultryStandardTrackingReport" owl="1">
+        <div class="o_action o_poultry_standard_tracking_report" t-ref="root">
+            <div class="o_control_panel">
+                <div class="o_control_panel_main d-flex align-items-center flex-wrap gap-2 p-2">
+                    <h5 class="mb-0 me-3"><t t-esc="title"/></h5>
+                    <div class="d-flex align-items-center flex-wrap gap-1 me-2 border rounded px-2 py-1"
+                         t-if="header" style="min-height: 31px;">
+                        <t t-foreach="selectedBatches" t-as="b" t-key="b.id">
+                            <span class="badge rounded-pill text-bg-light border">
+                                <t t-esc="b.name"/>
+                                <a href="#" class="ms-1 text-decoration-none text-secondary"
+                                   t-if="selectedBatches.length > 1"
+                                   t-on-click.prevent="() => this.onRemoveBatch(b.id)">×</a>
+                            </span>
+                        </t>
+                        <select class="form-select form-select-sm w-auto border-0 py-0"
+                                t-if="addableBatches.length" t-on-change="onAddBatch">
+                            <option value="">+ Lote</option>
+                            <t t-foreach="addableBatches" t-as="batch" t-key="batch.id">
+                                <option t-att-value="batch.id"><t t-esc="batch.name"/></option>
+                            </t>
+                        </select>
+                    </div>
+                    <select class="form-select form-select-sm w-auto me-2" t-on-change="onVersionChange" t-if="header">
+                        <t t-foreach="header.version_options" t-as="v" t-key="v.id">
+                            <option t-att-value="v.id"
+                                    t-att-selected="header.version_id === v.id">
+                                <t t-esc="v.name"/>
+                            </option>
+                        </t>
+                    </select>
+                    <div class="btn-group me-2" role="group" t-if="!fixedPeriod">
+                        <button class="btn btn-sm"
+                                t-att-class="state.period === 'crianza' ? 'btn-primary' : 'btn-outline-primary'"
+                                t-on-click="() => this.setPeriod('crianza')">
+                            Crianza
+                        </button>
+                        <button class="btn btn-sm"
+                                t-att-class="state.period === 'produccion' ? 'btn-primary' : 'btn-outline-primary'"
+                                t-on-click="() => this.setPeriod('produccion')">
+                            Producción
+                        </button>
+                    </div>
+                    <div class="dropdown me-2" t-if="currentData">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                            Indicadores
+                        </button>
+                        <ul class="dropdown-menu p-2" style="max-height: 320px; overflow-y: auto; min-width: 260px;">
+                            <li>
+                                <a class="dropdown-item" href="#" t-on-click.prevent="showAllIndicators">
+                                    Mostrar todos
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" t-on-click.prevent="hideAllIndicators">
+                                    Ocultar todos
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"/></li>
+                            <t t-foreach="currentData.indicators" t-as="indicator" t-key="indicator.id">
+                                <li>
+                                    <div class="dropdown-item form-check mb-0">
+                                        <input type="checkbox" class="form-check-input"
+                                               t-att-id="'indicator_toggle_' + indicator.id"
+                                               t-att-checked="!state.hiddenIndicatorIds[indicator.id]"
+                                               t-on-change="() => this.toggleIndicatorVisibility(indicator.id)"/>
+                                        <label class="form-check-label" t-att-for="'indicator_toggle_' + indicator.id">
+                                            <t t-esc="indicator.name"/>
+                                        </label>
+                                    </div>
+                                </li>
+                            </t>
+                        </ul>
+                    </div>
+                    <button class="btn btn-sm btn-secondary" t-on-click="exportPdf">
+                        Exportar PDF
+                    </button>
+                    <button class="btn btn-sm btn-secondary" t-on-click="exportXlsx">
+                        Exportar Excel
+                    </button>
+                </div>
+                <div class="o_control_panel_secondary p-2 border-top small text-muted" t-if="header">
+                    <div>
+                        <span class="me-3"><strong>Genética:</strong> <t t-esc="header.genetics_name"/></span>
+                        <span class="me-3"><strong>Versión de Estándar:</strong> <t t-esc="header.version_name"/></span>
+                    </div>
+                    <!-- Una línea por lote seleccionado (con comparación, la info de todos). -->
+                    <div t-foreach="header.batches_info or []" t-as="bi" t-key="bi.batch_id">
+                        <span class="me-3"><strong><t t-esc="bi.name"/></strong></span>
+                        <span class="me-3"><strong>Galpón:</strong> <t t-esc="bi.coop_names or '-'"/></span>
+                        <span class="me-3">
+                            <strong>Fecha de Ingreso a Galpón:</strong>
+                            <t t-esc="bi.coop_date_from or '-'"/>
+                        </span>
+                        <span class="me-3"><strong>Fecha de Nacimiento:</strong> <t t-esc="bi.birth_date or '-'"/></span>
+                        <!-- Aves Alojadas (foto a la Entrada en Producción, igual que la
+                             ficha del lote); en crianza es la Cantidad de Aves ingresada. -->
+                        <span><strong>Aves Alojadas:</strong> <t t-esc="bi.bird_count"/></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sin padding en el contenedor de scroll: position sticky se ancla al
+                 borde INTERIOR del padding, y esa franja de padding quedaba arriba
+                 del encabezado dejando ver los datos al scrollear. El espaciado lo
+                 aporta el margen de los hijos (ver CSS), que scrollea con ellos. -->
+            <div class="o_content">
+                <t t-if="state.loading">
+                    <p class="text-muted">Cargando...</p>
+                </t>
+                <t t-elif="state.error">
+                    <div class="alert alert-danger" t-esc="state.error"/>
+                </t>
+                <t t-elif="!currentData or !currentData.rows.length">
+                    <p class="text-muted">
+                        No hay datos para el período
+                        <t t-esc="state.period === 'crianza' ? 'Crianza' : 'Producción'"/>.
+                    </p>
+                </t>
+                <t t-else="">
+                    <!-- La columna de la flechita existe SIEMPRE: sin comparación
+                         despliega los días de la semana; con comparación, los lotes
+                         (y cada lote despliega sus días en un segundo nivel). -->
+                    <table class="table table-bordered table-sm table-hover o_poultry_has_caret">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="width: 28px;" class="o_poultry_col_caret"/>
+                                <!-- Con eje calendario la fila es una semana real: la primera
+                                     columna queda para el lote (al desplegar) y la segunda
+                                     muestra la fecha de cierre. -->
+                                <th rowspan="2" class="align-middle text-center o_poultry_col_week">
+                                    <t t-if="isCalendarAxis">Lote</t>
+                                    <t t-else="">Edad</t>
+                                </th>
+                                <th rowspan="2" class="align-middle text-center o_poultry_col_date">
+                                    <t t-if="isCalendarAxis">Semana (cierra)</t>
+                                    <t t-else="">Fecha</t>
+                                </th>
+                                <th rowspan="2" class="align-middle text-center">Aves Vivas</th>
+                                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                                    <th colspan="3" class="text-center">
+                                        <t t-esc="indicator.name"/>
+                                    </th>
+                                </t>
+                            </tr>
+                            <tr>
+                                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                                    <th class="text-center fw-normal">Bajo</th>
+                                    <th class="text-center fw-normal">Alto</th>
+                                    <th class="text-center fw-bold">Real</th>
+                                </t>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="currentData.rows" t-as="row" t-key="row.week">
+                                <tr style="cursor: pointer;"
+                                    t-on-click="() => this.onRowClick(row.week)">
+                                    <td class="text-center align-middle text-muted o_poultry_col_caret">
+                                        <i t-att-class="'fa ' + (state.expandedWeeks[row.week] ? 'fa-caret-down' : 'fa-caret-right')"/>
+                                    </td>
+                                    <td class="text-center fw-bold text-nowrap o_poultry_col_week">
+                                        <!-- En eje calendario la clave de fila ES la fecha, que
+                                             se muestra en la columna de al lado. -->
+                                        <t t-if="!isCalendarAxis" t-esc="row.week"/>
+                                    </td>
+                                    <td class="text-center text-nowrap o_poultry_col_date"
+                                        t-att-class="isCalendarAxis ? 'fw-bold' : ''">
+                                        <t t-esc="row.date"/>
+                                    </td>
+                                    <!-- Aves vivas al último día de la semana (semana en curso:
+                                         a AYER; hoy nunca cuenta). Vacío = sin dato, no cero. -->
+                                    <td class="text-center text-nowrap">
+                                        <t t-if="row.live_birds !== null" t-esc="row.live_birds"/>
+                                    </td>
+                                    <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                                        <t t-set="cell" t-value="row.cells[indicator.id]"/>
+                                        <td class="text-center">
+                                            <t t-if="cell.has_standard" t-esc="cell.value_low.toFixed(2)"/>
+                                        </td>
+                                        <td class="text-center">
+                                            <t t-if="cell.has_standard" t-esc="cell.value_high.toFixed(2)"/>
+                                        </td>
+                                        <td class="text-center"
+                                            t-att-class="cell.out_of_range ? 'fw-bold' : ''"
+                                            t-att-style="cell.real_color ? ('color: ' + cell.real_color + ';') : ''">
+                                            <t t-if="cell.real_value !== null" t-esc="cell.real_value.toFixed(indicator.decimals !== undefined ? indicator.decimals : 2)"/>
+                                        </td>
+                                    </t>
+                                </tr>
+                                <!-- Un lote: al desplegar la semana se muestran sus días. -->
+                                <t t-if="!isComparison and state.expandedWeeks[row.week]">
+                                    <t t-set="daily_week" t-value="row.week"/>
+                                    <t t-set="daily_batch_id" t-value="header.batch_id"/>
+                                    <t t-call="poultry_management.PoultryStandardTrackingReport.DayRows"/>
+                                </t>
+                                <!-- Comparación: primer nivel por lote; la flechita de cada
+                                     lote abre sus días (segundo nivel). -->
+                                <t t-if="isComparison and state.expandedWeeks[row.week]">
+                                    <t t-foreach="getRowBatches(row)" t-as="batchRow" t-key="batchRow.batch_id">
+                                        <tr class="table-light">
+                                            <td class="text-center align-middle text-muted o_poultry_col_caret"
+                                                style="cursor: pointer;"
+                                                t-on-click="() => this.onBatchDayToggle(row.week, batchRow.batch_id)">
+                                                <i t-att-class="'fa ' + (state.expandedBatchDays[row.week + ':' + batchRow.batch_id] ? 'fa-caret-down' : 'fa-caret-right')"/>
+                                            </td>
+                                            <td class="text-center o_poultry_col_week">
+                                                <!-- Las aves del lote van en el título del badge:
+                                                     antes ocupaban el colspan que ahora usan las
+                                                     columnas Bajo/Alto de cada lote. -->
+                                                <span class="badge rounded-pill text-bg-secondary"
+                                                      t-att-title="batchRow.bird_count ? (batchRow.bird_count + ' aves') : ''">
+                                                    <t t-esc="batchRow.name"/>
+                                                </span>
+                                            </td>
+                                            <!-- Con eje calendario, la fecha es la misma para
+                                                 todos los lotes: acá va lo que los distingue,
+                                                 su Semana de Vida. -->
+                                            <td class="text-center text-nowrap small text-muted o_poultry_col_date">
+                                                <t t-if="isCalendarAxis">
+                                                    <t t-if="batchRow.life_week">Sem. <t t-esc="batchRow.life_week"/></t>
+                                                </t>
+                                                <t t-else="" t-esc="batchRow.date or '-'"/>
+                                            </td>
+                                            <td class="text-center small text-muted">
+                                                <t t-if="batchRow.live_birds !== null and batchRow.live_birds !== undefined"
+                                                   t-esc="batchRow.live_birds"/>
+                                            </td>
+                                            <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                                                <t t-set="bv" t-value="batchRow.values[indicator.id]"/>
+                                                <!-- Bajo/Alto de ESTE lote: en el eje calendario
+                                                     cada uno tiene su Semana de Vida y por lo
+                                                     tanto su propio rango. -->
+                                                <td class="text-center small text-muted">
+                                                    <t t-if="bv and bv.has_standard" t-esc="bv.value_low.toFixed(2)"/>
+                                                </td>
+                                                <td class="text-center small text-muted">
+                                                    <t t-if="bv and bv.has_standard" t-esc="bv.value_high.toFixed(2)"/>
+                                                </td>
+                                                <td class="text-center small"
+                                                    t-att-title="bv and bv.is_partial ? 'Semana incompleta' : ''"
+                                                    t-att-class="bv and bv.is_partial ? 'fst-italic' : ''"
+                                                    t-att-style="bv and bv.real_color ? ('color: ' + bv.real_color + '; font-weight: 500;') : ''">
+                                                    <t t-if="bv" t-esc="bv.real_value.toFixed(indicator.decimals !== undefined ? indicator.decimals : 2)"/>
+                                                </td>
+                                            </t>
+                                        </tr>
+                                        <t t-if="state.expandedBatchDays[row.week + ':' + batchRow.batch_id]">
+                                            <t t-set="daily_week" t-value="row.week"/>
+                                            <t t-set="daily_batch_id" t-value="batchRow.batch_id"/>
+                                            <t t-call="poultry_management.PoultryStandardTrackingReport.DayRows"/>
+                                        </t>
+                                    </t>
+                                </t>
+                            </t>
+                        </tbody>
+                    </table>
+                </t>
+            </div>
+        </div>
+    </t>
+
+    <!-- Filas del detalle DIARIO de una semana desplegada. Espera en contexto:
+         daily_week (semana) y daily_batch_id (lote cuyos días se muestran).
+         Solo valores Reales (no hay estándar diario); la mortandad muestra las
+         aves muertas del día y su % entre paréntesis. -->
+    <t t-name="poultry_management.PoultryStandardTrackingReport.DayRows" owl="1">
+        <t t-set="dailyEntry" t-value="getWeekDays(daily_week, daily_batch_id)"/>
+        <t t-if="dailyEntry === null">
+            <tr class="table-light">
+                <td class="o_poultry_col_caret"/>
+                <td t-att-colspan="3 + visibleIndicators.length * 3"
+                    class="small text-muted fst-italic">Cargando detalle diario...</td>
+            </tr>
+        </t>
+        <t t-elif="!dailyEntry.has_daily">
+            <tr class="table-light">
+                <td class="o_poultry_col_caret"/>
+                <td t-att-colspan="3 + visibleIndicators.length * 3"
+                    class="small text-muted fst-italic">
+                    Sin datos diarios para esta semana (histórico manual o sin cierres de galpón).
+                </td>
+            </tr>
+        </t>
+        <t t-else="">
+            <tr t-foreach="dailyEntry.days" t-as="day" t-key="day.date" class="table-light">
+                <td class="o_poultry_col_caret"/>
+                <td class="o_poultry_col_week"/>
+                <td class="text-center text-nowrap small text-muted o_poultry_col_date">
+                    <t t-esc="day.date"/>
+                </td>
+                <td class="text-center small text-muted">
+                    <t t-if="day.live_birds !== null" t-esc="day.live_birds"/>
+                </td>
+                <t t-foreach="visibleIndicators" t-as="indicator" t-key="indicator.id">
+                    <t t-set="dcell" t-value="day.cells[indicator.id]"/>
+                    <td colspan="2"/>
+                    <td class="text-center small text-muted">
+                        <t t-if="dcell">
+                            <t t-if="dcell.count !== undefined"
+                               t-esc="dcell.count + ' (' + dcell.real_value.toFixed(2) + '%)'"/>
+                            <t t-else="" t-esc="dcell.real_value.toFixed(indicator.decimals !== undefined ? indicator.decimals : 2)"/>
+                        </t>
+                    </td>
+                </t>
+            </tr>
+        </t>
+    </t>
+
+</templates>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_batch_coop_line_tree" model="ir.ui.view">
+        <field name="name">poultry.batch.coop.line.tree</field>
+        <field name="model">poultry.batch.coop.line</field>
+        <field name="arch" type="xml">
+            <list string="Asignaciones de Lotes a Galpones" decoration-muted="date_to != False">
+                <field name="batch_id"/>
+                <field name="coop_id"/>
+                <field name="bird_count"/>
+                <field name="dead_count"/>
+                <field name="live_bird_count"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_coop_line_form" model="ir.ui.view">
+        <field name="name">poultry.batch.coop.line.form</field>
+        <field name="model">poultry.batch.coop.line</field>
+        <field name="arch" type="xml">
+            <form string="Asignación de Lote a Galpón">
+                <header>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="bird_count"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="dead_count" readonly="1"/>
+                            <field name="live_bird_count" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes" placeholder="Notas adicionales..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_coop_line_search" model="ir.ui.view">
+        <field name="name">poultry.batch.coop.line.search</field>
+        <field name="model">poultry.batch.coop.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Asignaciones">
+                <field name="batch_id"/>
+                <field name="coop_id"/>
+                <separator/>
+                <filter string="Vigentes" name="current" domain="[('date_to', '=', False)]"/>
+                <filter string="Finalizadas" name="ended" domain="[('date_to', '!=', False)]"/>
+                <separator/>
+                <filter string="Activas" name="active" domain="[('active', '=', True)]"/>
+                <separator/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_batch_coop_line" model="ir.actions.act_window">
+        <field name="name">Asignaciones de Lotes a Galpones</field>
+        <field name="res_model">poultry.batch.coop.line</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_current': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crear una nueva asignación
+            </p>
+            <p>
+                Registra en qué galpón, desde qué fecha y con cuántas aves está (o estuvo)
+                cada lote. Un lote puede estar repartido en varios galpones a la vez, o
+                trasladarse de uno a otro a lo largo de su vida.
+            </p>
+        </field>
+    </record>
+</odoo>

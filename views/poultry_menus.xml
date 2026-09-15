@@ -3,53 +3,210 @@
     <menuitem id="menu_poultry_management_root" 
               name="Gestión Avícola" 
               sequence="100"
-              web_icon="poultry_management,static/description/icon.png"/>
+              web_icon="poultry_management,static/description/icon.svg"/>
 
-    <menuitem id="menu_poultry_coop" 
-              name="Galpones" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_coop" 
-              sequence="10"/>
-
-    <menuitem id="menu_poultry_batch" 
-              name="Lotes de Aves" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_batch" 
-              sequence="20"/>
-
-    <menuitem id="menu_poultry_coop_bom" 
-              name="Listas de Materiales por Galpón" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_coop_bom" 
-              sequence="30"/>
-
+    <!-- Menú Principal: Producción -->
     <menuitem id="menu_poultry_egg_collection" 
-              name="Recolección de Producción" 
+              name="Producción" 
               parent="menu_poultry_management_root" 
               action="action_poultry_egg_collection" 
-              sequence="50"/>
+              sequence="10"/>
 
-    <menuitem id="menu_poultry_mortality" 
-              name="Registro de Aves Muertas" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_mortality" 
-              sequence="55"/>
+    <!-- Menú: Pesaje de Aves -->
+    <menuitem id="menu_poultry_weight_record"
+              name="Pesaje de Aves"
+              parent="menu_poultry_management_root"
+              action="action_poultry_weight_record"
+              sequence="15"/>
 
-    <menuitem id="menu_poultry_genetics" 
-              name="Genéticas" 
+    <!-- Menú: Cierres -->
+    <menuitem id="menu_poultry_closes"
+              name="Cierres" 
               parent="menu_poultry_management_root" 
-              action="action_poultry_genetics" 
+              sequence="20"/>
+    <menuitem id="menu_poultry_coop_close_wizard" 
+              name="Cierre Galpón" 
+              parent="menu_poultry_closes" 
+              action="action_poultry_coop_close_wizard" 
+              sequence="10"/>
+    <menuitem id="menu_poultry_coop_close" 
+              name="Cierres de Galpón" 
+              parent="menu_poultry_closes" 
+              action="action_poultry_coop_close" 
+              sequence="20"/>
+
+    <!-- Menú: Movimiento de Aves -->
+    <menuitem id="menu_poultry_batch_movement"
+              name="Movimiento de Aves"
+              parent="menu_poultry_management_root"
+              action="action_poultry_batch_movement"
+              sequence="25"/>
+
+    <!-- Menú: Sanidad -->
+    <menuitem id="menu_poultry_health"
+              name="Sanidad"
+              parent="menu_poultry_management_root"
+              sequence="30"/>
+    <menuitem id="menu_poultry_vaccination"
+              name="Aplicaciones de Vacunas"
+              parent="menu_poultry_health"
+              action="action_poultry_vaccination"
+              sequence="10"/>
+    <menuitem id="menu_poultry_vaccination_compliance"
+              name="Cumplimiento de Vacunación"
+              parent="menu_poultry_health"
+              action="action_poultry_vaccination_compliance"
+              sequence="20"/>
+
+    <!-- Menú: Reportes -->
+    <menuitem id="menu_poultry_reports"
+              name="Reportes" 
+              parent="menu_poultry_management_root" 
               sequence="40"/>
 
-    <menuitem id="menu_poultry_genetics_standards" 
-              name="Estándares de Genética" 
-              parent="menu_poultry_management_root" 
-              action="action_poultry_genetics_standard" 
-              sequence="45"/>
+    <!-- Submenús de Reportes. Los padres NO llevan groups: Odoo oculta solo un
+         menú padre cuando todos sus hijos están ocultos para el usuario. Los hijos
+         se declaran en sus propios archivos (este se carga primero, así siempre
+         encuentran al padre). -->
+    <menuitem id="menu_poultry_reports_operation"
+              name="Operación"
+              parent="menu_poultry_reports"
+              sequence="10"/>
 
-    <menuitem id="menu_poultry_configuration" 
-              name="Configuración" 
-              parent="menu_poultry_management_root" 
-              sequence="90"/>
+    <menuitem id="menu_poultry_reports_manual_load"
+              name="Carga Manual"
+              parent="menu_poultry_reports"
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_reports_real_values"
+              name="Valores Reales"
+              parent="menu_poultry_reports"
+              sequence="30"/>
+
+    <menuitem id="menu_poultry_reports_standards_life_week"
+              name="Estándares Semana Vida"
+              parent="menu_poultry_reports"
+              sequence="40"/>
+
+    <menuitem id="menu_poultry_reports_standards_calendar_week"
+              name="Estándares Semana"
+              parent="menu_poultry_reports"
+              sequence="50"/>
+
+    <menuitem id="menu_poultry_stock_dashboard"
+              name="Cobertura de stock"
+              parent="menu_poultry_reports_operation"
+              action="action_poultry_stock_dashboard"
+              sequence="40"
+              groups="stock.group_stock_user"/>
+
+    <menuitem id="menu_poultry_batch_indicator_value"
+              name="Valores Reales de Indicadores"
+              parent="menu_poultry_reports_real_values"
+              action="action_poultry_batch_indicator_value"
+              sequence="20"/>
+
+    <!-- Menú: Configuración -->
+    <menuitem id="menu_poultry_configuration"
+              name="Configuración"
+              parent="menu_poultry_management_root"
+              sequence="50"/>
+
+    <!-- Subgrupos de Configuración (sin acción: solo agrupan visualmente los submenús) -->
+    <menuitem id="menu_poultry_configuration_genetics"
+              name="Genética"
+              parent="menu_poultry_configuration"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_configuration_batches"
+              name="Lotes"
+              parent="menu_poultry_configuration"
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_configuration_health"
+              name="Sanidad"
+              parent="menu_poultry_configuration"
+              sequence="25"/>
+
+    <menuitem id="menu_poultry_configuration_general"
+              name="Configuración General"
+              parent="menu_poultry_configuration"
+              sequence="30"/>
+
+    <!-- Genética -->
+    <menuitem id="menu_poultry_genetics"
+              name="Genéticas"
+              parent="menu_poultry_configuration_genetics"
+              action="action_poultry_genetics"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_indicator"
+              name="Indicadores de Genética"
+              parent="menu_poultry_configuration_genetics"
+              action="action_poultry_indicator"
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_genetics_standard_version"
+              name="Versiones de Estándar"
+              parent="menu_poultry_configuration_genetics"
+              action="action_poultry_genetics_standard_version"
+              sequence="30"/>
+
+    <menuitem id="menu_poultry_genetics_standards"
+              name="Estándares de Genética"
+              parent="menu_poultry_configuration_genetics"
+              action="action_poultry_genetics_standard"
+              sequence="40"/>
+
+    <!-- Lotes -->
+    <menuitem id="menu_poultry_batch"
+              name="Lotes de Aves"
+              parent="menu_poultry_configuration_batches"
+              action="action_poultry_batch"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_batch_coop_line"
+              name="Asignaciones de Lotes a Galpones"
+              parent="menu_poultry_configuration_batches"
+              action="action_poultry_batch_coop_line"
+              sequence="20"/>
+
+    <!-- Sanidad (Configuración) -->
+    <menuitem id="menu_poultry_vaccine"
+              name="Vacunas"
+              parent="menu_poultry_configuration_health"
+              action="action_poultry_vaccine"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_vaccination_plan"
+              name="Planes de Vacunación"
+              parent="menu_poultry_configuration_health"
+              action="action_poultry_vaccination_plan"
+              sequence="20"/>
+
+    <menuitem id="menu_poultry_batch_vaccination_plan"
+              name="Asignaciones de Planes"
+              parent="menu_poultry_configuration_health"
+              action="action_poultry_batch_vaccination_plan"
+              sequence="30"/>
+
+    <!-- Configuración General -->
+    <menuitem id="menu_poultry_coop"
+              name="Galpones"
+              parent="menu_poultry_configuration_general"
+              action="action_poultry_coop"
+              sequence="10"/>
+
+    <menuitem id="menu_poultry_cage"
+              name="Jaulas de Muestreo"
+              parent="menu_poultry_configuration_general"
+              action="action_poultry_cage"
+              sequence="15"/>
+
+    <menuitem id="menu_poultry_uom"
+              name="Unidades de Medida"
+              parent="menu_poultry_configuration_general"
+              action="action_uom_poultry"
+              sequence="20"/>
 </odoo>
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los asistentes de reporte de mortalidad/comparativo se retiraron. La mortandad
+         se carga desde la solapa "Aves Muertas" de la OF de Huevo sin Clasificar y se
+         consulta con el reporte poultry.mortality (views/poultry_mortality_views.xml). -->
+</odoo>

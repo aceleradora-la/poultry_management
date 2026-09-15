@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Diálogo de confirmación al procesar una OF de cierre con Aves Muertas en
+         cero: el operador puede confirmar (no hubo mortandad) o volver a cargarla. -->
+    <record id="view_poultry_zero_mortality_confirm_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.zero.mortality.confirm.wizard.form</field>
+        <field name="model">poultry.zero.mortality.confirm.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirmar sin Aves Muertas">
+                <div class="alert alert-warning" role="alert">
+                    <strong>No se cargaron Aves Muertas.</strong>
+                    <p class="mb-0">
+                        La/s OF <field name="pending_names" readonly="1" nolabel="1" class="o_inline"/>
+                        se van a procesar con <strong>0 aves muertas</strong>.
+                        Si ese día sí hubo mortandad, cancelá y cargala en la solapa
+                        "Aves Muertas" antes de procesar.
+                    </p>
+                </div>
+                <field name="production_ids" invisible="1"/>
+                <footer>
+                    <button name="action_confirm" type="object"
+                            string="Confirmar (sin mortandad)" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

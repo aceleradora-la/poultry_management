@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_form_poultry_stock_dashboard" model="ir.ui.view">
+        <field name="name">res.company.form.poultry.stock.dashboard</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='general_info']" position="after">
+                <page string="Tablero cobertura" name="poultry_stock_dashboard_page"
+                      groups="stock.group_stock_user">
+                    <group>
+                        <field name="poultry_stock_dashboard_category_ids"
+                               widget="many2many_tags"
+                               placeholder="Todas las categorías"
+                               options="{'no_create_edit': True}"/>
+                    </group>
+                    <div class="text-muted">
+                        Si no selecciona categorías, el tablero incluye todos los productos comprables almacenables.
+                        Con categorías, solo variantes en esas categorías (incluye subcategorías).
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

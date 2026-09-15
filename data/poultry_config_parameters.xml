@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Parámetros de Configuración del Módulo -->
+    
+    <!-- Producto para Huevo sin Clasificar -->
+    <record id="config_parameter_unclassified_egg_product" model="ir.config_parameter">
+        <field name="key">poultry_management.unclassified_egg_product_id</field>
+        <field name="value"></field>
+    </record>
+    
+</odoo>
+

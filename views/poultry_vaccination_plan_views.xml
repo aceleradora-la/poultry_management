@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Planes de Vacunación: plantillas por Semana de Vida, independientes de la
+         genética. Los lotes los reciben vía asignaciones con historial. -->
+    <record id="view_poultry_vaccination_plan_tree" model="ir.ui.view">
+        <field name="name">poultry.vaccination.plan.tree</field>
+        <field name="model">poultry.vaccination.plan</field>
+        <field name="arch" type="xml">
+            <list string="Planes de Vacunación">
+                <field name="name"/>
+                <field name="code" optional="show"/>
+                <field name="line_count"/>
+                <field name="batch_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_vaccination_plan_form" model="ir.ui.view">
+        <field name="name">poultry.vaccination.plan.form</field>
+        <field name="model">poultry.vaccination.plan</field>
+        <field name="arch" type="xml">
+            <form string="Plan de Vacunación">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_assignments" type="object"
+                                class="oe_stat_button" icon="fa-list-alt">
+                            <field name="batch_count" widget="statinfo" string="Lotes"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Archivado" bg_color="text-danger"
+                            invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Ej: Plan Ponedoras Estándar"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                        </group>
+                        <group>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Vacunas por Semana" name="lines">
+                            <field name="line_ids" nolabel="1">
+                                <list string="Vacunas del Plan" editable="bottom" default_order="week, sequence, id">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="week"/>
+                                    <field name="vaccine_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                                    <field name="route"/>
+                                    <field name="dose"/>
+                                    <field name="notes" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="notes" placeholder="Notas del plan..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_vaccination_plan_search" model="ir.ui.view">
+        <field name="name">poultry.vaccination.plan.search</field>
+        <field name="model">poultry.vaccination.plan</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Planes de Vacunación">
+                <field name="name" string="Plan"
+                       filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
+                <separator/>
+                <filter string="Archivados" name="inactive" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_vaccination_plan" model="ir.actions.act_window">
+        <field name="name">Planes de Vacunación</field>
+        <field name="res_model">poultry.vaccination.plan</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_poultry_vaccination_plan_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Creá un plan de vacunación
+            </p>
+            <p>
+                Un plan define qué vacuna corresponde en cada Semana de Vida, sin importar
+                la genética. Después se asigna a cada lote (un lote puede tener más de un
+                plan, y queda el historial de qué plan tuvo en cada período).
+            </p>
+        </field>
+    </record>
+
+    <!-- Asignaciones de Planes a Lotes (historial) -->
+    <record id="view_poultry_batch_vaccination_plan_tree" model="ir.ui.view">
+        <field name="name">poultry.batch.vaccination.plan.tree</field>
+        <field name="model">poultry.batch.vaccination.plan</field>
+        <field name="arch" type="xml">
+            <list string="Asignaciones de Planes de Vacunación">
+                <field name="batch_id"/>
+                <field name="plan_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="assigned_by_id" optional="show"/>
+                <field name="notes" optional="hide"/>
+                <button name="action_close_assignment" string="Desasignar" type="object"
+                        icon="fa-times-circle" invisible="date_to"
+                        confirm="Se cierra la vigencia del plan para este lote (la asignación queda en el historial). ¿Continuar?"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_vaccination_plan_form" model="ir.ui.view">
+        <field name="name">poultry.batch.vaccination.plan.form</field>
+        <field name="model">poultry.batch.vaccination.plan</field>
+        <field name="arch" type="xml">
+            <form string="Asignación de Plan de Vacunación">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="batch_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="plan_id" options="{'no_create': True, 'no_create_edit': True}"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="assigned_by_id"/>
+                        </group>
+                    </group>
+                    <field name="notes" placeholder="Notas..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_vaccination_plan_search" model="ir.ui.view">
+        <field name="name">poultry.batch.vaccination.plan.search</field>
+        <field name="model">poultry.batch.vaccination.plan</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Asignaciones">
+                <field name="batch_id"/>
+                <field name="plan_id"/>
+                <separator/>
+                <filter string="Vigentes" name="open" domain="[('date_to', '=', False)]"/>
+                <filter string="Historial (cerradas)" name="closed" domain="[('date_to', '!=', False)]"/>
+                <separator/>
+                <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
+                <filter string="Por Plan" name="by_plan" context="{'group_by': 'plan_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_batch_vaccination_plan" model="ir.actions.act_window">
+        <field name="name">Asignaciones de Planes de Vacunación</field>
+        <field name="res_model">poultry.batch.vaccination.plan</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_poultry_batch_vaccination_plan_search"/>
+        <field name="context">{'search_default_open': 1}</field>
+    </record>
+</odoo>

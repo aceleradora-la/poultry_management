@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_batch_indicator_value_tree" model="ir.ui.view">
+        <field name="name">poultry.batch.indicator.value.tree</field>
+        <field name="model">poultry.batch.indicator.value</field>
+        <field name="arch" type="xml">
+            <list string="Valores Reales de Indicadores" default_order="date desc">
+                <field name="date"/>
+                <field name="batch_id"/>
+                <field name="coop_id"/>
+                <field name="indicator_id"/>
+                <field name="value"/>
+                <field name="numerator" optional="hide"/>
+                <field name="denominator" optional="hide"/>
+                <field name="production_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_indicator_value_form" model="ir.ui.view">
+        <field name="name">poultry.batch.indicator.value.form</field>
+        <field name="model">poultry.batch.indicator.value</field>
+        <field name="arch" type="xml">
+            <form string="Valor Real de Indicador">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="date"/>
+                            <field name="batch_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="coop_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                        </group>
+                        <group>
+                            <field name="indicator_id" options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="value"/>
+                            <field name="numerator"/>
+                            <field name="denominator"/>
+                            <field name="production_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notes" placeholder="Notas adicionales..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_batch_indicator_value_search" model="ir.ui.view">
+        <field name="name">poultry.batch.indicator.value.search</field>
+        <field name="model">poultry.batch.indicator.value</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Valores Reales de Indicadores">
+                <field name="batch_id"/>
+                <field name="coop_id"/>
+                <field name="indicator_id"/>
+                <field name="date"/>
+                <separator/>
+                <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Indicador" name="by_indicator" context="{'group_by': 'indicator_id'}"/>
+                <filter string="Por Fecha" name="by_date" context="{'group_by': 'date'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_batch_indicator_value" model="ir.actions.act_window">
+        <field name="name">Valores Reales de Indicadores</field>
+        <field name="res_model">poultry.batch.indicator.value</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p>
+                Valores reales de Consumo de Alimento y Agua (g/ave-día, ml/ave-día),
+                calculados automáticamente al cerrar la Orden de Fabricación de Huevo
+                sin Clasificar de cada Cierre de Galpón.
+            </p>
+        </field>
+    </record>
+</odoo>

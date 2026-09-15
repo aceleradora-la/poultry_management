@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_poultry_egg_collection_daily">
+        <t t-foreach="docs" t-as="doc">
+            <t t-call="web.html_container">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <!-- Cabecera: título, galpón y referencia (tamaño intermedio) -->
+                        <div class="row mb-3" style="padding: 10px; font-size: 1.05rem;">
+                            <div class="col-4 text-left">
+                                <span style="font-weight: bold; text-decoration: underline;">Parte diario de Producción</span>
+                            </div>
+                            <div class="col-4 text-left">
+                                <strong>Galpón:</strong>
+                                <span t-field="doc.coop_id.name"/>
+                            </div>
+                            <div class="col-4">
+                                <strong>Referencia:</strong>
+                                <span t-field="doc.name"/>
+                            </div>
+                        </div>
+
+                        <!-- Datos del parte: Producto, Fecha, Responsable -->
+                        <div class="row mb-3 text-left" style="padding: 10px;">
+                            <div class="col-4">
+                                <strong>Producto:</strong>
+                                <span t-field="doc.product_tmpl_id.name"/>
+                            </div>
+                            <div class="col-4">
+                                <strong>Fecha recolección:</strong>
+                                <span t-field="doc.date"/>
+                            </div>
+                            <div class="col-4">
+                                <strong>Responsable:</strong>
+                                <span t-field="doc.operator_id.name"/>
+                            </div>
+                        </div>
+
+                        <!-- Grilla: columnas como en pantalla, celdas vacías para anotar -->
+                        <t t-set="grid_data" t-value="doc._get_report_grid_data()"/>
+                        <t t-if="grid_data['columns']">
+                            <table class="table table-bordered table-sm" style="table-layout: fixed; border-color: #dee2e6 !important;">
+                                <thead>
+                                    <tr>
+                                        <t t-foreach="grid_data['columns']" t-as="col">
+                                            <th style="font-size: 0.85rem; font-weight: bold; text-align: center; white-space: nowrap; background: none !important; color: #333 !important; text-transform: none !important; border-color: #dee2e6 !important;"><t t-esc="col"/></th>
+                                        </t>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="grid_data['lines']" t-as="row">
+                                        <td style="height: 32px; min-height: 32px; max-height: 32px; vertical-align: middle; text-align: center; overflow: hidden; border-color: #dee2e6 !important;"><t t-esc="row['variant_name']"/></td>
+                                        <!-- Celdas vacías para anotación manual -->
+                                        <t t-foreach="grid_data.get('empty_cells', [0,1,2,3,4,5])" t-as="i">
+                                            <td style="min-width: 60px; height: 32px; min-height: 32px; max-height: 32px; vertical-align: middle; border-color: #dee2e6 !important;">&#160;</td>
+                                        </t>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+                        <t t-else="">
+                            <p class="text-muted">Seleccione un Producto y guarde el parte para generar la grilla.</p>
+                        </t>
+
+                        <!-- Observaciones -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <strong>Observaciones:</strong>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

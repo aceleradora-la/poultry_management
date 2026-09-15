@@ -1,0 +1,17 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo blanco con esquinas redondeadas -->
+  <rect width="128" height="128" rx="12" fill="#FFFFFF"/>
+  
+  <!-- Capa 1: Cuadrado púrpura (cajón/estructura) -->
+  <rect x="29" y="22" width="70" height="70" fill="#875A7B"/>
+  
+  <!-- Capa 2: Círculo amarillo (huevo) -->
+  <circle cx="72" cy="59" r="25" fill="#FFC107"/>
+  
+  <!-- Capa 3: Círculo naranja pequeño (detalle) -->
+  <circle cx="49" cy="74" r="12" fill="#F16745"/>
+  
+  <!-- Capa 4: Línea teal (producción/flujo) -->
+  <rect x="34" y="94" width="60" height="4" fill="#00BCD4"/>
+</svg>
+

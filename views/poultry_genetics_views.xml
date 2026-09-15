@@ -26,6 +26,7 @@
                         <group>
                             <field name="code" placeholder="Ej: GEN-001"/>
                             <field name="name" placeholder="Ej: Lohmann Brown"/>
+                            <field name="rearing_end_week"/>
                             <field name="description" placeholder="Descripción de la genética..."/>
                         </group>
                     </group>
@@ -36,28 +37,34 @@
                                     <field name="code"/>
                                     <field name="name"/>
                                     <field name="birth_date"/>
-                                    <field name="coop_id"/>
+                                    <field name="current_coop_ids" widget="many2many_tags"/>
                                     <field name="bird_count"/>
+                                    <field name="live_bird_count"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="Estándares de Mortalidad" name="mortality_standards">
-                            <field name="mortality_standard_ids" nolabel="1">
-                                <list string="Estándares de Mortalidad por Semana" editable="bottom">
-                                    <field name="week"/>
-                                    <field name="standard_value" string="Mortalidad Diaria (%)" widget="percentage"/>
-                                    <field name="notes"/>
+                        <page string="Versiones de Estándar" name="standard_versions">
+                            <field name="standard_version_ids" nolabel="1">
+                                <list string="Versiones de Estándar" editable="bottom">
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="is_default" widget="boolean_toggle"/>
+                                    <field name="standard_count"/>
                                     <field name="active" widget="boolean_toggle"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="Estándares de Producción" name="production_standards">
-                            <field name="production_standard_ids" nolabel="1">
-                                <list string="Estándares de Producción por Semana" editable="bottom">
+                        <page string="Estándares (Todas las Versiones)" name="standards">
+                            <field name="standard_ids" nolabel="1" readonly="1">
+                                <list string="Estándares">
+                                    <field name="version_id"/>
+                                    <field name="indicator_id"/>
+                                    <field name="period" widget="badge"
+                                           decoration-info="period == 'crianza'"
+                                           decoration-success="period == 'produccion'"/>
                                     <field name="week"/>
-                                    <field name="standard_value" string="Producción Diaria (%)" widget="percentage"/>
-                                    <field name="notes"/>
-                                    <field name="active" widget="boolean_toggle"/>
+                                    <field name="value_low"/>
+                                    <field name="value_high"/>
                                 </list>
                             </field>
                         </page>
