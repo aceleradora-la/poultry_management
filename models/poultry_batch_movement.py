@@ -163,6 +163,11 @@ class PoultryBatchMovement(models.Model):
                         'coop_id': record.origin_coop_id.id,
                         'bird_count': remainder,
                         'date_from': record.date,
+                        # El remanente ya está neto de la mortandad del día del movimiento
+                        # (se descontó al calcular live_count); cuenta su mortandad desde el
+                        # día siguiente para no descontarla dos veces (varios movimientos el
+                        # mismo día).
+                        'mortality_date_from': fields.Date.add(record.date, days=1),
                     })
                 vals = {
                     'origin_coop_line_id': origin_line.id,

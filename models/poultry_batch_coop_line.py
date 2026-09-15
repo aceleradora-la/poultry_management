@@ -19,6 +19,13 @@ class PoultryBatchCoopLine(models.Model):
     date_to = fields.Date(string='Fecha de Baja/Traslado',
                           help='Fecha en que estas aves dejaron de estar en este galpón '
                                '(por traslado a otro galpón o fin del lote). Vacío = vigente.')
+    mortality_date_from = fields.Date(
+        string='Mortandad Desde',
+        help='Fecha desde la cual se cuenta la mortandad de esta asignación (inclusive). '
+             'Vacío = igual a la Fecha de Asignación. En las líneas de remanente creadas '
+             'por un Retiro/Traslado se fija al día siguiente del movimiento, porque la '
+             'mortandad de ese día ya quedó descontada al calcular el remanente (evita '
+             'contarla dos veces al hacer varios movimientos el mismo día).')
     active = fields.Boolean(string='Activo', default=True)
     notes = fields.Text(string='Notas')
 
@@ -44,7 +51,7 @@ class PoultryBatchCoopLine(models.Model):
             domain = [
                 ('batch_id', '=', record.batch_id.id),
                 ('coop_id', '=', record.coop_id.id),
-                ('date', '>=', record.date_from),
+                ('date', '>=', record.mortality_date_from or record.date_from),
                 ('active', '=', True),
             ]
             end_date = record.date_to or today
@@ -63,7 +70,7 @@ class PoultryBatchCoopLine(models.Model):
         mortalities = self.env['poultry.mortality'].search([
             ('batch_id', '=', self.batch_id.id),
             ('coop_id', '=', self.coop_id.id),
-            ('date', '>=', self.date_from),
+            ('date', '>=', self.mortality_date_from or self.date_from),
             ('date', '<=', end_date),
             ('active', '=', True),
         ])
