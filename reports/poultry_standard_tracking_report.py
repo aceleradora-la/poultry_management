@@ -88,11 +88,23 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         self.comparison_batch_ids = self.comparison_batch_ids.filtered(
             lambda b: b.genetics_id == self.batch_id.genetics_id and b != self.batch_id)
 
+    def _poultry_ensure_available(self):
+        """Guarda de las entradas RPC del componente. El asistente es un
+        TransientModel: Odoo lo borra pasado un tiempo, y si el usuario recarga
+        la pantalla más tarde el id sigue en la URL pero el registro ya no
+        existe. Sin esto el error sería un MissingError críptico; con esto, un
+        aviso que dice qué hacer."""
+        if not self or not self.exists():
+            raise UserError(
+                'Este reporte ya no está disponible (el asistente expiró). '
+                'Volvé a abrirlo desde el menú Reportes.')
+        self.ensure_one()
+
     def update_batch(self, batch_id):
         """Cambia el Lote de Aves de un reporte ya abierto (llamado desde el
         componente en pantalla al elegir otro lote en el selector de filtros,
         sin necesidad de cerrar y volver a abrir el asistente)."""
-        self.ensure_one()
+        self._poultry_ensure_available()
         self.batch_id = self.env['poultry.batch'].browse(batch_id)
         self.version_id = self.batch_id.genetics_id.default_standard_version_id
         return self.get_report_data()
@@ -100,7 +112,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
     def update_version(self, version_id):
         """Cambia la Versión de Estándar de un reporte ya abierto (selector de
         filtros en pantalla), sin tocar el Lote."""
-        self.ensure_one()
+        self._poultry_ensure_available()
         self.version_id = self.env['poultry.genetics.standard.version'].browse(version_id) if version_id else False
         return self.get_report_data()
 
@@ -108,7 +120,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         """Reemplaza la selección completa de lotes del reporte (selector de tags
         en pantalla). El primero de la lista es el Lote principal (define genética
         y versión predeterminada); el resto son Lotes a Comparar."""
-        self.ensure_one()
+        self._poultry_ensure_available()
         batches = self.env['poultry.batch'].browse(batch_ids).exists()
         if not batches:
             raise UserError('Seleccione al menos un Lote de Aves.')
@@ -135,7 +147,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
 
         Solo días TERMINADOS (hoy nunca, misma regla que el resto del reporte).
         Sin comparación contra estándar: no existe estándar diario."""
-        self.ensure_one()
+        self._poultry_ensure_available()
         today = fields.Date.context_today(self)
         Value = self.env['poultry.batch.indicator.value']
         calendar_sunday = fields.Date.to_date(week) if isinstance(week, str) else None
@@ -241,7 +253,7 @@ class PoultryStandardTrackingReportWizard(models.TransientModel):
         Producción). Muestra TODAS las semanas con dato real o estándar cargado
         para cada período; date_from/date_to/granularity no se usan acá (quedan
         del diseño anterior, pendientes de limpieza)."""
-        self.ensure_one()
+        self._poultry_ensure_available()
         version = self.version_id or self.genetics_id.default_standard_version_id
         if not version:
             raise UserError(

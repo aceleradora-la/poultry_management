@@ -17,11 +17,21 @@ export class PoultryStandardTrackingReport extends Component {
         // para posicionar la segunda; se mide tras cada render.
         onMounted(() => this._updateStickyOffsets());
         onPatched(() => this._updateStickyOffsets());
-        this.wizardId = this.props.action.params.wizard_id;
+        // Al recargar la página (F5), Odoo rearma la acción desde la URL y PIERDE
+        // 'params': wizard_id llegaría vacío y el servidor fallaría con "Expected
+        // singleton". Pero el id del asistente sí viaja en la URL como active_id
+        // (/odoo/action-N/<id>/...), porque la acción se dispara desde su
+        // formulario: se usa como respaldo.
+        const action = this.props.action;
+        const params = action.params || {};
+        const context = action.context || {};
+        this.wizardId = params.wizard_id || context.active_id || null;
         // Período fijo (menús "Seguimiento Estándares - Crianza/Producción"): el
         // reporte muestra solo ese período y oculta las pestañas. Sin valor, se
         // mantienen las pestañas Crianza/Producción (comportamiento anterior).
-        this.fixedPeriod = this.props.action.params.period || null;
+        // Tras un F5 tampoco viene en params: se completa desde el header que
+        // devuelve el servidor (header.report_period), que sale del asistente.
+        this.fixedPeriod = params.period || null;
         this.state = useState({
             period: this.fixedPeriod || "crianza",
             data: null,
@@ -36,6 +46,12 @@ export class PoultryStandardTrackingReport extends Component {
             dailyCache: {},
         });
         onWillStart(async () => {
+            if (!this.wizardId) {
+                this.state.error =
+                    "Este reporte ya no está disponible. Volvé a abrirlo desde el menú Reportes.";
+                this.state.loading = false;
+                return;
+            }
             try {
                 const [data, batches] = await Promise.all([
                     this.orm.call(
@@ -49,6 +65,10 @@ export class PoultryStandardTrackingReport extends Component {
                 ]);
                 this.state.data = data;
                 this.state.batches = batches;
+                if (!this.fixedPeriod && data.header && data.header.report_period) {
+                    this.fixedPeriod = data.header.report_period;
+                    this.state.period = this.fixedPeriod;
+                }
                 // Indicadores marcados para no mostrarse por defecto: arrancan
                 // ocultos y el usuario los agrega desde el desplegable si los
                 // necesita. Solo al abrir: después manda lo que elija en pantalla.
