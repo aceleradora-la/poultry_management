@@ -132,22 +132,36 @@ class MrpProduction(models.Model):
 
     def _poultry_previous_accumulated(self, batch, indicator, target_date):
         """Valor acumulado previo desde el cual continuar la suma corrida de un
-        indicador acumulado (empalme). Devuelve, en este orden de prioridad:
-        1) el último Valor Real DIARIO del sistema anterior a target_date;
-        2) si no hay, el último Valor Real SEMANAL MANUAL con Fecha del Dato anterior
-           a target_date (dato histórico cargado a mano, ej. el acumulado al final de
-           la crianza antes de empezar a usar Odoo);
-        3) 0.0 si no hay ninguno.
-        Así los acumulados del sistema (que arrancan cuando ya hay datos) continúan
-        a partir del histórico manual en vez de reiniciarse en cero."""
+        indicador acumulado (empalme): el MÁXIMO entre
+          a) el último Valor Real DIARIO del sistema anterior a target_date, y
+          b) el último Valor Real SEMANAL MANUAL con Fecha del Dato anterior a
+             target_date (histórico cargado a mano).
+        0.0 si no hay ninguno.
+
+        Por qué el MÁXIMO y no "primero el diario":
+        La semana de TRANSICIÓN (la que contiene el primer día con Orden de
+        Fabricación) tiene días históricos —sin OF— y días con OF mezclados. El
+        diario solo puede sumar los días con OF de esa semana; el manual semanal,
+        en cambio, trae la semana histórica completa. Cuál de los dos representa el
+        acumulado más avanzado depende de qué días cubrió cada planilla y varía por
+        indicador: para Huevos la planilla cubre toda la semana (el manual es más
+        completo); para Mortandad cubre hasta el sábado (el diario, que suma el
+        domingo con OF, es más completo). Como un acumulado de cantidades no
+        negativas SOLO CRECE, el valor más alto es siempre el más completo, así que
+        el máximo elige bien en los dos casos sin conocer la cobertura.
+
+        En producción ya asentada el diario supera de lejos a cualquier manual
+        histórico, así que el máximo devuelve el diario y nada cambia respecto del
+        comportamiento anterior; el máximo solo mueve la aguja en la transición."""
         Value = self.env['poultry.batch.indicator.value'].sudo()
         previous = Value.search([
             ('batch_id', '=', batch.id),
             ('indicator_id', '=', indicator.id),
             ('date', '<', target_date),
         ], order='date desc', limit=1)
-        if previous:
-            return previous.value
+        daily_value = previous.value if previous else None
+
+        manual_value = None
         if batch.birth_date and target_date >= batch.birth_date:
             Weekly = self.env['poultry.batch.indicator.weekly.value'].sudo()
             base = [
@@ -159,9 +173,7 @@ class MrpProduction(models.Model):
             # manual viene de planillas cuya semana no coincide con la Semana de
             # Vida de Odoo, y los datos diarios casi siempre arrancan en MEDIO de
             # una semana. Con 'week < semana_actual' ese último valor manual queda
-            # descartado justo cuando el empalme cae dentro de su semana, y las
-            # bajas de esos días no las toma nadie: el acumulado sigue corrido
-            # hacia abajo por esa misma diferencia para siempre.
+            # descartado justo cuando el empalme cae dentro de su semana.
             manual = Weekly.search(
                 base + [('manual_date', '<', target_date)],
                 order='manual_date desc', limit=1)
@@ -172,8 +184,10 @@ class MrpProduction(models.Model):
                             ('week', '<', batch._poultry_week_of(target_date))],
                     order='week desc', limit=1)
             if manual:
-                return manual.real_value
-        return 0.0
+                manual_value = manual.real_value
+
+        candidates = [v for v in (daily_value, manual_value) if v is not None]
+        return max(candidates) if candidates else 0.0
 
     # Campos avícolas corregibles en una OF ya procesada (sin desmantelarla),
     # solo por el grupo "Mortandad: Carga Manual"; al corregirlos el write
