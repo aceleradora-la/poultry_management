@@ -371,24 +371,29 @@ class MrpProduction(models.Model):
             )
 
     def button_mark_done(self):
-        # Advertencia de mortandad en cero: si una OF de cierre se va a procesar
-        # sin Aves Muertas cargadas, se pregunta antes de tocar nada (por eso va
-        # ANTES de la validación kit y del super: si el operador cancela, no debe
-        # haber cambiado nada). Confirmar reintenta con el flag de contexto.
+        # Advertencia de datos en cero: si una OF de cierre se va a procesar sin
+        # Aves Muertas cargadas o sin Consumo de Alimento, se pregunta antes de
+        # tocar nada (por eso va ANTES de la validación kit y del super: si el
+        # operador cancela, no debe haber cambiado nada). Un solo diálogo muestra
+        # ambos avisos; Confirmar reintenta con el flag de contexto.
         # sudo() acotado: el campo tiene groups= y el botón puede apretarlo un
         # usuario de Manufactura sin rol avícola (el dato faltante es del galpón,
         # el aviso aplica igual).
-        if not self.env.context.get('poultry_skip_zero_dead_warning'):
-            pending = self.filtered(
-                lambda m: m.coop_close_id and not m.sudo().poultry_dead_count_total)
-            if pending:
+        if not self.env.context.get('poultry_skip_zero_data_warning'):
+            close_mos = self.filtered('coop_close_id')
+            pending_dead = close_mos.filtered(
+                lambda m: not m.sudo().poultry_dead_count_total)
+            pending_feed = close_mos.filtered(
+                lambda m: not m._poultry_feed_consumed_total())
+            if pending_dead or pending_feed:
                 wizard = self.env['poultry.zero.mortality.confirm.wizard'].create({
                     'production_ids': [(6, 0, self.ids)],
-                    'pending_names': ', '.join(pending.mapped('display_name')),
+                    'pending_names': ', '.join(pending_dead.mapped('display_name')),
+                    'pending_feed_names': ', '.join(pending_feed.mapped('display_name')),
                 })
                 return {
                     'type': 'ir.actions.act_window',
-                    'name': 'Confirmar sin Aves Muertas',
+                    'name': 'Confirmar datos en cero',
                     'res_model': 'poultry.zero.mortality.confirm.wizard',
                     'res_id': wizard.id,
                     'view_mode': 'form',
@@ -408,6 +413,18 @@ class MrpProduction(models.Model):
             mo._poultry_sync_mortality()
             mo._poultry_compute_all_indicator_values()
         return result
+
+    def _poultry_feed_consumed_total(self):
+        """Total consumido en los componentes tipo Alimento de la OF, sumado en
+        la UdM de cada línea (alcanza para detectar el cero; no hace falta
+        unificar unidades). Si la OF no tiene líneas de alimento también da 0:
+        una OF de cierre sin su balanceado amerita el mismo aviso."""
+        self.ensure_one()
+        return sum(
+            self._poultry_get_move_consumed_qty(move)
+            for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel')
+            if move._poultry_consumption_type() == 'feed'
+        )
 
     def _poultry_get_consumption_uom(self, xml_id):
         uom = self.env.ref(xml_id, raise_if_not_found=False)
