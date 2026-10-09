@@ -14,18 +14,9 @@
         </field>
     </record>
 
-    <!-- Análisis de facturas: pivote con cajones y precio por cajón -->
-    <record id="view_account_invoice_report_pivot_poultry" model="ir.ui.view">
-        <field name="name">account.invoice.report.pivot.poultry</field>
-        <field name="model">account.invoice.report</field>
-        <field name="inherit_id" ref="account.view_account_invoice_report_pivot"/>
-        <field name="arch" type="xml">
-            <xpath expr="//pivot" position="inside">
-                <field name="quantity_cajones" type="measure"/>
-                <field name="price_per_cajon" type="measure"/>
-            </xpath>
-        </field>
-    </record>
+    <!-- Las medidas Huevos, Cajones y Precio por cajón quedan disponibles en el
+         desplegable "Medidas" del Análisis de facturas (son campos numéricos del
+         modelo) sin agregarse por defecto al pivote: el pivote estándar no se toca. -->
 
     <!-- Líneas de asiento: columnas opcionales Huevos / Cajones -->
     <record id="view_move_line_tree_poultry" model="ir.ui.view">
