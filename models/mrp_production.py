@@ -481,17 +481,27 @@ class MrpProduction(models.Model):
         todavía no se marcó como Hecha (las capas se crean recién ahí)."""
         self.ensure_one()
         Move = self.env['stock.move']
-        if 'stock_valuation_layer_ids' not in Move._fields:
-            # Sin contabilidad de stock (stock_account) no existen las capas: el
-            # módulo sigue funcionando, solo que sin indicadores de costo.
-            return None
-        layers = self.sudo().move_raw_ids.filtered(
-            lambda m: m.state != 'cancel').mapped('stock_valuation_layer_ids')
-        if not layers:
-            return None
-        # Las capas de consumo son negativas (sale del stock): el costo es su
-        # valor absoluto.
-        return abs(sum(layers.mapped('value')))
+        moves = self.sudo().move_raw_ids.filtered(lambda m: m.state != 'cancel')
+        if 'stock_valuation_layer_ids' in Move._fields:
+            # Odoo 18: el valor está en las capas de valuación. Las de consumo son
+            # negativas (sale del stock): el costo es su valor absoluto.
+            layers = moves.mapped('stock_valuation_layer_ids')
+            if not layers:
+                return None
+            return abs(sum(layers.mapped('value')))
+        if 'value' in Move._fields:
+            # Odoo 19 eliminó stock.valuation.layer: el valor con el que salió
+            # cada movimiento queda en stock.move.value (positivo, ya calculado
+            # con el método de costo del producto al marcar la OF como Hecha).
+            # Sin esta rama el costo daba siempre "sin valor" en silencio y los
+            # indicadores de costo desaparecían del reporte tras recalcular.
+            valued = moves.filtered(lambda m: m.state == 'done' and m.value)
+            if not valued:
+                return None
+            return abs(sum(valued.mapped('value')))
+        # Sin contabilidad de stock (stock_account) no hay valuación: el módulo
+        # sigue funcionando, solo que sin indicadores de costo.
+        return None
 
     def _poultry_collect_magnitudes(self, target_date):
         """Datos crudos del día por lote, para que el motor de fórmulas
