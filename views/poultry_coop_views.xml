@@ -105,7 +105,6 @@
                                     <field name="date_to"/>
                                     <field name="dead_count"/>
                                     <field name="live_bird_count"/>
-                                    <field name="active" widget="boolean_toggle"/>
                                 </list>
                             </field>
                         </page>
