@@ -31,6 +31,8 @@ class PoultryCoop(models.Model):
     batch_count = fields.Integer(string='Cantidad de Lotes', compute='_compute_batch_count')
 
     # Movimientos de Aves (Ingreso/Traslado) donde este galpón participa, como origen o destino
+    batch_summary_ids = fields.One2many('poultry.coop.batch.summary', 'coop_id',
+                                        string='Lotes (Resumen)')
     movement_ids = fields.Many2many('poultry.batch.movement', string='Movimientos de Aves',
                                      compute='_compute_movement_ids')
 

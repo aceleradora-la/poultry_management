@@ -9,6 +9,7 @@ from . import uom_uom
 from . import poultry_coop
 from . import poultry_batch
 from . import poultry_batch_coop_line
+from . import poultry_coop_batch_summary
 from . import poultry_batch_movement
 from . import poultry_batch_period_change
 from . import poultry_coop_bom
