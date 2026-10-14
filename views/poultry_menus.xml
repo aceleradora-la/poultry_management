@@ -165,12 +165,6 @@
               action="action_poultry_batch"
               sequence="10"/>
 
-    <menuitem id="menu_poultry_batch_coop_line"
-              name="Asignaciones de Lotes a Galpones"
-              parent="menu_poultry_configuration_batches"
-              action="action_poultry_batch_coop_line"
-              sequence="20"/>
-
     <!-- Sanidad (Configuración) -->
     <menuitem id="menu_poultry_vaccine"
               name="Vacunas"

@@ -66,20 +66,4 @@
         </field>
     </record>
 
-    <record id="action_poultry_batch_coop_line" model="ir.actions.act_window">
-        <field name="name">Asignaciones de Lotes a Galpones</field>
-        <field name="res_model">poultry.batch.coop.line</field>
-        <field name="view_mode">list,form</field>
-        <field name="context">{'search_default_current': 1}</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Crear una nueva asignación
-            </p>
-            <p>
-                Registra en qué galpón, desde qué fecha y con cuántas aves está (o estuvo)
-                cada lote. Un lote puede estar repartido en varios galpones a la vez, o
-                trasladarse de uno a otro a lo largo de su vida.
-            </p>
-        </field>
-    </record>
 </odoo>
