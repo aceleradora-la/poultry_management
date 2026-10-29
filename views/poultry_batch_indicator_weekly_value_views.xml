@@ -16,6 +16,12 @@
                 <field name="value_low"/>
                 <field name="value_high"/>
                 <field name="real_value"/>
+                <field name="deviation_pct" optional="show"/>
+                <field name="alert_status" widget="badge"
+                       decoration-success="alert_status == 'green'"
+                       decoration-warning="alert_status == 'yellow'"
+                       decoration-danger="alert_status == 'red'"
+                       decoration-muted="alert_status == 'none'"/>
                 <field name="source" widget="badge"
                        decoration-info="source == 'manual'"/>
             </list>
@@ -106,6 +112,7 @@
                 <field name="value_low" type="measure"/>
                 <field name="value_high" type="measure"/>
                 <field name="real_value" type="measure"/>
+                <field name="alert_level" type="measure"/>
             </pivot>
         </field>
     </record>
@@ -122,6 +129,11 @@
                 <filter string="Crianza" name="crianza" domain="[('period', '=', 'crianza')]"/>
                 <filter string="Producción" name="produccion" domain="[('period', '=', 'produccion')]"/>
                 <separator/>
+                <filter string="En Rojo" name="alert_red" domain="[('alert_status', '=', 'red')]"/>
+                <filter string="En Amarillo" name="alert_yellow" domain="[('alert_status', '=', 'yellow')]"/>
+                <filter string="Con Alerta" name="alert_any" domain="[('alert_status', 'in', ('yellow', 'red'))]"/>
+                <separator/>
+                <filter string="Por Semáforo" name="by_alert" context="{'group_by': 'alert_status'}"/>
                 <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
                 <filter string="Por Indicador" name="by_indicator" context="{'group_by': 'indicator_id'}"/>
                 <filter string="Por Semana" name="by_week" context="{'group_by': 'week'}"/>

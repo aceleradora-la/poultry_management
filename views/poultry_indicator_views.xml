@@ -145,6 +145,11 @@
                                     <field name="color_within" widget="color"/>
                                     <field name="color_above" widget="color"/>
                                 </group>
+                                <group string="Semáforo">
+                                    <field name="alert_below" widget="radio" options="{'horizontal': true}"/>
+                                    <field name="alert_above" widget="radio" options="{'horizontal': true}"/>
+                                    <field name="alert_tolerance_pct"/>
+                                </group>
                                 <group string="Alcance">
                                     <field name="applicable_version_ids" widget="many2many_tags"
                                            placeholder="Vacío = todas las Versiones de Estándar"/>

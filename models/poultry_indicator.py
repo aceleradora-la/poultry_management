@@ -232,6 +232,31 @@ class PoultryIndicator(models.Model):
         help='Color del Valor Real cuando SUPERA el rango Bajo-Alto. Depende de qué '
              'se mide: en Mortandad superar el rango es malo (rojo), pero en % de '
              'Postura puede ser bueno (verde).')
+    # Semáforo: qué significa salirse del rango para este indicador. Los colores de
+    # arriba son solo presentación; estos campos son la regla que usan el estado
+    # Verde/Amarillo/Rojo de los Valores Reales Semanales y los tableros.
+    alert_below = fields.Selection([
+        ('normal', 'Normal'),
+        ('alert', 'Alerta'),
+    ], string='Por Debajo del Rango', default='alert', required=True,
+        help='Qué significa que el Valor Real quede POR DEBAJO del rango Bajo-Alto.\n'
+             'Normal: es bueno o indiferente (ej. Mortalidad por debajo del estándar = '
+             'murieron menos aves); el semáforo queda en Verde.\n'
+             'Alerta: es malo (ej. % de Postura por debajo del estándar); el semáforo '
+             'pasa a Amarillo o Rojo según la Tolerancia.')
+    alert_above = fields.Selection([
+        ('normal', 'Normal'),
+        ('alert', 'Alerta'),
+    ], string='Por Encima del Rango', default='alert', required=True,
+        help='Qué significa que el Valor Real quede POR ENCIMA del rango Bajo-Alto.\n'
+             'Normal: es bueno o indiferente (ej. % de Postura por encima del estándar).\n'
+             'Alerta: es malo (ej. Mortalidad por encima del estándar).')
+    alert_tolerance_pct = fields.Float(
+        string='Tolerancia (%)', default=2.0, digits=(16, 2),
+        help='Desvío máximo, en % del límite del rango, para que una Alerta quede en '
+             'Amarillo. Más allá pasa a Rojo. Ej.: rango 90-94 y tolerancia 2%: un real '
+             'de 89 está 1,1% por debajo de 90 -> Amarillo; un real de 87 está 3,3% '
+             'por debajo -> Rojo. Con 0, todo desvío del lado de Alerta es Rojo.')
     notes = fields.Text(string='Notas')
     real_value_source = fields.Char(
         string='Origen de Valor Real',
