@@ -5,6 +5,12 @@
          título. El orden es el físico de las jaulas (fila, lado, claro, piso, jaula). -->
     <template id="report_weight_sheet">
         <t t-call="web.html_container">
+            <!-- Un article por parte: así Odoo envuelve cada uno con su cabecera HTML
+                 (declara UTF-8 y carga sus estilos). Sin article, wkhtmltopdf recibe el
+                 HTML pelado y lee los acentos en Latin-1. El style va adentro porque
+                 lo que queda fuera del article se descarta. -->
+            <t t-foreach="docs" t-as="doc">
+            <div class="article" t-att-data-oe-model="doc._name" t-att-data-oe-id="doc.id">
             <style>
                 body { max-width: none !important; margin: 0 !important; padding: 0 !important; }
                 .pw-sheet { width: 210mm; height: 297mm; box-sizing: border-box; padding: 9mm 10mm 7mm 10mm;
@@ -33,10 +39,9 @@
                 .pw-signline { border-bottom: 0.8pt solid #111111; height: 8mm; }
                 .pw-note { font-size: 7.5pt; color: #444444; padding-top: 1.5mm; }
             </style>
-            <t t-foreach="docs" t-as="doc">
                 <t t-set="pages" t-value="doc._poultry_sheet_pages() or [[]]"/>
                 <t t-foreach="pages" t-as="page">
-                    <div t-attf-class="pw-sheet {{'' if doc_first and page_first else 'pw-break'}}">
+                    <div t-attf-class="pw-sheet {{'' if page_first else 'pw-break'}}">
                         <table class="pw-head">
                             <tr>
                                 <td>
@@ -95,6 +100,7 @@
                         </table>
                     </div>
                 </t>
+            </div>
             </t>
         </t>
     </template>
