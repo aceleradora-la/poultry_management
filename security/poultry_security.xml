@@ -55,11 +55,13 @@
             pesadas que la oficina envió a pesar y las registra. No ve Gestión Avícola.</field>
     </record>
 
+    <!-- El Gestor también usa la app del celular; el Usuario Avícola (oficina) la recibe
+         solo si se le da el permiso. -->
     <record id="poultry_manager" model="res.groups">
         <field name="name">Gestor Avícola</field>
         <field name="sequence">20</field>
         <field name="privilege_id" ref="res_groups_privilege_poultry_role"/>
-        <field name="implied_ids" eval="[(4, ref('poultry_user'))]"/>
+        <field name="implied_ids" eval="[(4, ref('poultry_user')), (4, ref('poultry_field_user'))]"/>
     </record>
 
     <record id="poultry_cancel_processed_collection" model="res.groups">

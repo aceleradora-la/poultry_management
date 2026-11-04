@@ -244,6 +244,9 @@ class TestPoultryWeightRecord(TransactionCase):
         with self.assertRaises(AccessError, msg='No crea partes ni entra a Gestión Avícola'):
             Record.create({'coop_id': self.coop.id, 'batch_id': self.batch.id})
         self.assertFalse(operator.has_group('poultry_management.poultry_user'))
+        self.assertIn(self.env.ref('poultry_management.poultry_field_user'),
+                      self.env.ref('poultry_management.poultry_manager').all_implied_ids,
+                      'El Gestor Avícola hereda la app del celular')
 
     def test_mobile_flow(self):
         record = self._record()
