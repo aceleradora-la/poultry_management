@@ -6,16 +6,22 @@
     <!-- PDF: hoja A4 de 24 etiquetas (3 x 8) -->
     <template id="report_cage_label">
         <t t-call="web.html_container">
+            <!-- Las tres columnas ocupan todo el ancho del A4: la hoja arranca en el borde,
+                 sin el margen del .container que Odoo pone en el body del PDF. -->
+            <style>
+                body { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+            </style>
             <t t-set="labels_per_page" t-value="24"/>
             <t t-foreach="range(0, len(docs), labels_per_page)" t-as="page_start">
-                <!-- o_label_sheet: hoja A4 de Odoo, compensa el margen del body del PDF -->
-                <div class="o_label_sheet" style="padding: 0;">
+                <!-- 215 mm: en 210 justos, el redondeo a píxeles baja la tercera columna. -->
+                <div t-att-style="'width: 215mm;' if page_start_first else 'width: 215mm; page-break-before: always;'">
                     <t t-foreach="docs[page_start:page_start + labels_per_page]" t-as="cage">
-                        <div style="float: left; box-sizing: border-box; width: 70mm; height: 37mm; padding: 1.5mm 0 0 0; text-align: center; overflow: hidden;">
+                        <div style="float: left; box-sizing: border-box; width: 70mm; height: 37mm; padding-top: 1.5mm; text-align: center; overflow: hidden;">
                             <img t-att-src="cage._poultry_qr_src()" style="width: 28mm; height: 28mm;" alt="QR"/>
-                            <div style="padding: 0; font-family: Arial, sans-serif; font-size: 12pt; font-weight: bold; line-height: 5mm;" t-out="cage.code"/>
+                            <div style="font-family: Arial, sans-serif; font-size: 12pt; font-weight: bold; line-height: 5mm;" t-out="cage.code"/>
                         </div>
                     </t>
+                    <div style="clear: both;"/>
                 </div>
             </t>
         </t>

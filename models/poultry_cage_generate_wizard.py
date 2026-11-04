@@ -65,20 +65,25 @@ class PoultryCageGenerateWizard(models.TransientModel):
     def _poultry_compose_code(self, numbers):
         return self.env['poultry.cage']._poultry_compose_code(self.coop_number, *numbers)
 
+    def _poultry_existing_cages(self):
+        """Jaulas del galpón por código, archivadas incluidas. El código manda porque
+        también hay jaulas cargadas a mano, sin Fila ni Claro."""
+        self.ensure_one()
+        cages = self.env['poultry.cage'].with_context(active_test=False).search_fetch(
+            [('coop_id', '=', self.coop_id.id)], ['code', 'row_no'])
+        return {cage.code: cage for cage in cages}
+
     @api.depends('coop_id', 'coop_number', 'row_from', 'row_to', 'side_from', 'side_to',
                  'bay_from', 'bay_to', 'floor_from', 'floor_to', 'cage_from', 'cage_to')
     def _compute_preview(self):
-        Cage = self.env['poultry.cage'].with_context(active_test=False)
         for wizard in self:
             ranges = wizard._poultry_ranges()
             total = math.prod(len(numbers) for numbers in ranges.values())
             existing = 0
             if total and wizard.coop_id:
-                domain = [('coop_id', '=', wizard.coop_id.id)]
-                for field_name, numbers in ranges.items():
-                    domain += [(field_name, '>=', numbers.start),
-                               (field_name, '<', numbers.stop)]
-                existing = Cage.search_count(domain)
+                cages = wizard._poultry_existing_cages()
+                existing = sum(wizard._poultry_compose_code(numbers) in cages
+                               for numbers in product(*ranges.values()))
             wizard.total_count = total
             wizard.existing_count = existing
             wizard.new_count = total - existing
@@ -89,7 +94,8 @@ class PoultryCageGenerateWizard(models.TransientModel):
 
     def action_generate(self):
         """Crea las jaulas del rango que falten, así el mismo wizard sirve para ampliar
-        un galpón después. Las archivadas cuentan como existentes: no se recrean."""
+        un galpón después. Las archivadas cuentan como existentes: no se recrean. Una
+        cargada a mano con un código del rango es esa jaula: se le completa la ubicación."""
         self.ensure_one()
         if self.coop_number <= 0:
             raise ValidationError('Indicá el Número de Galpón.')
@@ -99,19 +105,21 @@ class PoultryCageGenerateWizard(models.TransientModel):
                 'Cada variable debe empezar en 1 o más, y su Hasta no puede ser menor '
                 'que su Desde.')
         self.coop_id.cage_number = self.coop_number
-        existing = set(self.env['poultry.cage'].with_context(active_test=False).search([
-            ('coop_id', '=', self.coop_id.id),
-        ]).mapped('code'))
+        existing = self._poultry_existing_cages()
         vals_list = []
         for numbers in product(*ranges.values()):
             code = self._poultry_compose_code(numbers)
-            if code not in existing:
+            location = dict(zip(ranges, numbers))
+            cage = existing.get(code)
+            if not cage:
                 vals_list.append({
                     'coop_id': self.coop_id.id,
                     'code': code,
                     'name': code,
-                    **dict(zip(ranges, numbers)),
+                    **location,
                 })
+            elif not cage.row_no:
+                cage.write(location)
         if not vals_list:
             raise ValidationError('Todas las jaulas de este rango ya existen.')
         self.env['poultry.cage'].create(vals_list)

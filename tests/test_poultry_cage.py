@@ -77,6 +77,24 @@ class TestPoultryCage(TransactionCase):
         self.assertEqual(len(self._cage('901.1.1.1.1.1')), 1)
         self.assertFalse(archived.active)
 
+    def test_generate_locates_manual_cage(self):
+        """Una jaula cargada a mano con un código del rango es la misma jaula."""
+        manual = self.env['poultry.cage'].create({
+            'coop_id': self.coop.id, 'code': '901.1.2.2.1.2', 'name': 'Manual',
+            'is_sampling': True,
+        })
+        wizard = self._wizard(**self.small)
+        self.assertEqual(wizard.existing_count, 1)
+        self.assertEqual(wizard.new_count, 7)
+        wizard.action_generate()
+
+        self.assertEqual(self.coop.cage_count, 8)
+        self.assertEqual(
+            (manual.row_no, manual.side_no, manual.bay_no, manual.floor_no, manual.cage_no),
+            (1, 2, 2, 1, 2))
+        self.assertTrue(manual.is_sampling)
+        self.assertEqual(manual.name, 'Manual')
+
     def test_generate_nothing_new(self):
         self._wizard(**self.small).action_generate()
         with self.assertRaises(ValidationError):
@@ -175,3 +193,12 @@ class TestPoultryCage(TransactionCase):
             'poultry_management.action_report_cage_label', cages.ids)[0].decode()
         self.assertEqual(html.count('data:image/png;base64,'), 16)
         self.assertIn(cages[0].code, html)
+
+    def test_label_pages_hold_24(self):
+        """Cada hoja lleva 24 etiquetas y el PDF no agrega una hoja en blanco al final."""
+        self._wizard(**dict(self.small, bay_to=8)).action_generate()
+        cages = self.coop.cage_ids
+        self.assertEqual(len(cages), 32)
+        html = self.env['ir.actions.report']._render_qweb_html(
+            'poultry_management.action_report_cage_label', cages.ids)[0].decode()
+        self.assertEqual(html.count('page-break-before: always'), 1)
