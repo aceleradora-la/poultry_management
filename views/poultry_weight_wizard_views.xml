@@ -15,8 +15,8 @@
                     <div invisible="not previous_id">
                         <field name="previous_summary" class="oe_inline"/>
                         <div class="text-muted" invisible="mode != 'previous'">
-                            Cada jaula repite las aves que quedaron con peso. Una jaula marcada
-                            después toma la cantidad fija.
+                            Cada jaula repite las aves que quedaron con peso; las que quedaron
+                            sin pesar no entran. Una jaula marcada después toma la cantidad fija.
                         </div>
                     </div>
                     <field name="birds_per_cage" invisible="mode == 'previous' and previous_id"/>

@@ -38,14 +38,22 @@ class PoultryWeightLinesWizard(models.TransientModel):
 
     def _poultry_plan(self):
         """{jaula: cantidad de líneas} según el modo. Con la pesada anterior, cada jaula
-        repite las aves que quedaron con peso; una jaula nueva (marcada después) toma la
-        cantidad fija."""
+        repite las aves que quedaron con peso; las que estaban y quedaron sin pesar no
+        entran (decisión del usuario). Una jaula marcada después, que la pesada anterior
+        no tenía, toma la cantidad fija."""
         self.ensure_one()
         cages = self._poultry_cages()
         fixed = max(self.birds_per_cage, 0)
         if self.mode == 'previous' and self.previous_id:
             counts = self.previous_id._poultry_weighed_counts()
-            return {cage: counts.get(cage) or fixed for cage in cages}
+            previous_cages = self.previous_id.line_ids.cage_id
+            plan = {}
+            for cage in cages:
+                if cage in counts:
+                    plan[cage] = counts[cage]
+                elif cage not in previous_cages:
+                    plan[cage] = fixed
+            return plan
         return {cage: fixed for cage in cages}
 
     # Computes separados: Odoo exige métodos distintos para campos almacenados y no

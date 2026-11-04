@@ -111,13 +111,16 @@ class TestPoultryWeightRecord(TransactionCase):
 
     def test_lines_wizard_repeats_previous_record(self):
         """Con una pesada anterior, propone las mismas aves que quedaron con peso en
-        cada jaula; una jaula sin pesos o marcada después toma la cantidad fija."""
+        cada jaula; una jaula que quedó sin pesar no entra, y una marcada después toma
+        la cantidad fija."""
         previous = self._record()
         self._generate(previous, birds_per_cage=4)
         self._weigh(previous, self.cage_a, [1900, 2000, 2100])
         self._weigh(previous, self.cage_c, [1950])
         previous.action_register(force=True)
         self.cage_c.is_sampling = False
+        new_cage = (self.coop.cage_ids - self.cage_a - self.cage_b - self.cage_c)[0]
+        new_cage.is_sampling = True
 
         record = self._record()
         wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': record.id})
@@ -125,11 +128,11 @@ class TestPoultryWeightRecord(TransactionCase):
         self.assertEqual(wizard.mode, 'previous')
         self.assertEqual(wizard.previous_summary, '%s: 2 jaulas · 4 aves con peso' % previous.name)
         self.assertEqual(wizard.birds_per_cage, 4)
-        self.assertEqual(wizard.cage_count, 2, 'Una jaula que dejó de ser de muestreo no entra')
-        self.assertEqual(wizard.line_count, 3 + 4, 'A: 3 con peso; B sin pesos: la fija')
+        self.assertEqual(wizard.cage_count, 2, 'A con peso y la nueva; B sin pesar y C sin marca no')
+        self.assertEqual(wizard.line_count, 3 + 4, 'A: 3 con peso; la nueva: la fija')
         wizard.action_confirm()
         counts = {cage: len(lines) for cage, lines in record.line_ids.grouped('cage_id').items()}
-        self.assertEqual(counts, {self.cage_a: 3, self.cage_b: 4})
+        self.assertEqual(counts, {self.cage_a: 3, new_cage: 4})
 
         other = self._record()
         wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': other.id})
