@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_poultry_weight_lines_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.weight.lines.wizard.form</field>
+        <field name="model">poultry.weight.lines.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generar Líneas de Pesaje">
+                <group>
+                    <field name="record_id" invisible="1"/>
+                    <field name="coop_id"/>
+                    <field name="cage_count"/>
+                    <label for="birds_per_cage"/>
+                    <div class="o_row">
+                        <field name="birds_per_cage" class="oe_inline"/>
+                        <span class="text-muted" invisible="not previous_name">
+                            La pesada anterior (<field name="previous_name" class="oe_inline"/>) usó esa cantidad.
+                        </span>
+                    </div>
+                    <field name="line_count"/>
+                </group>
+                <div class="text-muted">
+                    Las líneas quedan en el orden físico de las jaulas: fila, lado, claro, piso,
+                    jaula. Es el mismo orden de la planilla impresa y de la carga.
+                    Si una jaula tiene menos aves, se pesan las que hay: las líneas que queden
+                    sin peso se borran al confirmar.
+                </div>
+                <footer>
+                    <button name="action_confirm" string="Generar Líneas" type="object"
+                            class="btn-primary" invisible="not line_count"/>
+                    <button string="Descartar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_poultry_weight_register_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.weight.register.wizard.form</field>
+        <field name="model">poultry.weight.register.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Jaulas sin pesar">
+                <field name="record_id" invisible="1"/>
+                <field name="pending_count" invisible="1"/>
+                <p>
+                    Hay <strong><field name="pending_count" class="oe_inline"/></strong> jaulas sin ningún peso:
+                </p>
+                <p><field name="pending_codes" readonly="1" nolabel="1"/></p>
+                <p>
+                    Se puede registrar igual: esas jaulas quedan sin pesar en este parte y sus
+                    líneas se borran al confirmar.
+                </p>
+                <footer>
+                    <button name="action_confirm" string="Registrar igual" type="object"
+                            class="btn-primary"/>
+                    <button string="Seguir pesando" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

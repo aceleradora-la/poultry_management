@@ -19,6 +19,13 @@
               action="action_poultry_weight_record"
               sequence="15"/>
 
+    <!-- Pantalla de celular: escanear la jaula y cargar los pesos -->
+    <menuitem id="menu_poultry_weighing"
+              name="Pesar"
+              parent="menu_poultry_management_root"
+              action="action_poultry_weighing"
+              sequence="16"/>
+
     <!-- Menú: Cierres -->
     <menuitem id="menu_poultry_closes"
               name="Cierres" 
@@ -72,6 +79,12 @@
               name="Operación"
               parent="menu_poultry_reports"
               sequence="10"/>
+
+    <menuitem id="menu_poultry_weight_record_cage"
+              name="Pesos por Jaula"
+              parent="menu_poultry_reports_operation"
+              action="action_poultry_weight_record_cage"
+              sequence="50"/>
 
     <menuitem id="menu_poultry_reports_manual_load"
               name="Carga Manual"

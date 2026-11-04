@@ -11,12 +11,16 @@
                 <field name="batch_id"/>
                 <field name="batch_age_weeks"/>
                 <field name="bird_count" sum="Aves"/>
+                <field name="planned_bird_count" optional="hide"/>
+                <field name="weighed_cage_count" optional="hide"/>
                 <field name="average_weight_g"/>
                 <field name="uniformity_pct"/>
                 <field name="cv_pct" optional="hide"/>
                 <field name="operator_id" optional="show"/>
+                <field name="registered_uid" optional="hide"/>
                 <field name="state" widget="badge"
                        decoration-muted="state == 'draft'"
+                       decoration-info="state == 'registered'"
                        decoration-success="state == 'done'"
                        decoration-danger="state == 'cancel'"/>
             </list>
@@ -29,17 +33,28 @@
         <field name="arch" type="xml">
             <form string="Parte de Registro de Peso">
                 <header>
-                    <button name="action_prefill_from_previous" string="Precargar Pesada Anterior"
-                            type="object" invisible="state != 'draft' or line_ids"
-                            help="Copia las filas del último parte confirmado de este galpón, con peso en cero, salvo las jaulas que ya no son de muestreo. Borrá las filas de aves que ya no están."/>
+                    <button name="action_open_lines_wizard" string="Generar Líneas" type="object"
+                            class="oe_highlight" invisible="state != 'draft' or line_ids"
+                            help="Crea una línea por ave prevista en cada jaula de muestreo del galpón, en el orden físico de las jaulas."/>
+                    <button name="%(poultry_management.action_report_weight_sheet)d" string="Imprimir Planilla"
+                            type="action" invisible="not line_ids"/>
+                    <button name="action_register" string="Registrar" type="object"
+                            class="oe_highlight" invisible="state != 'draft' or not line_ids"
+                            help="Da por terminada la pesada. Si quedan jaulas sin pesar, avisa antes."/>
                     <button name="action_done" string="Confirmar" type="object"
-                            class="oe_highlight" invisible="state != 'draft'"/>
+                            invisible="state != 'draft' or not line_ids"
+                            confirm="Las líneas sin peso se borran al confirmar. ¿Continuar?"/>
+                    <button name="action_done" string="Confirmar" type="object"
+                            class="oe_highlight" invisible="state != 'registered'"
+                            confirm="Las líneas sin peso se borran al confirmar. ¿Continuar?"/>
+                    <button name="action_reopen" string="Volver a Borrador" type="object"
+                            invisible="state != 'registered'"/>
                     <button name="action_cancel" string="Cancelar" type="object"
-                            invisible="state not in ('draft', 'done')"
+                            invisible="state not in ('draft', 'registered', 'done')"
                             confirm="Al cancelar un parte confirmado se recalculan los indicadores de Peso Corporal y Uniformidad del lote. ¿Continuar?"/>
                     <button name="action_draft" string="Volver a Borrador" type="object"
                             invisible="state != 'cancel'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,registered,done"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -47,22 +62,34 @@
                     </div>
                     <group>
                         <group>
-                            <field name="coop_id" readonly="state != 'draft'"
+                            <field name="coop_id" readonly="state != 'draft' or line_ids"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="batch_id" readonly="state != 'draft'"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="date" readonly="state != 'draft'"/>
-                            <field name="operator_id" readonly="state != 'draft'"
+                            <field name="operator_id" readonly="state not in ('draft', 'registered')"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                         </group>
                         <group>
                             <field name="batch_age_weeks" readonly="1"/>
+                            <field name="birds_per_cage" readonly="1" invisible="not birds_per_cage"/>
                             <field name="uniformity_band_pct" readonly="state != 'draft'"/>
+                            <field name="registered_date" invisible="not registered_date"/>
+                            <field name="registered_uid" invisible="not registered_date"/>
                         </group>
                     </group>
                     <group string="Resultados">
                         <group>
-                            <field name="bird_count" readonly="1"/>
+                            <label for="bird_count"/>
+                            <div class="o_row">
+                                <field name="bird_count" readonly="1"/>
+                                <span invisible="not planned_bird_count">de <field name="planned_bird_count" readonly="1" class="oe_inline"/> previstas</span>
+                            </div>
+                            <label for="weighed_cage_count"/>
+                            <div class="o_row">
+                                <field name="weighed_cage_count" readonly="1"/>
+                                <span invisible="not cage_count">de <field name="cage_count" readonly="1" class="oe_inline"/></span>
+                            </div>
                             <field name="average_weight_g" readonly="1"/>
                             <field name="uniformity_pct" readonly="1"/>
                         </group>
@@ -74,14 +101,42 @@
                     </group>
                     <notebook>
                         <page string="Pesos" name="weights">
+                            <div class="text-muted mb-2" invisible="state != 'draft' or not line_ids">
+                                Mismo orden que la planilla. Solo se escribe el <strong>Peso</strong>:
+                                <kbd>Enter</kbd> pasa al peso de abajo. Las líneas que queden sin peso
+                                se borran al confirmar.
+                            </div>
                             <field name="line_ids" nolabel="1" readonly="state != 'draft'">
-                                <list string="Pesos" editable="bottom" default_order="sequence, id">
-                                    <field name="sequence" widget="handle"/>
-                                    <field name="cage_id"
+                                <!-- Sin agrupar: la lista de un one2many no agrupa, y así Enter
+                                     baja de fila en fila. Solo el Peso se edita. -->
+                                <list string="Pesos" editable="bottom" default_order="sequence, bird_no, id">
+                                    <field name="id" column_invisible="1"/>
+                                    <field name="sequence" column_invisible="1"/>
+                                    <field name="cage_id" readonly="id"
                                            domain="[('coop_id', '=', parent.coop_id), ('is_sampling', '=', True), ('active', '=', True)]"
                                            options="{'no_create': True, 'no_open': True}"/>
+                                    <field name="bird_no" readonly="id"/>
                                     <field name="weight_g"/>
                                     <field name="deviation_pct" readonly="1" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Por Jaula" name="cages">
+                            <field name="cage_summary_ids" nolabel="1" readonly="1">
+                                <list string="Por Jaula" create="0" delete="0"
+                                      decoration-warning="alert and bird_count"
+                                      decoration-muted="not bird_count">
+                                    <field name="cage_id"/>
+                                    <field name="bird_count"/>
+                                    <field name="line_count" string="Previstas" optional="show"/>
+                                    <field name="average_weight_g"/>
+                                    <field name="min_weight_g"/>
+                                    <field name="max_weight_g"/>
+                                    <field name="cv_pct"/>
+                                    <field name="previous_average_g"/>
+                                    <field name="deviation_pct"/>
+                                    <field name="is_closed" optional="hide"/>
+                                    <field name="alert"/>
                                 </list>
                             </field>
                         </page>
@@ -106,6 +161,7 @@
                 <field name="date"/>
                 <separator/>
                 <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="A Verificar" name="registered" domain="[('state', '=', 'registered')]"/>
                 <filter string="Confirmados" name="done" domain="[('state', '=', 'done')]"/>
                 <separator/>
                 <filter string="Últimos 30 días" name="last_30_days"
@@ -133,6 +189,100 @@
                 indicadores <strong>Peso Corporal</strong> y <strong>Uniformidad</strong>
                 y se comparan contra el estándar de la genética en el Seguimiento de
                 Estándares.
+            </p>
+        </field>
+    </record>
+
+    <!-- Pantalla de celular: escanear la jaula y cargar los pesos -->
+    <record id="action_poultry_weighing" model="ir.actions.client">
+        <field name="name">Pesar</field>
+        <field name="tag">poultry_weighing</field>
+    </record>
+
+    <!-- Resumen por jaula: evolución de cada jaula a lo largo del lote -->
+    <record id="view_poultry_weight_record_cage_tree" model="ir.ui.view">
+        <field name="name">poultry.weight.record.cage.tree</field>
+        <field name="model">poultry.weight.record.cage</field>
+        <field name="arch" type="xml">
+            <list string="Pesos por Jaula" create="0" delete="0"
+                  decoration-warning="alert and bird_count">
+                <field name="record_id"/>
+                <field name="date"/>
+                <field name="batch_age_weeks"/>
+                <field name="coop_id"/>
+                <field name="cage_id"/>
+                <field name="bird_count" sum="Aves"/>
+                <field name="average_weight_g"/>
+                <field name="min_weight_g" optional="hide"/>
+                <field name="max_weight_g" optional="hide"/>
+                <field name="cv_pct"/>
+                <field name="previous_average_g" optional="show"/>
+                <field name="deviation_pct" optional="show"/>
+                <field name="alert" optional="show"/>
+                <field name="state" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_weight_record_cage_pivot" model="ir.ui.view">
+        <field name="name">poultry.weight.record.cage.pivot</field>
+        <field name="model">poultry.weight.record.cage</field>
+        <field name="arch" type="xml">
+            <pivot string="Pesos por Jaula">
+                <field name="cage_id" type="row"/>
+                <field name="batch_age_weeks" type="col"/>
+                <field name="average_weight_g" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_poultry_weight_record_cage_graph" model="ir.ui.view">
+        <field name="name">poultry.weight.record.cage.graph</field>
+        <field name="model">poultry.weight.record.cage</field>
+        <field name="arch" type="xml">
+            <graph string="Pesos por Jaula" type="line">
+                <field name="batch_age_weeks"/>
+                <field name="cage_id"/>
+                <field name="average_weight_g" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_poultry_weight_record_cage_search" model="ir.ui.view">
+        <field name="name">poultry.weight.record.cage.search</field>
+        <field name="model">poultry.weight.record.cage</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Pesos por Jaula">
+                <field name="cage_id"/>
+                <field name="coop_id"/>
+                <field name="batch_id"/>
+                <field name="record_id"/>
+                <separator/>
+                <filter string="Confirmados" name="done" domain="[('state', '=', 'done')]"/>
+                <filter string="Registrados" name="registered" domain="[('state', '=', 'registered')]"/>
+                <filter string="Con Aviso" name="alert" domain="[('bird_count', '>', 0)]"/>
+                <separator/>
+                <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Jaula" name="by_cage" context="{'group_by': 'cage_id'}"/>
+                <filter string="Por Semana de Vida" name="by_week" context="{'group_by': 'batch_age_weeks'}"/>
+                <filter string="Por Parte" name="by_record" context="{'group_by': 'record_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_poultry_weight_record_cage" model="ir.actions.act_window">
+        <field name="name">Pesos por Jaula</field>
+        <field name="res_model">poultry.weight.record.cage</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="search_view_id" ref="view_poultry_weight_record_cage_search"/>
+        <field name="context">{'search_default_done': 1, 'search_default_by_coop': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Todavía no hay pesadas por jaula
+            </p>
+            <p>
+                Cada fila es una jaula en un parte de peso: aves pesadas, promedio y
+                desvío contra el parte y contra la pesada anterior.
             </p>
         </field>
     </record>

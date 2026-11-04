@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.97.0',
+    'version': '19.0.1.98.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -21,6 +21,9 @@
             'poultry_management/static/src/js/poultry_dynamic_columns.js',
             'poultry_management/static/src/js/poultry_standard_tracking_report/poultry_standard_tracking_report.js',
             'poultry_management/static/src/js/poultry_standard_tracking_report/poultry_standard_tracking_report.xml',
+            'poultry_management/static/src/weighing/poultry_weighing.js',
+            'poultry_management/static/src/weighing/poultry_weighing.xml',
+            'poultry_management/static/src/weighing/poultry_weighing.scss',
         ],
     },
     'data': [
@@ -56,7 +59,9 @@
         'views/poultry_cage_views.xml',
         'views/poultry_cage_wizard_views.xml',
         'report/poultry_cage_label_report.xml',
+        'report/poultry_weight_sheet_report.xml',
         'views/poultry_weight_record_views.xml',
+        'views/poultry_weight_wizard_views.xml',
         'views/poultry_vaccine_views.xml',
         'views/poultry_vaccination_plan_views.xml',
         'views/poultry_vaccination_views.xml',

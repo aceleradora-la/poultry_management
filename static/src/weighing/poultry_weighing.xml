@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="poultry_management.PoultryWeighing">
+    <div class="o_poultry_weighing">
+
+        <!-- Lista de pesadas -->
+        <t t-if="state.screen === 'list'">
+            <div class="o_pw_header">
+                <div>
+                    <div class="o_pw_title">Pesaje de Aves</div>
+                    <div class="o_pw_sub">Pesadas en Borrador y las registradas en el día</div>
+                </div>
+            </div>
+            <div class="o_pw_body">
+                <div t-if="!state.records.length" class="o_pw_empty">
+                    No hay pesadas para cargar. Se crean desde Pesaje de Aves con Generar Líneas.
+                </div>
+                <t t-foreach="state.records" t-as="rec" t-key="rec.id">
+                    <div t-attf-class="o_pw_card {{ rec.state === 'draft' ? 'o_pw_card_draft' : '' }}">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <div class="o_pw_card_title" t-esc="rec.coop"/>
+                                <div class="o_pw_muted"><t t-esc="rec.name"/> · Lote <t t-esc="rec.batch"/> · Semana <t t-esc="rec.week"/></div>
+                            </div>
+                            <span t-attf-class="o_pw_badge {{ rec.state === 'draft' ? 'o_pw_badge_draft' : 'o_pw_badge_done' }}" t-esc="stateLabel(rec)"/>
+                        </div>
+                        <t t-if="rec.state === 'draft'">
+                            <div class="d-flex justify-content-between o_pw_muted">
+                                <span><t t-esc="rec.closed_cage_count"/> de <t t-esc="rec.cage_count"/> jaulas cerradas</span>
+                                <span><t t-esc="rec.bird_count"/> de <t t-esc="rec.planned_bird_count"/> aves</span>
+                            </div>
+                            <div class="o_pw_progress"><div t-attf-style="width: {{ progress(rec) }}%"/></div>
+                            <button type="button" class="o_pw_btn o_pw_btn_primary" t-on-click="() => this.openRecord(rec.id)">
+                                <t t-if="rec.bird_count">Continuar</t><t t-else="">Comenzar</t>
+                            </button>
+                        </t>
+                        <t t-else="">
+                            <div class="o_pw_muted">
+                                Registrada <t t-esc="rec.registered"/> · <t t-esc="rec.bird_count"/> aves · prom. <t t-esc="fmt(rec.average_weight_g)"/> g
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </div>
+        </t>
+
+        <!-- Pesada abierta: una tarjeta por jaula -->
+        <t t-if="state.screen === 'record'">
+            <div class="o_pw_header">
+                <button type="button" class="o_pw_back" aria-label="Volver" t-on-click="loadList">
+                    <i class="fa fa-chevron-left"/>
+                </button>
+                <div>
+                    <div class="o_pw_title" t-esc="state.record.name"/>
+                    <div class="o_pw_sub"><t t-esc="state.record.coop"/> · Lote <t t-esc="state.record.batch"/> · Semana <t t-esc="state.record.week"/></div>
+                </div>
+            </div>
+            <div class="o_pw_body">
+                <div class="d-flex justify-content-between o_pw_muted">
+                    <span><strong><t t-esc="closedCount"/> de <t t-esc="state.record.cages.length"/></strong> jaulas cerradas</span>
+                    <span><t t-esc="state.record.bird_count"/> aves · prom. <strong><t t-esc="fmt(state.record.average_weight_g)"/> g</strong></span>
+                </div>
+                <div class="o_pw_progress"><div t-attf-style="width: {{ progress(state.record) }}%"/></div>
+                <button t-if="scannerSupported" type="button" class="o_pw_btn o_pw_btn_primary o_pw_btn_scan" t-on-click="scan" t-att-disabled="state.busy">
+                    <i class="fa fa-camera me-2"/> Escanear jaula
+                </button>
+                <form t-if="state.showManual or !scannerSupported" class="o_pw_manual" t-on-submit="submitManual">
+                    <label for="o_pw_manual_code" class="o_pw_muted">Código de la jaula</label>
+                    <div class="d-flex gap-2">
+                        <input id="o_pw_manual_code" type="text" class="o_pw_input" placeholder="1.1.2.32.3.4" t-model="state.manualCode" autocomplete="off"/>
+                        <button type="submit" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small">Abrir</button>
+                    </div>
+                </form>
+                <button t-else="" type="button" class="o_pw_link" t-on-click="() => { state.showManual = true; }">Escribir el código a mano</button>
+
+                <div class="o_pw_grid">
+                    <t t-foreach="state.record.cages" t-as="cage" t-key="cage.cage_id">
+                        <button type="button" t-attf-class="o_pw_cage_card o_pw_cage_{{ cage.status }}" t-on-click="() => this.openCage(cage.cage_id)">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="o_pw_cage_code" t-esc="cage.code"/>
+                                <i t-if="cage.status === 'closed'" class="fa fa-check o_pw_check"/>
+                                <span t-elif="cage.status === 'open'" class="o_pw_follow">Seguir</span>
+                            </div>
+                            <div t-if="cage.status === 'pending'" class="o_pw_muted">Pendiente</div>
+                            <div t-else="" class="o_pw_muted">
+                                <t t-esc="cage.bird_count"/><t t-if="cage.status === 'open'"> de <t t-esc="cage.line_count"/></t> aves · <t t-esc="fmt(cage.average_weight_g)"/> g
+                            </div>
+                            <div t-if="cage.alert" class="o_pw_alert" t-esc="cage.alert"/>
+                        </button>
+                    </t>
+                </div>
+            </div>
+            <div class="o_pw_footer">
+                <button type="button" t-attf-class="o_pw_btn {{ allClosed ? 'o_pw_btn_primary' : 'o_pw_btn_secondary' }}"
+                        t-att-disabled="state.busy or !state.record.bird_count" t-on-click="register">
+                    Registrar pesada
+                </button>
+                <div class="o_pw_hint">
+                    <t t-if="allClosed">Todas las jaulas están cerradas.</t>
+                    <t t-else="">Si quedan jaulas sin pesar, avisa antes de registrar. Tocá una jaula cerrada para corregir un peso.</t>
+                </div>
+            </div>
+        </t>
+
+        <!-- Pesos de una jaula -->
+        <t t-if="state.screen === 'cage' and currentCage">
+            <div class="o_pw_header">
+                <button type="button" class="o_pw_back" aria-label="Volver a las jaulas" t-on-click="backToRecord">
+                    <i class="fa fa-chevron-left"/>
+                </button>
+                <div class="flex-grow-1">
+                    <div class="o_pw_sub">Jaula</div>
+                    <div class="o_pw_title o_pw_code" t-esc="currentCage.code"/>
+                </div>
+                <div class="o_pw_header_stats">
+                    <div><strong t-esc="currentCage.bird_count"/> de <t t-esc="currentCage.line_count"/> aves</div>
+                    <div>prom. <t t-esc="fmt(currentCage.average_weight_g)"/> g</div>
+                </div>
+            </div>
+            <div class="o_pw_body o_pw_cage">
+                <t t-foreach="currentCage.lines" t-as="line" t-key="line.id">
+                    <div t-attf-class="o_pw_line {{ line.weight_g ? '' : 'o_pw_line_empty' }}">
+                        <label t-attf-for="o_pw_line_{{ line.id }}" class="o_pw_line_label">Ave <t t-esc="line.bird_no"/></label>
+                        <input t-attf-id="o_pw_line_{{ line.id }}" type="number" inputmode="numeric" enterkeyhint="next"
+                               class="o_pw_weight" min="0" step="1" placeholder="—"
+                               t-att-value="line.weight_g || ''"
+                               t-on-change="(ev) => this.onWeightChange(line, ev)"
+                               t-on-keydown="(ev) => this.onWeightKeydown(line, ev)"/>
+                        <span class="o_pw_muted"><t t-if="line.weight_g">g</t></span>
+                        <span class="o_pw_dev" t-esc="deviation(line)"/>
+                    </div>
+                </t>
+                <div class="o_pw_actions">
+                    <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-on-click="removeLine" t-att-disabled="state.busy">− Ave</button>
+                    <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-on-click="addLine" t-att-disabled="state.busy">+ Ave</button>
+                    <button type="button" class="o_pw_btn o_pw_btn_primary o_pw_btn_small" t-on-click="closeCage" t-att-disabled="state.busy">Cerrar jaula</button>
+                </div>
+                <div class="o_pw_hint">
+                    Siguiente pasa a la ave de abajo. Cerrar la jaula con aves sin peso está bien: se pesan las que hay.
+                </div>
+            </div>
+        </t>
+
+    </div>
+</t>
+
+</templates>

@@ -143,7 +143,10 @@ class TestPoultryCage(TransactionCase):
         wizard.action_confirm()
         self.assertEqual(self.coop.cage_ids.filtered('is_sampling'), first | third)
 
-    def test_prefill_skips_cage_no_longer_sampled(self):
+    def test_sampling_change_keeps_previous_weight_record(self):
+        """Cambiar la marca no toca los partes ya cargados: siguen apuntando a la jaula
+        física donde se pesó. (Qué jaulas entran en un parte nuevo lo prueba
+        test_poultry_weight_record.)"""
         self._wizard(**self.small).action_generate()
         kept, replaced = self.coop.cage_ids[:2]
         (kept | replaced).is_sampling = True
@@ -157,8 +160,7 @@ class TestPoultryCage(TransactionCase):
             'batch_id': batch.id, 'coop_id': self.coop.id, 'bird_count': 100,
             'date_from': today - timedelta(days=90),
         })
-        Record = self.env['poultry.weight.record']
-        previous = Record.create({
+        previous = self.env['poultry.weight.record'].create({
             'coop_id': self.coop.id, 'batch_id': batch.id, 'date': today - timedelta(days=7),
             'line_ids': [(0, 0, {'cage_id': kept.id, 'weight_g': 1500}),
                          (0, 0, {'cage_id': replaced.id, 'weight_g': 1600})],
@@ -166,16 +168,9 @@ class TestPoultryCage(TransactionCase):
         previous.action_done()
 
         replaced.is_sampling = False
-        record = Record.create({'coop_id': self.coop.id, 'batch_id': batch.id, 'date': today})
-        record.action_prefill_from_previous()
-        self.assertEqual(record.line_ids.cage_id, kept)
         self.assertEqual(previous.line_ids.cage_id, kept | replaced,
                          'El parte anterior conserva la jaula donde se pesó')
-
-        kept.is_sampling = False
-        empty = Record.create({'coop_id': self.coop.id, 'batch_id': batch.id, 'date': today})
-        with self.assertRaises(ValidationError):
-            empty.action_prefill_from_previous()
+        self.assertEqual(previous.bird_count, 2)
 
     def test_labels_have_qr_and_code_only(self):
         self._wizard(**dict(self.small, bay_to=4)).action_generate()

@@ -7,7 +7,7 @@ from odoo.exceptions import ValidationError
 class PoultryWeightRecordLine(models.Model):
     _name = 'poultry.weight.record.line'
     _description = 'Peso Individual de Ave'
-    _order = 'record_id, sequence, id'
+    _order = 'record_id, sequence, bird_no, id'
 
     # Una fila por ave pesada (no por jaula): permite calcular uniformidad y CV, y la
     # carga es más rápida en una única lista editable que en un diálogo por jaula.
@@ -15,7 +15,10 @@ class PoultryWeightRecordLine(models.Model):
                                 required=True, index=True, ondelete='cascade')
     cage_id = fields.Many2one('poultry.cage', string='Jaula', required=True,
                               index=True, ondelete='restrict')
-    weight_g = fields.Float(string='Peso (g)', required=True, digits=(16, 1))
+    bird_no = fields.Integer(string='Ave', default=1, aggregator=None,
+                             help='Número de la ave dentro de la jaula, como en la planilla.')
+    weight_g = fields.Float(string='Peso (g)', required=True, digits=(16, 1),
+                            aggregator='avg')
     sequence = fields.Integer(string='Secuencia', default=10)
     deviation_pct = fields.Float(string='Desvío vs Promedio (%)',
                                  compute='_compute_deviation_pct', digits=(16, 2))
@@ -24,7 +27,9 @@ class PoultryWeightRecordLine(models.Model):
     def _compute_deviation_pct(self):
         for line in self:
             avg = line.record_id.average_weight_g
-            line.deviation_pct = ((line.weight_g - avg) / avg * 100.0) if avg else 0.0
+            # Sin peso todavía no hay desvío (si no, mostraría -100 %).
+            line.deviation_pct = ((line.weight_g - avg) / avg * 100.0
+                                  if avg and line.weight_g > 0 else 0.0)
 
     @api.constrains('weight_g')
     def _check_weight(self):

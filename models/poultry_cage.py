@@ -45,6 +45,12 @@ class PoultryCage(models.Model):
         """Código de la jaula: Galpón.Fila.Lado.Claro.Piso.Jaula."""
         return '.'.join(str(part) for part in (coop_number, row, side, bay, floor, cage))
 
+    def _poultry_sort_key(self):
+        """Orden físico de recorrido: fila, lado, claro, piso, jaula (el del código)."""
+        self.ensure_one()
+        return (self.sequence, self.row_no, self.side_no, self.bay_no, self.floor_no,
+                self.cage_no, self.code or '')
+
     def _poultry_qr_src(self):
         """QR del código como data URI. Va embebido para que imprimir un galpón entero
         no dispare una request de imagen por cada etiqueta. Nivel Q de corrección:

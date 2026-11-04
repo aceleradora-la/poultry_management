@@ -25,6 +25,8 @@ from . import poultry_cage_generate_wizard
 from . import poultry_cage_sampling_wizard
 from . import poultry_weight_record
 from . import poultry_weight_record_line
+from . import poultry_weight_record_cage
+from . import poultry_weight_lines_wizard
 from . import poultry_vaccine
 from . import poultry_vaccination_plan
 from . import poultry_vaccination_plan_line
