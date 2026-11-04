@@ -78,7 +78,7 @@
         </t>
 
         <!-- Pesada abierta: una tarjeta por jaula -->
-        <t t-if="state.screen === 'record'">
+        <t t-if="state.screen === 'record' and state.record">
             <div class="o_pw_header">
                 <button type="button" class="o_pw_back" aria-label="Volver" t-on-click="loadList">
                     <i class="fa fa-chevron-left"/>

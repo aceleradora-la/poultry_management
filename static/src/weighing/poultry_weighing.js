@@ -57,6 +57,8 @@ export class PoultryWeighing extends Component {
     async goHome() {
         await this.loadRecords();
         this.state.screen = "home";
+        this.state.record = null;
+        this.state.cageId = null;
     }
 
     async openList() {
@@ -120,15 +122,17 @@ export class PoultryWeighing extends Component {
         }
     }
 
+    // La pantalla se cambia ANTES de soltar la pesada actual: si se la suelta primero,
+    // la plantilla de la pesada se vuelve a dibujar con record en null y se rompe.
     async loadRecords() {
         this.state.records = await this.call("poultry_mobile_list");
-        this.state.record = null;
-        this.state.cageId = null;
     }
 
     async loadList() {
         await this.loadRecords();
         this.state.screen = "list";
+        this.state.record = null;
+        this.state.cageId = null;
     }
 
     async openRecord(recordId) {
@@ -317,11 +321,12 @@ export class PoultryWeighing extends Component {
     }
 
     async doRegister(force) {
-        await this.call("action_register", [[this.state.record.id]], {
+        const { id, name } = this.state.record;
+        await this.call("action_register", [[id]], {
             force,
             context: { poultry_mobile: true },
         });
-        this.notification.add(`Pesada ${this.state.record.name} registrada. Queda a verificar.`, { type: "success" });
+        this.notification.add(`Pesada ${name} registrada. Queda a verificar.`, { type: "success" });
         await this.loadList();
     }
 }
