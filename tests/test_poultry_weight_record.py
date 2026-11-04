@@ -112,9 +112,9 @@ class TestPoultryWeightRecord(TransactionCase):
             self._generate(record)
 
     def test_lines_wizard_repeats_previous_record(self):
-        """Con una pesada anterior, propone las mismas aves que quedaron con peso en
-        cada jaula; una jaula que quedó sin pesar no entra, y una marcada después toma
-        la cantidad fija."""
+        """Con una pesada anterior, propone solo las jaulas que quedaron con peso, con
+        esas mismas aves; una jaula sin pesar o marcada después no entra (se escanea
+        desde el celular o se usa la cantidad fija)."""
         previous = self._record()
         self._generate(previous, birds_per_cage=4)
         self._weigh(previous, self.cage_a, [1900, 2000, 2100])
@@ -130,11 +130,12 @@ class TestPoultryWeightRecord(TransactionCase):
         self.assertEqual(wizard.mode, 'previous')
         self.assertEqual(wizard.previous_summary, '%s: 2 jaulas · 4 aves con peso' % previous.name)
         self.assertEqual(wizard.birds_per_cage, 4)
-        self.assertEqual(wizard.cage_count, 2, 'A con peso y la nueva; B sin pesar y C sin marca no')
-        self.assertEqual(wizard.line_count, 3 + 4, 'A: 3 con peso; la nueva: la fija')
+        self.assertEqual(wizard.cage_count, 1, 'Solo A tuvo peso (C ya no es de muestreo)')
+        self.assertEqual(wizard.skipped_count, 2, 'B sin pesar y la nueva quedan afuera')
+        self.assertEqual(wizard.line_count, 3)
         wizard.action_confirm()
         counts = {cage: len(lines) for cage, lines in record.line_ids.grouped('cage_id').items()}
-        self.assertEqual(counts, {self.cage_a: 3, new_cage: 4})
+        self.assertEqual(counts, {self.cage_a: 3})
 
         other = self._record()
         wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': other.id})

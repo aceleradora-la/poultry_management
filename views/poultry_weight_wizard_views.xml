@@ -15,12 +15,16 @@
                     <div invisible="not previous_id">
                         <field name="previous_summary" class="oe_inline"/>
                         <div class="text-muted" invisible="mode != 'previous'">
-                            Cada jaula repite las aves que quedaron con peso; las que quedaron
-                            sin pesar no entran. Una jaula marcada después toma la cantidad fija.
+                            Entran solo las jaulas que quedaron con peso, con esas mismas aves.
                         </div>
                     </div>
                     <field name="birds_per_cage" invisible="mode == 'previous' and previous_id"/>
                     <field name="line_count"/>
+                    <field name="skipped_count" invisible="not skipped_count"/>
+                    <div class="text-muted" colspan="2" invisible="not skipped_count">
+                        Son jaulas de muestreo sin peso en la pesada anterior (o marcadas después).
+                        Para pesarlas, escanealas desde el celular o elegí la cantidad fija.
+                    </div>
                 </group>
                 <div class="text-muted">
                     Las líneas quedan en el orden físico de las jaulas: fila, lado, claro, piso,

@@ -24,6 +24,7 @@ class PoultryWeightLinesWizard(models.TransientModel):
     birds_per_cage = fields.Integer(string='Aves por Jaula', compute='_compute_birds_per_cage',
                                     store=True, readonly=False)
     cage_count = fields.Integer(string='Jaulas de Muestreo', compute='_compute_counts')
+    skipped_count = fields.Integer(string='Jaulas que no entran', compute='_compute_counts')
     line_count = fields.Integer(string='Líneas a Crear', compute='_compute_counts')
 
     def _poultry_cages(self):
@@ -37,24 +38,17 @@ class PoultryWeightLinesWizard(models.TransientModel):
         return self.record_id._poultry_previous_record() if self.record_id else None
 
     def _poultry_plan(self):
-        """{jaula: cantidad de líneas} según el modo. Con la pesada anterior, cada jaula
-        repite las aves que quedaron con peso; las que estaban y quedaron sin pesar no
-        entran (decisión del usuario). Una jaula marcada después, que la pesada anterior
-        no tenía, toma la cantidad fija."""
+        """{jaula: cantidad de líneas} según el modo. Con la pesada anterior entran solo
+        las jaulas que quedaron con peso, con esas mismas aves (decisión del usuario).
+        Las demás jaulas de muestreo se agregan escaneándolas desde el celular o con la
+        cantidad fija. No se distingue "estaba sin pesar" de "marcada después": al
+        confirmar se borran las líneas sin peso."""
         self.ensure_one()
         cages = self._poultry_cages()
-        fixed = max(self.birds_per_cage, 0)
         if self.mode == 'previous' and self.previous_id:
             counts = self.previous_id._poultry_weighed_counts()
-            previous_cages = self.previous_id.line_ids.cage_id
-            plan = {}
-            for cage in cages:
-                if cage in counts:
-                    plan[cage] = counts[cage]
-                elif cage not in previous_cages:
-                    plan[cage] = fixed
-            return plan
-        return {cage: fixed for cage in cages}
+            return {cage: counts[cage] for cage in cages if cage in counts}
+        return {cage: max(self.birds_per_cage, 0) for cage in cages}
 
     # Computes separados: Odoo exige métodos distintos para campos almacenados y no
     # almacenados que dependen de lo mismo.
@@ -84,8 +78,10 @@ class PoultryWeightLinesWizard(models.TransientModel):
     @api.depends('coop_id', 'mode', 'birds_per_cage')
     def _compute_counts(self):
         for wizard in self:
+            cages = wizard._poultry_cages() if wizard.coop_id else []
             plan = wizard._poultry_plan() if wizard.coop_id else {}
             wizard.cage_count = len(plan)
+            wizard.skipped_count = len(cages) - len(plan)
             wizard.line_count = sum(plan.values())
 
     def action_confirm(self):
