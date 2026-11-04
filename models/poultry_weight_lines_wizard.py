@@ -6,17 +6,23 @@ from odoo.exceptions import ValidationError
 
 class PoultryWeightLinesWizard(models.TransientModel):
     """Generar Líneas de Pesaje: una línea por ave prevista en cada jaula de muestreo
-    del galpón, en el orden físico. Reemplaza a la precarga desde la pesada anterior:
-    propone las mismas aves por jaula que la última vez."""
+    del galpón, en el orden físico. Si el galpón ya tiene una pesada anterior, propone
+    repetir su estructura: las mismas aves que quedaron con peso en cada jaula."""
     _name = 'poultry.weight.lines.wizard'
     _description = 'Generar Líneas de Pesaje'
 
     record_id = fields.Many2one('poultry.weight.record', string='Parte de Peso',
                                 required=True, ondelete='cascade')
     coop_id = fields.Many2one(related='record_id.coop_id')
+    previous_id = fields.Many2one('poultry.weight.record', string='Pesada Anterior',
+                                  compute='_compute_previous')
+    previous_summary = fields.Char(compute='_compute_previous')
+    mode = fields.Selection([
+        ('previous', 'Igual que la pesada anterior'),
+        ('fixed', 'Cantidad fija de aves por jaula'),
+    ], string='Líneas', compute='_compute_mode', store=True, readonly=False)
     birds_per_cage = fields.Integer(string='Aves por Jaula', compute='_compute_birds_per_cage',
                                     store=True, readonly=False)
-    previous_name = fields.Char(string='Pesada Anterior', compute='_compute_previous_name')
     cage_count = fields.Integer(string='Jaulas de Muestreo', compute='_compute_counts')
     line_count = fields.Integer(string='Líneas a Crear', compute='_compute_counts')
 
@@ -30,25 +36,49 @@ class PoultryWeightLinesWizard(models.TransientModel):
         self.ensure_one()
         return self.record_id._poultry_previous_record() if self.record_id else None
 
+    def _poultry_plan(self):
+        """{jaula: cantidad de líneas} según el modo. Con la pesada anterior, cada jaula
+        repite las aves que quedaron con peso; una jaula nueva (marcada después) toma la
+        cantidad fija."""
+        self.ensure_one()
+        cages = self._poultry_cages()
+        fixed = max(self.birds_per_cage, 0)
+        if self.mode == 'previous' and self.previous_id:
+            counts = self.previous_id._poultry_weighed_counts()
+            return {cage: counts.get(cage) or fixed for cage in cages}
+        return {cage: fixed for cage in cages}
+
     # Computes separados: Odoo exige métodos distintos para campos almacenados y no
     # almacenados que dependen de lo mismo.
+    @api.depends('record_id')
+    def _compute_previous(self):
+        for wizard in self:
+            previous = wizard._poultry_previous_record()
+            wizard.previous_id = previous
+            if previous:
+                counts = previous._poultry_weighed_counts()
+                wizard.previous_summary = '%s: %d jaulas · %d aves con peso' % (
+                    previous.name, len(counts), sum(counts.values()))
+            else:
+                wizard.previous_summary = False
+
+    @api.depends('record_id')
+    def _compute_mode(self):
+        for wizard in self:
+            wizard.mode = 'previous' if wizard._poultry_previous_record() else 'fixed'
+
     @api.depends('record_id')
     def _compute_birds_per_cage(self):
         for wizard in self:
             previous = wizard._poultry_previous_record()
             wizard.birds_per_cage = (previous.birds_per_cage if previous else 0) or 10
 
-    @api.depends('record_id')
-    def _compute_previous_name(self):
-        for wizard in self:
-            previous = wizard._poultry_previous_record()
-            wizard.previous_name = previous.name if previous else False
-
-    @api.depends('coop_id', 'birds_per_cage')
+    @api.depends('coop_id', 'mode', 'birds_per_cage')
     def _compute_counts(self):
         for wizard in self:
-            wizard.cage_count = len(wizard._poultry_cages()) if wizard.coop_id else 0
-            wizard.line_count = wizard.cage_count * max(wizard.birds_per_cage, 0)
+            plan = wizard._poultry_plan() if wizard.coop_id else {}
+            wizard.cage_count = len(plan)
+            wizard.line_count = sum(plan.values())
 
     def action_confirm(self):
         self.ensure_one()
@@ -59,12 +89,13 @@ class PoultryWeightLinesWizard(models.TransientModel):
             raise ValidationError('El parte ya tiene líneas.')
         if self.birds_per_cage < 1:
             raise ValidationError('Indicá cuántas aves se pesan por jaula.')
-        cages = self._poultry_cages()
-        if not cages:
+        plan = self._poultry_plan()
+        if not plan:
             raise ValidationError('El galpón %s no tiene jaulas de muestreo. Elegilas en '
                                   'Configuración › Jaulas de Muestreo.' % record.coop_id.name)
         record.birds_per_cage = self.birds_per_cage
-        record._poultry_add_cage_lines(cages, self.birds_per_cage)
+        cages = self.env['poultry.cage'].concat(*plan.keys())
+        record._poultry_add_cage_lines(cages, self.birds_per_cage, counts=plan)
         return True
 
 

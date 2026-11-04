@@ -7,15 +7,19 @@
             <form string="Generar Líneas de Pesaje">
                 <group>
                     <field name="record_id" invisible="1"/>
+                    <field name="previous_id" invisible="1"/>
                     <field name="coop_id"/>
                     <field name="cage_count"/>
-                    <label for="birds_per_cage"/>
-                    <div class="o_row">
-                        <field name="birds_per_cage" class="oe_inline"/>
-                        <span class="text-muted" invisible="not previous_name">
-                            La pesada anterior (<field name="previous_name" class="oe_inline"/>) usó esa cantidad.
-                        </span>
+                    <field name="mode" widget="radio" invisible="not previous_id"/>
+                    <label for="previous_summary" string="Pesada anterior" invisible="not previous_id"/>
+                    <div invisible="not previous_id">
+                        <field name="previous_summary" class="oe_inline"/>
+                        <div class="text-muted" invisible="mode != 'previous'">
+                            Cada jaula repite las aves que quedaron con peso. Una jaula marcada
+                            después toma la cantidad fija.
+                        </div>
                     </div>
+                    <field name="birds_per_cage" invisible="mode == 'previous' and previous_id"/>
                     <field name="line_count"/>
                 </group>
                 <div class="text-muted">

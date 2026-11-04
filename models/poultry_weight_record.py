@@ -248,14 +248,24 @@ class PoultryWeightRecord(models.Model):
             ('date', '<=', self.date),
         ], order='date desc, id desc', limit=1)
 
-    def _poultry_add_cage_lines(self, cages, birds_per_cage):
-        """Agrega birds_per_cage líneas por jaula, numeradas, en el orden físico y a
-        continuación de las que ya hay."""
+    def _poultry_weighed_counts(self):
+        """Aves con peso por jaula: {cage: cantidad}. Es la estructura que se repite en
+        la pesada siguiente."""
         self.ensure_one()
+        counts = {}
+        for line in self._poultry_weighed_lines():
+            counts[line.cage_id] = counts.get(line.cage_id, 0) + 1
+        return counts
+
+    def _poultry_add_cage_lines(self, cages, birds_per_cage, counts=None):
+        """Agrega líneas por jaula, numeradas, en el orden físico y a continuación de
+        las que ya hay: counts[cage] líneas si se indica, si no birds_per_cage."""
+        self.ensure_one()
+        counts = counts or {}
         next_sequence = max(self.line_ids.mapped('sequence'), default=0) + 1
         vals_list = []
         for cage in cages.sorted(key=lambda c: c._poultry_sort_key()):
-            for bird_no in range(1, birds_per_cage + 1):
+            for bird_no in range(1, counts.get(cage, birds_per_cage) + 1):
                 vals_list.append({
                     'record_id': self.id,
                     'cage_id': cage.id,
