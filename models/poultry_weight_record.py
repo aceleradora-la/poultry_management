@@ -366,38 +366,70 @@ class PoultryWeightRecord(models.Model):
     # ------------------------------------------------------------------
     def _poultry_sheet_pages(self, rows_per_column=36, columns=3):
         """Secciones de la planilla: se llenan de arriba abajo, cada jaula con su título
-        y sus aves. Una jaula que no entra sigue en la sección siguiente, marcada como
-        continuación. Devuelve páginas → columnas → grupos {cage, continued, rows}."""
+        y sus aves. Las jaulas no se cortan: si una no entra en lo que queda de la
+        sección, pasa entera a la siguiente. Solo se parte (marcada "continúa") una
+        jaula con más aves de las que entran en una sección. Entre secciones se
+        reparten lo más parejo posible. Devuelve páginas → columnas → grupos
+        {cage, continued, rows}."""
         self.ensure_one()
-        lines = self._poultry_sorted_lines()
-        # Las secciones se reparten parejas: con pocas aves no se amontona todo en la
-        # primera. Cada corte de jaula entre secciones suma un título más, por eso el
-        # margen de (columns - 1) por hoja.
-        units = len(lines) + len(lines.cage_id)
-        sheets = max(1, -(-units // (rows_per_column * columns)))
-        rows_per_column = max(2, min(rows_per_column,
-                                     -(-(units + columns - 1) // (columns * sheets))))
+        capacity = max(rows_per_column, 2)
+        # Bloques: una jaula entera (título + aves), o los pedazos de una jaula más
+        # grande que una sección.
+        chunks = []
+        for cage, cage_lines in self._poultry_sorted_lines().grouped('cage_id').items():
+            rows = list(cage_lines)
+            first = True
+            while rows:
+                chunks.append({'cage': cage, 'continued': not first,
+                               'rows': rows[:capacity - 1]})
+                rows = rows[capacity - 1:]
+                first = False
+        if not chunks:
+            return []
+        units = [1 + len(chunk['rows']) for chunk in chunks]
+        sheets = max(1, -(-sum(units) // (capacity * columns)))
+        while True:
+            parts = self._poultry_partition(units, columns * sheets)
+            if all(sum(units[start:end]) <= capacity for start, end in parts):
+                break
+            sheets += 1
         pages = []
-        column = None
-        used = 0
-        last_cage = None
-        for line in lines:
-            cage = line.cage_id
-            new_group = column is None or cage != column[-1]['cage']
-            if column is None or used + (2 if new_group else 1) > rows_per_column:
-                if not pages or len(pages[-1]) >= columns:
-                    pages.append([])
-                column = []
-                pages[-1].append(column)
-                used = 0
-                new_group = True
-            if new_group:
-                column.append({'cage': cage, 'continued': cage == last_cage, 'rows': []})
-                used += 1
-            column[-1]['rows'].append(line)
-            used += 1
-            last_cage = cage
+        for index, (start, end) in enumerate(parts):
+            if index % columns == 0:
+                pages.append([])
+            pages[-1].append(chunks[start:end])
         return pages
+
+    @staticmethod
+    def _poultry_partition(units, parts):
+        """Corta la secuencia de bloques en `parts` tramos seguidos (algunos pueden
+        quedar vacíos) de modo que el tramo más cargado sea lo más chico posible.
+        Programación dinámica clásica. Devuelve [(inicio, fin), ...]."""
+        count = len(units)
+        prefix = [0]
+        for unit in units:
+            prefix.append(prefix[-1] + unit)
+        infinity = float('inf')
+        # best[k][i]: menor carga máxima repartiendo los primeros i bloques en k tramos
+        best = [[infinity] * (count + 1) for _ in range(parts + 1)]
+        cut = [[0] * (count + 1) for _ in range(parts + 1)]
+        best[0][0] = 0
+        for k in range(1, parts + 1):
+            for i in range(count + 1):
+                for j in range(i + 1):
+                    if best[k - 1][j] == infinity:
+                        continue
+                    load = max(best[k - 1][j], prefix[i] - prefix[j])
+                    if load < best[k][i]:
+                        best[k][i] = load
+                        cut[k][i] = j
+        bounds = []
+        end = count
+        for k in range(parts, 0, -1):
+            start = cut[k][end]
+            bounds.append((start, end))
+            end = start
+        return list(reversed(bounds))
 
     # ------------------------------------------------------------------
     # Pantalla de celular (acción cliente poultry_weighing)

@@ -332,6 +332,19 @@ class TestPoultryWeightRecord(TransactionCase):
     # ------------------------------------------------------------------
     # Planilla
     # ------------------------------------------------------------------
+    def test_sheet_pages_keep_cages_whole(self):
+        """Una jaula no se corta si entra entera en una sección, aunque las secciones
+        queden desparejas."""
+        record = self._record()
+        self._generate(record, birds_per_cage=4)
+        record._poultry_add_cage_lines(self.cage_b, 7)  # B queda con 11 aves
+        pages = record._poultry_sheet_pages(rows_per_column=38)
+        self.assertEqual(len(pages), 1)
+        self.assertEqual([[(g['cage'], g['continued'], len(g['rows'])) for g in column]
+                          for column in pages[0]],
+                         [[(self.cage_a, False, 4)], [(self.cage_b, False, 11)],
+                          [(self.cage_c, False, 4)]])
+
     def test_sheet_pages_flow_by_column(self):
         record = self._record()
         self._generate(record)  # 3 jaulas × 3 aves
