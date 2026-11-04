@@ -49,7 +49,9 @@ class TestPoultryWeightRecord(TransactionCase):
         })
 
     def _generate(self, record, birds_per_cage=3):
+        """Líneas con cantidad fija por jaula (aunque haya una pesada anterior)."""
         wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': record.id})
+        wizard.mode = 'fixed'
         wizard.birds_per_cage = birds_per_cage
         wizard.action_confirm()
         return wizard
@@ -138,9 +140,9 @@ class TestPoultryWeightRecord(TransactionCase):
         wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': other.id})
         wizard.mode = 'fixed'
         wizard.birds_per_cage = 2
-        self.assertEqual(wizard.line_count, 4)
+        self.assertEqual(wizard.line_count, 6, 'Cantidad fija: A, B y la nueva, 2 aves cada una')
         wizard.action_confirm()
-        self.assertEqual(len(other.line_ids), 4)
+        self.assertEqual(len(other.line_ids), 6)
 
     # ------------------------------------------------------------------
     # Totales, registro y confirmación
