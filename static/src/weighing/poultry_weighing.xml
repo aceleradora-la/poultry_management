@@ -30,6 +30,12 @@
                         <div class="o_pw_muted">Próximamente: huevos, mortandad y consumo desde el galpón</div>
                     </div>
                 </div>
+                <div t-if="canInstall" class="o_pw_install">
+                    <button type="button" class="o_pw_btn o_pw_btn_secondary" t-on-click="installApp">
+                        <i class="fa fa-mobile me-2"/> Instalar en el celular
+                    </button>
+                    <div class="o_pw_hint">Queda con su ícono en la pantalla de inicio y abre directo acá, como la app Código de Barras.</div>
+                </div>
             </div>
         </t>
 

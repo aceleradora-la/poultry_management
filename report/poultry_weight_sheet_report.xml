@@ -1,106 +1,109 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Planilla de pesaje para anotar a mano: encabezado del parte y tres secciones
-         de dos columnas (Ave | Peso) que se llenan de arriba abajo, cada jaula con su
-         título. El orden es el físico de las jaulas (fila, lado, claro, piso, jaula). -->
+    <!-- Planilla de pesaje para anotar a mano. Usa el encabezado estándar de Odoo (logo y
+         datos de la empresa, numeración de páginas) y un cuerpo sin recuadros: tres
+         secciones que se llenan de arriba abajo, cada jaula con su título y una línea por
+         ave. El orden es el físico de las jaulas (fila, lado, claro, piso, jaula). -->
     <template id="report_weight_sheet">
         <t t-call="web.html_container">
-            <!-- Un article por parte: así Odoo envuelve cada uno con su cabecera HTML
-                 (declara UTF-8 y carga sus estilos). Sin article, wkhtmltopdf recibe el
-                 HTML pelado y lee los acentos en Latin-1. El style va adentro porque
-                 lo que queda fuera del article se descarta. -->
-            <t t-foreach="docs" t-as="doc">
-            <div class="article" t-att-data-oe-model="doc._name" t-att-data-oe-id="doc.id">
-            <style>
-                body { max-width: none !important; margin: 0 !important; padding: 0 !important; }
-                .pw-sheet { width: 210mm; height: 297mm; box-sizing: border-box; padding: 9mm 10mm 7mm 10mm;
-                            font-family: Arial, Helvetica, sans-serif; color: #111111; font-size: 10pt; }
-                .pw-break { page-break-before: always; }
-                .pw-title { font-size: 15pt; font-weight: bold; letter-spacing: 0.3pt; }
-                .pw-sub { font-size: 8.5pt; color: #444444; }
-                .pw-number { font-size: 18pt; font-weight: bold; text-align: right; }
-                .pw-head { width: 100%; border-bottom: 1.5pt solid #111111; margin-bottom: 2mm; }
-                .pw-fields { width: 100%; margin-bottom: 3mm; font-size: 9.5pt; }
-                .pw-fields td { padding: 0.8mm 0; }
-                .pw-label { color: #444444; font-size: 8.5pt; padding-right: 2mm; }
-                .pw-cols { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 4mm 0; margin-left: -4mm; }
-                .pw-col { vertical-align: top; }
-                .pw-colhead { width: 100%; font-size: 7.5pt; color: #444444; text-transform: uppercase; letter-spacing: 0.3pt; }
-                .pw-colhead td { padding: 0 1.5mm 1mm 1.5mm; }
-                .pw-group { width: 100%; border: 0.8pt solid #888888; border-collapse: collapse; margin-bottom: 1.8mm; }
-                .pw-cage { background: #e5e7eb; font-weight: bold; font-size: 9.5pt; text-align: left; padding: 0.8mm 1.5mm; border-bottom: 0.8pt solid #888888; }
-                .pw-cont { font-weight: normal; font-size: 7.5pt; color: #444444; float: right; }
-                .pw-group td { height: 5.4mm; border-top: 0.5pt solid #bbbbbb; font-size: 9pt; }
-                .pw-ave { width: 11mm; padding-left: 1.5mm; color: #333333; }
-                .pw-peso { border-left: 0.5pt solid #bbbbbb; }
-                .pw-foot { width: 100%; margin-top: 2mm; font-size: 8.5pt; }
-                .pw-obs { border: 0.8pt solid #888888; height: 12mm; vertical-align: top; padding: 1mm 1.5mm; color: #444444; }
-                .pw-sign { width: 55mm; vertical-align: bottom; padding-left: 5mm; }
-                .pw-signline { border-bottom: 0.8pt solid #111111; height: 8mm; }
-                .pw-note { font-size: 7.5pt; color: #444444; padding-top: 1.5mm; }
-            </style>
-                <t t-set="pages" t-value="doc._poultry_sheet_pages() or [[]]"/>
-                <t t-foreach="pages" t-as="page">
-                    <div t-attf-class="pw-sheet {{'' if page_first else 'pw-break'}}">
-                        <table class="pw-head">
-                            <tr>
-                                <td>
-                                    <div class="pw-title">PLANILLA DE PESAJE DE AVES</div>
-                                    <div class="pw-sub">Registro manual · una fila por ave · anotar el peso en gramos</div>
-                                </td>
-                                <td class="pw-number"><div class="pw-sub">Parte N°</div><t t-out="doc.name"/></td>
-                            </tr>
-                        </table>
-                        <table class="pw-fields">
-                            <tr>
-                                <td><span class="pw-label">Galpón</span><strong t-out="doc.coop_id.name"/></td>
-                                <td><span class="pw-label">Lote de aves</span><strong t-out="doc.batch_id.name"/></td>
-                                <td><span class="pw-label">Fecha</span><strong t-field="doc.date"/></td>
-                            </tr>
-                            <tr>
-                                <td><span class="pw-label">Semana de vida</span><strong t-out="doc.batch_age_weeks"/></td>
-                                <td><span class="pw-label">Responsable</span><strong t-out="doc.operator_id.name or '______________________'"/></td>
-                                <td><span class="pw-label">Previsto</span><strong><t t-out="doc.cage_count"/> jaulas · <t t-out="doc.planned_bird_count"/> aves</strong></td>
-                            </tr>
-                        </table>
-                        <table class="pw-cols">
-                            <tr>
-                                <t t-foreach="range(3)" t-as="col_index">
-                                    <td class="pw-col">
-                                        <t t-if="col_index &lt; len(page)">
-                                            <table class="pw-colhead"><tr><td class="pw-ave">Ave</td><td>Peso (g)</td></tr></table>
-                                            <t t-foreach="page[col_index]" t-as="group">
-                                                <table class="pw-group">
-                                                    <tr>
-                                                        <th colspan="2" class="pw-cage">
-                                                            Jaula <t t-out="group['cage'].code"/>
-                                                            <span t-if="group['continued']" class="pw-cont">continúa</span>
-                                                        </th>
-                                                    </tr>
-                                                    <tr t-foreach="group['rows']" t-as="line">
-                                                        <td class="pw-ave" t-out="line.bird_no"/>
-                                                        <td class="pw-peso"/>
-                                                    </tr>
-                                                </table>
-                                            </t>
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page pw">
+                        <style>
+                            .pw { color: #1f2937; font-size: 9pt; }
+                            .pw table, .pw td, .pw th { border: 0 !important; padding: 0; background: transparent; vertical-align: top; }
+                            .pw table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+                            .pw-break { page-break-before: always; }
+                            .pw-title { font-size: 15pt; font-weight: bold; line-height: 1.15; }
+                            .pw-sub { font-size: 7.5pt; color: #6b7280; margin-top: 1mm; }
+                            .pw-number { text-align: right; }
+                            .pw-label { font-size: 6.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5pt; }
+                            .pw-value { font-size: 10.5pt; font-weight: bold; }
+                            .pw-name { font-size: 17pt; font-weight: bold; line-height: 1.1; }
+                            .pw-fields { margin-top: 4mm; border-top: 1px solid #d1d5db; border-bottom: 1px solid #d1d5db; }
+                            .pw-fields td { padding: 1.8mm 2mm 1.8mm 0 !important; }
+                            .pw table.pw-cols { margin-top: 4mm; }
+                            .pw table.pw-cols td { width: 33.33%; padding-right: 6mm !important; }
+                            .pw table.pw-cols td.pw-last { padding-right: 0 !important; }
+                            .pw-group { margin-bottom: 3.2mm; }
+                            .pw-cage { font-size: 10pt; font-weight: bold; border-bottom: 1.5pt solid #1f2937; padding-bottom: 0.8mm; }
+                            .pw-cont { float: right; font-weight: normal; font-style: italic; font-size: 7pt; color: #6b7280; padding-top: 1mm; }
+                            .pw-row { height: 5mm; line-height: 5mm; border-bottom: 1px solid #c8ccd2; font-size: 8pt; color: #6b7280; }
+                            .pw-row .pw-n { display: inline-block; width: 7mm; }
+                            .pw-row .pw-g { float: right; font-size: 6.5pt; color: #c8ccd2; }
+                            .pw-foot { margin-top: 4mm; }
+                            .pw-foot td { padding-right: 8mm !important; }
+                            .pw-line { height: 6mm; border-bottom: 1px solid #c8ccd2; }
+                            .pw-sign { height: 8mm; border-bottom: 1px solid #1f2937; }
+                            .pw-note { margin-top: 2mm; font-size: 7pt; color: #6b7280; }
+                        </style>
+                        <t t-set="pages" t-value="o._poultry_sheet_pages(rows_per_column=34) or [[]]"/>
+                        <t t-foreach="pages" t-as="page">
+                            <div t-attf-class="{{'' if page_first else 'pw-break'}}">
+                                <table>
+                                    <tr>
+                                        <td style="width: 65%">
+                                            <div class="pw-title">Planilla de Pesaje de Aves</div>
+                                            <div class="pw-sub">Registro manual · una fila por ave · peso en gramos</div>
+                                        </td>
+                                        <td class="pw-number">
+                                            <div class="pw-label">Parte N°</div>
+                                            <div class="pw-name" t-out="o.name"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <table class="pw-fields">
+                                    <tr>
+                                        <td><div class="pw-label">Galpón</div><div class="pw-value" t-out="o.coop_id.name"/></td>
+                                        <td><div class="pw-label">Lote de aves</div><div class="pw-value" t-out="o.batch_id.name"/></td>
+                                        <td><div class="pw-label">Fecha</div><div class="pw-value" t-field="o.date"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><div class="pw-label">Semana de vida</div><div class="pw-value" t-out="o.batch_age_weeks"/></td>
+                                        <td><div class="pw-label">Responsable</div><div class="pw-value" t-out="o.operator_id.name or '________________________'"/></td>
+                                        <td><div class="pw-label">Previsto</div><div class="pw-value"><t t-out="o.cage_count"/> jaulas · <t t-out="o.planned_bird_count"/> aves</div></td>
+                                    </tr>
+                                </table>
+                                <table class="pw-cols">
+                                    <tr>
+                                        <t t-foreach="range(3)" t-as="col_index">
+                                            <td t-attf-class="{{'pw-last' if col_index == 2 else ''}}">
+                                                <t t-if="col_index &lt; len(page)">
+                                                    <t t-foreach="page[col_index]" t-as="group">
+                                                        <div class="pw-group">
+                                                            <div class="pw-cage">
+                                                                Jaula <t t-out="group['cage'].code"/>
+                                                                <span t-if="group['continued']" class="pw-cont">continúa</span>
+                                                            </div>
+                                                            <div t-foreach="group['rows']" t-as="line" class="pw-row">
+                                                                <span class="pw-n" t-out="line.bird_no"/>
+                                                                <span class="pw-g">g</span>
+                                                            </div>
+                                                        </div>
+                                                    </t>
+                                                </t>
+                                            </td>
                                         </t>
-                                    </td>
-                                </t>
-                            </tr>
-                        </table>
-                        <table class="pw-foot">
-                            <tr>
-                                <td class="pw-obs">Observaciones</td>
-                                <td class="pw-sign"><div class="pw-signline"/><div class="pw-sub">Firma del responsable</div></td>
-                            </tr>
-                            <tr>
-                                <td class="pw-note">Las jaulas siguen el orden físico: fila, lado, claro, piso, jaula. Las filas sin peso quedan vacías.</td>
-                                <td class="pw-note" style="text-align: right">Hoja <t t-out="page_index + 1"/> de <t t-out="len(pages)"/></td>
-                            </tr>
-                        </table>
+                                    </tr>
+                                </table>
+                                <table class="pw-foot">
+                                    <tr>
+                                        <td style="width: 70%">
+                                            <div class="pw-label">Observaciones</div>
+                                            <div class="pw-line"/>
+                                            <div class="pw-line"/>
+                                        </td>
+                                        <td>
+                                            <div class="pw-sign"/>
+                                            <div class="pw-label" style="margin-top: 1mm">Firma del responsable</div>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <div class="pw-note">Las jaulas siguen el orden físico: fila, lado, claro, piso, jaula. Las filas sin peso quedan vacías.</div>
+                            </div>
+                        </t>
                     </div>
                 </t>
-            </div>
             </t>
         </t>
     </template>
@@ -112,7 +115,6 @@
         <field name="report_name">poultry_management.report_weight_sheet</field>
         <field name="report_file">poultry_management.report_weight_sheet</field>
         <field name="print_report_name">'Planilla %s' % object.name</field>
-        <field name="paperformat_id" ref="product.paperformat_label_sheet"/>
         <field name="binding_model_id" ref="model_poultry_weight_record"/>
         <field name="binding_type">report</field>
     </record>

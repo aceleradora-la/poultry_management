@@ -86,6 +86,7 @@
     .o_pw_home_card_soon .o_pw_home_icon { background: #eceef2; color: #9ca3af; }
     .o_pw_home_title { font-size: 17px; font-weight: 700; }
     .o_pw_home_chevron { color: $pw-primary; font-size: 18px; }
+    .o_pw_install { display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding-top: 12px; }
 
     .o_pw_body {
         display: flex;

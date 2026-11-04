@@ -247,6 +247,8 @@
     <record id="action_poultry_weighing" model="ir.actions.client">
         <field name="name">Avícola Campo</field>
         <field name="tag">poultry_weighing</field>
+        <!-- URL /odoo/avicola-campo; es también el alcance de la app instalada en el celular -->
+        <field name="path">avicola-campo</field>
     </record>
 
     <!-- Resumen por jaula: evolución de cada jaula a lo largo del lote -->

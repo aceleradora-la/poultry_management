@@ -22,6 +22,7 @@ export class PoultryWeighing extends Component {
         this.orm = useService("orm");
         this.dialog = useService("dialog");
         this.notification = useService("notification");
+        this.pwa = useService("pwa");
         this.state = useState({
             screen: "home", // home | list | record | cage
             records: [],
@@ -52,6 +53,21 @@ export class PoultryWeighing extends Component {
         }
         const coops = [...new Set(pending.map((rec) => rec.coop))].join(", ");
         return `${pending.length} ${pending.length === 1 ? "pesada en curso" : "pesadas en curso"} · ${coops}`;
+    }
+
+    /** Se ofrece instalar la app mientras no se esté ya dentro de la app instalada. */
+    get canInstall() {
+        return !this.pwa.isScopedApp && !window.matchMedia("(display-mode: standalone)").matches;
+    }
+
+    /** La misma página que Odoo usa para instalar Código de Barras, con nuestro nombre. */
+    installApp() {
+        const url =
+            "/scoped_app?app_id=poultry_management&path=" +
+            encodeURIComponent("scoped_app/avicola-campo") +
+            "&app_name=" +
+            encodeURIComponent("Avícola Campo");
+        window.open(url, "_blank");
     }
 
     async goHome() {
