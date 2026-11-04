@@ -50,9 +50,19 @@ class PoultryCoop(models.Model):
     mortality_ids = fields.One2many('poultry.mortality', 'coop_id', string='Registros de Mortalidad')
     mortality_count = fields.Integer(string='Registros de Mortalidad', compute='_compute_mortality_count')
 
-    # Jaulas de muestreo para el Parte de Registro de Peso (siempre se pesan las mismas)
-    cage_ids = fields.One2many('poultry.cage', 'coop_id', string='Jaulas de Muestreo')
-    cage_count = fields.Integer(string='Jaulas de Muestreo', compute='_compute_cage_count')
+    # Todas las jaulas físicas del galpón. Las marcadas con is_sampling son las que se
+    # pesan en el Parte de Registro de Peso.
+    cage_ids = fields.One2many('poultry.cage', 'coop_id', string='Jaulas')
+    cage_count = fields.Integer(string='Cantidad de Jaulas', compute='_compute_cage_count')
+    sampling_cage_count = fields.Integer(string='Jaulas de Muestreo',
+                                         compute='_compute_cage_count')
+    cage_number = fields.Integer(string='Número de Galpón', copy=False,
+                                 help='Primer número del código de sus jaulas (G1 = 1). No '
+                                      'se puede cambiar una vez creadas: está en las etiquetas.')
+
+    _unique_cage_number = models.UniqueIndex(
+        '(cage_number) WHERE cage_number > 0',
+        'Ya existe otro galpón con este Número de Galpón.')
     
     # Relación con listas de materiales (BOM)
     coop_bom_ids = fields.One2many('poultry.coop.bom', 'coop_id', string='Historial de Listas de Materiales')
@@ -148,20 +158,49 @@ class PoultryCoop(models.Model):
         for coop in self:
             coop.mortality_count = len(coop.mortality_ids)
 
-    @api.depends('cage_ids')
+    @api.depends('cage_ids', 'cage_ids.is_sampling')
     def _compute_cage_count(self):
         for coop in self:
             coop.cage_count = len(coop.cage_ids)
+            coop.sampling_cage_count = len(coop.cage_ids.filtered('is_sampling'))
+
+    def _poultry_numbered_cages(self):
+        """Jaulas creadas con la numeración Galpón.Fila.Lado.Claro.Piso.Jaula."""
+        self.ensure_one()
+        return self.with_context(active_test=False).cage_ids.filtered('row_no')
+
+    @api.constrains('cage_number')
+    def _check_cage_number(self):
+        for coop in self:
+            if coop.cage_number < 0:
+                raise ValidationError('El Número de Galpón no puede ser negativo.')
+            prefix = '%s.' % coop.cage_number
+            if any(not code.startswith(prefix)
+                   for code in coop._poultry_numbered_cages().mapped('code')):
+                raise ValidationError(
+                    'El galpón %s ya tiene jaulas creadas: su número no se puede cambiar '
+                    'porque está en los códigos y en las etiquetas.' % coop.name)
 
     def action_view_cages(self):
+        self.ensure_one()
+        return {
+            'name': 'Jaulas - %s' % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'poultry.cage',
+            'view_mode': 'list,form',
+            'domain': [('coop_id', '=', self.id)],
+            'context': {'default_coop_id': self.id},
+        }
+
+    def action_view_sampling_cages(self):
         self.ensure_one()
         return {
             'name': 'Jaulas de Muestreo - %s' % self.name,
             'type': 'ir.actions.act_window',
             'res_model': 'poultry.cage',
             'view_mode': 'list,form',
-            'domain': [('coop_id', '=', self.id)],
-            'context': {'default_coop_id': self.id},
+            'domain': [('coop_id', '=', self.id), ('is_sampling', '=', True)],
+            'context': {'default_coop_id': self.id, 'poultry_cage_sampling_view': True},
         }
     
     @api.depends('coop_bom_ids', 'coop_bom_ids.active', 'coop_bom_ids.start_date', 'coop_bom_ids.end_date')

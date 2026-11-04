@@ -192,9 +192,15 @@
               sequence="10"/>
 
     <menuitem id="menu_poultry_cage"
-              name="Jaulas de Muestreo"
+              name="Jaulas"
               parent="menu_poultry_configuration_general"
               action="action_poultry_cage"
+              sequence="12"/>
+
+    <menuitem id="menu_poultry_cage_sampling"
+              name="Jaulas de Muestreo"
+              parent="menu_poultry_configuration_general"
+              action="action_poultry_cage_sampling"
               sequence="15"/>
 
     <menuitem id="menu_poultry_uom"

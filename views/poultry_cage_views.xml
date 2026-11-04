@@ -1,18 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Maestro de Jaulas de Muestreo: las ~10 jaulas identificadas por galpón que se
-         pesan siempre en el Parte de Registro de Peso. -->
+    <!-- Maestro de Jaulas: todas las jaulas físicas de cada galpón. Las Jaulas de Muestreo
+         son estas mismas con la marca is_sampling, por eso comparten vistas y la lista
+         cambia sus botones con poultry_cage_sampling_view. Las etiquetas salen del menú
+         Imprimir, que aparece al seleccionar jaulas en cualquiera de las dos pantallas. -->
     <record id="view_poultry_cage_tree" model="ir.ui.view">
         <field name="name">poultry.cage.tree</field>
         <field name="model">poultry.cage</field>
         <field name="arch" type="xml">
-            <list string="Jaulas de Muestreo" editable="bottom">
-                <field name="sequence" widget="handle"/>
-                <field name="coop_id" options="{'no_create': True, 'no_create_edit': True}"/>
+            <list string="Jaulas" create="0">
+                <header>
+                    <button name="action_open_generate_wizard" type="object" string="Crear Jaulas"
+                            class="btn-primary" display="always"
+                            invisible="context.get('poultry_cage_sampling_view')"
+                            groups="poultry_management.poultry_manager"/>
+                    <button name="action_open_sampling_wizard" type="object" string="Elegir Jaulas"
+                            class="btn-primary" display="always"
+                            invisible="not context.get('poultry_cage_sampling_view')"
+                            groups="poultry_management.poultry_manager"/>
+                </header>
+                <field name="coop_id"/>
                 <field name="code"/>
-                <field name="name"/>
+                <field name="row_no"/>
+                <field name="side_no"/>
+                <field name="bay_no"/>
+                <field name="floor_no"/>
+                <field name="cage_no"/>
+                <field name="is_sampling"/>
+                <field name="name" optional="hide"/>
                 <field name="notes" optional="hide"/>
-                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Buscador de Elegir Jaulas: sin botones ni galpón, que ya está elegido. -->
+    <record id="view_poultry_cage_picker_list" model="ir.ui.view">
+        <field name="name">poultry.cage.picker.list</field>
+        <field name="model">poultry.cage</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <list string="Jaulas" create="0">
+                <field name="code"/>
+                <field name="row_no"/>
+                <field name="side_no"/>
+                <field name="bay_no"/>
+                <field name="floor_no"/>
+                <field name="cage_no"/>
             </list>
         </field>
     </record>
@@ -21,19 +54,25 @@
         <field name="name">poultry.cage.form</field>
         <field name="model">poultry.cage</field>
         <field name="arch" type="xml">
-            <form string="Jaula de Muestreo">
+            <form string="Jaula" create="0">
                 <sheet>
                     <widget name="web_ribbon" title="Archivado" bg_color="text-danger"
                             invisible="active"/>
                     <group>
                         <group>
-                            <field name="coop_id" options="{'no_create': True, 'no_create_edit': True}"/>
-                            <field name="code" placeholder="Ej: J-03"/>
-                            <field name="name" placeholder="Ej: Jaula 3 - Fila B"/>
-                        </group>
-                        <group>
-                            <field name="sequence"/>
+                            <field name="coop_id" readonly="row_no"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="code" readonly="row_no"/>
+                            <field name="name"/>
+                            <field name="is_sampling" widget="boolean_toggle"/>
                             <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group invisible="not row_no">
+                            <field name="row_no"/>
+                            <field name="side_no"/>
+                            <field name="bay_no"/>
+                            <field name="floor_no"/>
+                            <field name="cage_no"/>
                         </group>
                     </group>
                     <field name="notes" placeholder="Notas..."/>
@@ -50,28 +89,56 @@
                 <field name="name" string="Jaula"
                        filter_domain="['|', ('name', 'ilike', self), ('code', 'ilike', self)]"/>
                 <field name="coop_id"/>
+                <field name="row_no"/>
+                <field name="side_no"/>
+                <field name="bay_no"/>
+                <field name="floor_no"/>
+                <field name="cage_no"/>
                 <separator/>
+                <filter string="De Muestreo" name="sampling" domain="[('is_sampling', '=', True)]"/>
                 <filter string="Archivadas" name="inactive" domain="[('active', '=', False)]"/>
                 <separator/>
                 <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
+                <filter string="Por Fila" name="by_row" context="{'group_by': 'row_no'}"/>
+                <filter string="Por Lado" name="by_side" context="{'group_by': 'side_no'}"/>
+                <filter string="Por Claro" name="by_bay" context="{'group_by': 'bay_no'}"/>
+                <filter string="Por Piso" name="by_floor" context="{'group_by': 'floor_no'}"/>
             </search>
         </field>
     </record>
 
     <record id="action_poultry_cage" model="ir.actions.act_window">
-        <field name="name">Jaulas de Muestreo</field>
+        <field name="name">Jaulas</field>
         <field name="res_model">poultry.cage</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_poultry_cage_search"/>
         <field name="context">{'search_default_by_coop': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Definí las jaulas de muestreo de cada galpón
+                Creá las jaulas de cada galpón
             </p>
             <p>
-                Son las jaulas identificadas (~10 por galpón) que se pesan siempre en el
-                Parte de Registro de Peso. Cuando una jaula queda vacía o deja de usarse,
-                archivala: los partes históricos la siguen mostrando.
+                Usá el botón Crear Jaulas: el código de cada una se arma con
+                Galpón.Fila.Lado.Claro.Piso.Jaula (ej: 1.1.2.32.3.4).
+            </p>
+        </field>
+    </record>
+
+    <record id="action_poultry_cage_sampling" model="ir.actions.act_window">
+        <field name="name">Jaulas de Muestreo</field>
+        <field name="res_model">poultry.cage</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_poultry_cage_search"/>
+        <field name="domain">[('is_sampling', '=', True)]</field>
+        <field name="context">{'search_default_by_coop': 1, 'poultry_cage_sampling_view': True}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Elegí las jaulas de muestreo de cada galpón
+            </p>
+            <p>
+                Son las jaulas que se pesan en el Parte de Registro de Peso. Para cambiar
+                una, entrá a Elegir Jaulas, sacala de la lista y agregá la nueva: los
+                partes ya cargados no cambian.
             </p>
         </field>
     </record>

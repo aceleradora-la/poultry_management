@@ -21,6 +21,8 @@ from . import poultry_batch_indicator_value
 from . import poultry_batch_indicator_weekly_value
 from . import poultry_mortality
 from . import poultry_cage
+from . import poultry_cage_generate_wizard
+from . import poultry_cage_sampling_wizard
 from . import poultry_weight_record
 from . import poultry_weight_record_line
 from . import poultry_vaccine

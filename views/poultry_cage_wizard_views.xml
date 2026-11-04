@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Crear Jaulas: arma todas las combinaciones de los rangos. Los rangos arrancan en
+         la numeración habitual y se ajustan para otro galpón o para ampliar uno. -->
+    <record id="view_poultry_cage_generate_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.cage.generate.wizard.form</field>
+        <field name="model">poultry.cage.generate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Crear Jaulas">
+                <group>
+                    <group>
+                        <field name="coop_id" options="{'no_create': True, 'no_open': True}"/>
+                        <field name="coop_number" readonly="coop_number_locked"/>
+                        <field name="coop_number_locked" invisible="1"/>
+                    </group>
+                </group>
+                <table class="table table-sm w-auto">
+                    <thead>
+                        <tr><th>Variable</th><th>Desde</th><th>Hasta</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Fila</td>
+                            <td><field name="row_from" nolabel="1"/></td>
+                            <td><field name="row_to" nolabel="1"/></td>
+                        </tr>
+                        <tr>
+                            <td>Lado</td>
+                            <td><field name="side_from" nolabel="1"/></td>
+                            <td><field name="side_to" nolabel="1"/></td>
+                        </tr>
+                        <tr>
+                            <td>Claro</td>
+                            <td><field name="bay_from" nolabel="1"/></td>
+                            <td><field name="bay_to" nolabel="1"/></td>
+                        </tr>
+                        <tr>
+                            <td>Piso</td>
+                            <td><field name="floor_from" nolabel="1"/></td>
+                            <td><field name="floor_to" nolabel="1"/></td>
+                        </tr>
+                        <tr>
+                            <td>Jaula</td>
+                            <td><field name="cage_from" nolabel="1"/></td>
+                            <td><field name="cage_to" nolabel="1"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <group invisible="not coop_id">
+                    <group>
+                        <field name="first_code"/>
+                        <field name="last_code"/>
+                    </group>
+                    <group>
+                        <field name="total_count"/>
+                        <field name="existing_count"/>
+                        <field name="new_count"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_generate" type="object" string="Crear Jaulas"
+                            class="btn-primary" invisible="not coop_id or not new_count"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Elegir Jaulas: muestra las marcadas del galpón; Agregar una línea abre el buscador
+         de jaulas y la X saca una de la muestra. -->
+    <record id="view_poultry_cage_sampling_wizard_form" model="ir.ui.view">
+        <field name="name">poultry.cage.sampling.wizard.form</field>
+        <field name="model">poultry.cage.sampling.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Elegir Jaulas de Muestreo">
+                <group>
+                    <group>
+                        <field name="coop_id" options="{'no_create': True, 'no_open': True}"/>
+                    </group>
+                    <group>
+                        <field name="cage_count"/>
+                    </group>
+                </group>
+                <field name="cage_ids" nolabel="1" widget="many2many" invisible="not coop_id"
+                       options="{'create': false, 'no_open': true}"
+                       context="{'list_view_ref': 'poultry_management.view_poultry_cage_picker_list'}">
+                    <list>
+                        <field name="code"/>
+                        <field name="row_no"/>
+                        <field name="side_no"/>
+                        <field name="bay_no"/>
+                        <field name="floor_no"/>
+                        <field name="cage_no"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_confirm" type="object" string="Guardar"
+                            class="btn-primary" invisible="not coop_id"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

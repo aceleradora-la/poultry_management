@@ -31,7 +31,7 @@
                 <header>
                     <button name="action_prefill_from_previous" string="Precargar Pesada Anterior"
                             type="object" invisible="state != 'draft' or line_ids"
-                            help="Copia las jaulas y filas del último parte confirmado de este galpón, con peso en cero. Borrá las filas de aves que ya no están."/>
+                            help="Copia las filas del último parte confirmado de este galpón, con peso en cero, salvo las jaulas que ya no son de muestreo. Borrá las filas de aves que ya no están."/>
                     <button name="action_done" string="Confirmar" type="object"
                             class="oe_highlight" invisible="state != 'draft'"/>
                     <button name="action_cancel" string="Cancelar" type="object"
@@ -78,7 +78,7 @@
                                 <list string="Pesos" editable="bottom" default_order="sequence, id">
                                     <field name="sequence" widget="handle"/>
                                     <field name="cage_id"
-                                           domain="[('coop_id', '=', parent.coop_id), ('active', '=', True)]"
+                                           domain="[('coop_id', '=', parent.coop_id), ('is_sampling', '=', True), ('active', '=', True)]"
                                            options="{'no_create': True, 'no_open': True}"/>
                                     <field name="weight_g"/>
                                     <field name="deviation_pct" readonly="1" optional="show"/>

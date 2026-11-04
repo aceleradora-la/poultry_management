@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Etiquetas de Jaula: solo el QR y el código. El QR lleva el código tal cual, que es
+         lo que va a leer el proceso de pesaje. -->
+
+    <!-- PDF: hoja A4 de 24 etiquetas (3 x 8) -->
+    <template id="report_cage_label">
+        <t t-call="web.html_container">
+            <t t-set="labels_per_page" t-value="24"/>
+            <t t-foreach="range(0, len(docs), labels_per_page)" t-as="page_start">
+                <!-- o_label_sheet: hoja A4 de Odoo, compensa el margen del body del PDF -->
+                <div class="o_label_sheet" style="padding: 0;">
+                    <t t-foreach="docs[page_start:page_start + labels_per_page]" t-as="cage">
+                        <div style="float: left; box-sizing: border-box; width: 70mm; height: 37mm; padding: 1.5mm 0 0 0; text-align: center; overflow: hidden;">
+                            <img t-att-src="cage._poultry_qr_src()" style="width: 28mm; height: 28mm;" alt="QR"/>
+                            <div style="padding: 0; font-family: Arial, sans-serif; font-size: 12pt; font-weight: bold; line-height: 5mm;" t-out="cage.code"/>
+                        </div>
+                    </t>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <!-- ZPL: una etiqueta por jaula, pensada para 50 x 25 mm a 203 dpi -->
+    <template id="report_cage_label_zpl">
+        <t t-foreach="docs" t-as="cage">
+            <t t-translation="off">
+^XA^CI28
+^FO20,15^BQN,2,7^FDQA,<t t-out="cage.code"/>^FS
+^FO185,85^A0N,30,22^FD<t t-out="cage.code"/>^FS
+^XZ
+            </t>
+        </t>
+    </template>
+
+    <record id="action_report_cage_label" model="ir.actions.report">
+        <field name="name">Etiquetas de Jaula (PDF)</field>
+        <field name="model">poultry.cage</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">poultry_management.report_cage_label</field>
+        <field name="report_file">poultry_management.report_cage_label</field>
+        <field name="paperformat_id" ref="product.paperformat_label_sheet"/>
+        <field name="binding_model_id" ref="model_poultry_cage"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_cage_label_zpl" model="ir.actions.report">
+        <field name="name">Etiquetas de Jaula (ZPL)</field>
+        <field name="model">poultry.cage</field>
+        <field name="report_type">qweb-text</field>
+        <field name="report_name">poultry_management.report_cage_label_zpl</field>
+        <field name="report_file">poultry_management.report_cage_label_zpl</field>
+        <field name="binding_model_id" ref="model_poultry_cage"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo>

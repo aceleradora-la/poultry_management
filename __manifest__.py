@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.95.0',
+    'version': '19.0.1.96.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -54,6 +54,8 @@
         'views/poultry_coop_close_wizard_views.xml',
         'views/poultry_mortality_views.xml',
         'views/poultry_cage_views.xml',
+        'views/poultry_cage_wizard_views.xml',
+        'report/poultry_cage_label_report.xml',
         'views/poultry_weight_record_views.xml',
         'views/poultry_vaccine_views.xml',
         'views/poultry_vaccination_plan_views.xml',

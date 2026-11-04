@@ -152,12 +152,17 @@ class PoultryWeightRecord(models.Model):
         if not previous:
             raise ValidationError('No hay un parte confirmado anterior de este galpón '
                                   'para precargar. Cargá las filas manualmente.')
+        # Una jaula que dejó de ser de muestreo no se vuelve a ofrecer para pesar.
+        lines = previous.line_ids.filtered('cage_id.is_sampling')
+        if not lines:
+            raise ValidationError('Ninguna jaula del parte anterior sigue marcada para '
+                                  'muestreo. Cargá las filas manualmente.')
         self.write({
             'line_ids': [(0, 0, {
                 'cage_id': line.cage_id.id,
                 'sequence': line.sequence,
                 'weight_g': 0.0,
-            }) for line in previous.line_ids.sorted(key=lambda l: (l.cage_id.sequence, l.cage_id.code, l.sequence, l.id))],
+            }) for line in lines.sorted(key=lambda l: (l.cage_id.sequence, l.cage_id.code, l.sequence, l.id))],
         })
 
     def action_done(self):

@@ -44,12 +44,16 @@
                         <button name="action_view_cages" type="object" class="oe_stat_button" icon="fa-th-large">
                             <field name="cage_count" widget="statinfo" string="Jaulas"/>
                         </button>
+                        <button name="action_view_sampling_cages" type="object" class="oe_stat_button" icon="fa-balance-scale">
+                            <field name="sampling_cage_count" widget="statinfo" string="Muestreo"/>
+                        </button>
                     </div>
                     <widget name="web_ribbon" title="Activo" bg_color="text-success" 
                             invisible="not active"/>
                     <group>
                         <group>
                             <field name="code" placeholder="Ej: GAL-001"/>
+                            <field name="cage_number"/>
                             <field name="name" placeholder="Ej: Galpón Principal"/>
                             <field name="coop_type"/>
                             <field name="size"/>
