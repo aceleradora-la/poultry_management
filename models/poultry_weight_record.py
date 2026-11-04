@@ -32,12 +32,14 @@ class PoultryWeightRecord(models.Model):
                                        'queda en el historial del parte.')
     state = fields.Selection([
         ('draft', 'Borrador'),
+        ('in_progress', 'En Curso'),
         ('registered', 'Registrado'),
         ('done', 'Confirmado'),
         ('cancel', 'Cancelado'),
     ], string='Estado', default='draft', required=True, tracking=True, copy=False,
-        help='Borrador: se están cargando los pesos (oficina o celular). Registrado: la '
-             'pesada terminó y queda a verificar. Confirmado: publica los indicadores.')
+        help='Borrador: la oficina prepara el parte (líneas, planilla). En Curso: se envió '
+             'a pesar y aparece en la app del celular. Registrado: la pesada terminó y '
+             'queda a verificar. Confirmado: publica los indicadores.')
     line_ids = fields.One2many('poultry.weight.record.line', 'record_id', string='Pesos')
     cage_summary_ids = fields.One2many('poultry.weight.record.cage', 'record_id',
                                        string='Por Jaula')
@@ -67,6 +69,8 @@ class PoultryWeightRecord(models.Model):
     weighed_cage_count = fields.Integer(string='Jaulas Pesadas', compute='_compute_totals',
                                         store=True)
     bird_count = fields.Integer(string='Aves Pesadas', compute='_compute_totals', store=True)
+    progress_pct = fields.Float(string='Avance (%)', compute='_compute_totals', store=True,
+                                aggregator='avg', help='Aves pesadas sobre las previstas.')
     total_weight_g = fields.Float(string='Peso Total (g)', compute='_compute_totals',
                                   store=True, digits=(16, 1))
     average_weight_g = fields.Float(string='Peso Promedio (g)', compute='_compute_totals',
@@ -101,10 +105,12 @@ class PoultryWeightRecord(models.Model):
             weighed = record._poultry_weighed_lines()
             weights = weighed.mapped('weight_g')
             count = len(weights)
-            record.planned_bird_count = len(record.line_ids)
+            planned = len(record.line_ids)
+            record.planned_bird_count = planned
             record.cage_count = len(record.line_ids.cage_id)
             record.weighed_cage_count = len(weighed.cage_id)
             record.bird_count = count
+            record.progress_pct = count / planned * 100.0 if planned else 0.0
             if not count:
                 record.total_weight_g = 0.0
                 record.average_weight_g = 0.0
@@ -271,12 +277,21 @@ class PoultryWeightRecord(models.Model):
             'context': {'default_record_id': self.id},
         }
 
+    def action_send(self):
+        """Manda la pesada al galpón: pasa a En Curso y aparece en la app Avícola Campo."""
+        for record in self:
+            if record.state != 'draft':
+                raise ValidationError('Solo se puede enviar a pesar un parte en Borrador.')
+            if not record.line_ids:
+                raise ValidationError('Generá las líneas antes de enviar a pesar.')
+        self.write({'state': 'in_progress'})
+
     def action_register(self, force=False):
         """Termina la pesada: el parte queda Registrado, a verificar por la oficina.
         Si quedan jaulas sin pesar, primero avisa (force=True registra igual)."""
         self.ensure_one()
-        if self.state != 'draft':
-            raise ValidationError('Solo se puede registrar un parte en Borrador.')
+        if self.state not in ('draft', 'in_progress'):
+            raise ValidationError('Solo se puede registrar un parte en Borrador o En Curso.')
         if not self._poultry_weighed_lines():
             raise ValidationError('El parte no tiene pesos cargados.')
         if self._poultry_pending_cages() and not force:
@@ -298,18 +313,20 @@ class PoultryWeightRecord(models.Model):
         return True
 
     def action_reopen(self):
-        """Vuelve un parte Registrado a Borrador para seguir pesando y registrar de nuevo."""
+        """Vuelve un parte En Curso o Registrado a Borrador: se puede corregir, enviar a
+        pesar y registrar de nuevo."""
         for record in self:
-            if record.state != 'registered':
-                raise ValidationError('Solo se puede volver a Borrador un parte Registrado.')
+            if record.state not in ('in_progress', 'registered'):
+                raise ValidationError(
+                    'Solo se puede volver a Borrador un parte En Curso o Registrado.')
         self.write({'state': 'draft', 'registered_date': False, 'registered_uid': False})
 
     def action_done(self):
         """Confirma el parte y publica los indicadores Peso Corporal y Uniformidad."""
         for record in self:
-            if record.state not in ('draft', 'registered'):
+            if record.state not in ('draft', 'in_progress', 'registered'):
                 raise ValidationError(
-                    'Solo se puede confirmar un parte en Borrador o Registrado.')
+                    'Solo se puede confirmar un parte en Borrador, En Curso o Registrado.')
             if not record._poultry_weighed_lines():
                 raise ValidationError('El parte no tiene pesos cargados.')
             if record.date > fields.Date.today():
@@ -326,8 +343,8 @@ class PoultryWeightRecord(models.Model):
 
     def action_cancel(self):
         for record in self:
-            if record.state not in ('draft', 'registered', 'done'):
-                raise ValidationError('Solo se puede cancelar un parte que no esté cancelado.')
+            if record.state == 'cancel':
+                raise ValidationError('El parte ya está cancelado.')
         was_done = self.filtered(lambda r: r.state == 'done')
         self.write({'state': 'cancel'})
         # Recalcular desde los partes confirmados restantes del mismo lote y fecha
@@ -377,11 +394,11 @@ class PoultryWeightRecord(models.Model):
     # ------------------------------------------------------------------
     @api.model
     def poultry_mobile_list(self):
-        """Pesadas para el celular: las que están en Borrador, y las registradas en las
-        últimas 24 horas para que el operador vea que quedaron hechas."""
+        """Pesadas para el celular: las que la oficina envió a pesar (En Curso), y las
+        registradas en las últimas 24 horas para que el operador vea que quedaron hechas."""
         since = fields.Datetime.now() - timedelta(days=1)
         records = self.search([
-            '|', ('state', '=', 'draft'),
+            '|', ('state', '=', 'in_progress'),
             '&', ('state', '=', 'registered'), ('registered_date', '>=', since),
         ], order='state, date desc, coop_id, id desc')
         return [record._poultry_mobile_header() for record in records]
@@ -404,6 +421,7 @@ class PoultryWeightRecord(models.Model):
             'cage_count': self.cage_count,
             'weighed_cage_count': self.weighed_cage_count,
             'closed_cage_count': len(self.closed_cage_ids & self.line_ids.cage_id),
+            'progress_pct': round(self.progress_pct),
             'average_weight_g': round(self.average_weight_g, 1),
             'registered': registered or '',
         }
@@ -453,11 +471,12 @@ class PoultryWeightRecord(models.Model):
         }
 
     def _poultry_mobile_check_editable(self):
+        """Desde el celular solo se pesa lo que la oficina envió a pesar."""
         self.ensure_one()
-        if self.state != 'draft':
-            raise ValidationError('La pesada %s ya está %s: no se pueden cambiar los pesos.'
-                                  % (self.name, dict(self._fields['state']._description_selection(
-                                      self.env))[self.state].lower()))
+        if self.state != 'in_progress':
+            label = dict(self._fields['state']._description_selection(self.env))[self.state]
+            raise ValidationError('La pesada %s está %s, no En Curso: no se pueden cambiar '
+                                  'los pesos desde el celular.' % (self.name, label))
 
     def poultry_mobile_set_weight(self, line_id, weight_g):
         self.ensure_one()

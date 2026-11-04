@@ -33,10 +33,26 @@
         <field name="category_id" ref="module_category_poultry"/>
     </record>
 
+    <!-- App Avícola Campo: lo que se carga desde el celular en el galpón (hoy el pesaje).
+         Es un privilegio propio para dárselo al operador sin abrirle Gestión Avícola. -->
+    <record id="res_groups_privilege_poultry_field" model="res.groups.privilege">
+        <field name="name">App Avícola Campo</field>
+        <field name="sequence">15</field>
+        <field name="category_id" ref="module_category_poultry"/>
+    </record>
+
     <record id="poultry_user" model="res.groups">
         <field name="name">Usuario Avícola</field>
         <field name="sequence">10</field>
         <field name="privilege_id" ref="res_groups_privilege_poultry_role"/>
+    </record>
+
+    <record id="poultry_field_user" model="res.groups">
+        <field name="name">Operador de Campo</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_field"/>
+        <field name="comment">Usa la app Avícola Campo desde el celular: pesa las aves de las
+            pesadas que la oficina envió a pesar y las registra. No ve Gestión Avícola.</field>
     </record>
 
     <record id="poultry_manager" model="res.groups">

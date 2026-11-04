@@ -4,28 +4,60 @@
 <t t-name="poultry_management.PoultryWeighing">
     <div class="o_poultry_weighing">
 
+        <!-- Inicio de la app -->
+        <t t-if="state.screen === 'home'">
+            <div class="o_pw_header o_pw_header_home">
+                <div class="o_pw_app_icon" aria-hidden="true"><i class="fa fa-home"/></div>
+                <div>
+                    <div class="o_pw_title">Avícola Campo</div>
+                    <div class="o_pw_sub" t-esc="todayLabel"/>
+                </div>
+            </div>
+            <div class="o_pw_body">
+                <div class="o_pw_section_title">Tareas de hoy</div>
+                <button type="button" class="o_pw_home_card o_pw_home_card_active" t-on-click="openList">
+                    <div class="o_pw_home_icon" aria-hidden="true"><i class="fa fa-balance-scale"/></div>
+                    <div class="flex-grow-1">
+                        <div class="o_pw_home_title">Pesaje de Aves</div>
+                        <div class="o_pw_muted" t-esc="pendingLabel"/>
+                    </div>
+                    <i class="fa fa-chevron-right o_pw_home_chevron" aria-hidden="true"/>
+                </button>
+                <div class="o_pw_home_card o_pw_home_card_soon">
+                    <div class="o_pw_home_icon" aria-hidden="true"><i class="fa fa-list-alt"/></div>
+                    <div class="flex-grow-1">
+                        <div class="o_pw_home_title">Partes de Producción</div>
+                        <div class="o_pw_muted">Próximamente: huevos, mortandad y consumo desde el galpón</div>
+                    </div>
+                </div>
+            </div>
+        </t>
+
         <!-- Lista de pesadas -->
         <t t-if="state.screen === 'list'">
             <div class="o_pw_header">
+                <button type="button" class="o_pw_back" aria-label="Volver al inicio" t-on-click="goHome">
+                    <i class="fa fa-chevron-left"/>
+                </button>
                 <div>
                     <div class="o_pw_title">Pesaje de Aves</div>
-                    <div class="o_pw_sub">Pesadas en Borrador y las registradas en el día</div>
+                    <div class="o_pw_sub">Pesadas enviadas a pesar y las registradas en el día</div>
                 </div>
             </div>
             <div class="o_pw_body">
                 <div t-if="!state.records.length" class="o_pw_empty">
-                    No hay pesadas para cargar. Se crean desde Pesaje de Aves con Generar Líneas.
+                    No hay pesadas para cargar. La oficina las crea en Pesaje de Aves y las envía a pesar.
                 </div>
                 <t t-foreach="state.records" t-as="rec" t-key="rec.id">
-                    <div t-attf-class="o_pw_card {{ rec.state === 'draft' ? 'o_pw_card_draft' : '' }}">
+                    <div t-attf-class="o_pw_card {{ rec.state === 'in_progress' ? 'o_pw_card_draft' : '' }}">
                         <div class="d-flex justify-content-between align-items-start gap-2">
                             <div>
                                 <div class="o_pw_card_title" t-esc="rec.coop"/>
                                 <div class="o_pw_muted"><t t-esc="rec.name"/> · Lote <t t-esc="rec.batch"/> · Semana <t t-esc="rec.week"/></div>
                             </div>
-                            <span t-attf-class="o_pw_badge {{ rec.state === 'draft' ? 'o_pw_badge_draft' : 'o_pw_badge_done' }}" t-esc="stateLabel(rec)"/>
+                            <span t-attf-class="o_pw_badge {{ rec.state === 'in_progress' ? 'o_pw_badge_draft' : 'o_pw_badge_done' }}" t-esc="stateLabel(rec)"/>
                         </div>
-                        <t t-if="rec.state === 'draft'">
+                        <t t-if="rec.state === 'in_progress'">
                             <div class="d-flex justify-content-between o_pw_muted">
                                 <span><t t-esc="rec.closed_cage_count"/> de <t t-esc="rec.cage_count"/> jaulas cerradas</span>
                                 <span><t t-esc="rec.bird_count"/> de <t t-esc="rec.planned_bird_count"/> aves</span>

@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 
 from odoo import fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, tagged
 
 
@@ -88,7 +88,7 @@ class TestPoultryWeightRecord(TransactionCase):
     def test_lines_wizard_creates_birds_in_physical_order(self):
         record = self._record()
         wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': record.id})
-        self.assertEqual(wizard.birds_per_cage, 5, 'Sin pesada anterior propone 5')
+        self.assertEqual(wizard.birds_per_cage, 10, 'Sin pesada anterior propone 10')
         self.assertFalse(wizard.previous_name)
         self.assertEqual(wizard.cage_count, 3)
         wizard.birds_per_cage = 3
@@ -205,9 +205,54 @@ class TestPoultryWeightRecord(TransactionCase):
     # ------------------------------------------------------------------
     # Celular
     # ------------------------------------------------------------------
+    def test_send_to_weigh_and_progress(self):
+        record = self._record()
+        with self.assertRaises(ValidationError, msg='Sin líneas no se envía'):
+            record.action_send()
+        self._generate(record)
+        self.assertEqual(record.progress_pct, 0.0)
+        record.action_send()
+        self.assertEqual(record.state, 'in_progress')
+        self._weigh(record, self.cage_a, [1900, 2100, 2000])
+        self.assertAlmostEqual(record.progress_pct, 3 / 9 * 100, places=1)
+
+        record.action_reopen()
+        self.assertEqual(record.state, 'draft', 'Se puede corregir y volver a enviar')
+        record.action_send()
+        self.assertTrue(record.action_register(force=True))
+        self.assertEqual(record.state, 'registered')
+        self.assertAlmostEqual(record.progress_pct, 100.0 * 3 / 9, places=3)
+
+    def test_field_user_only_uses_the_app(self):
+        operator = self.env['res.users'].create({
+            'name': 'Operador Test', 'login': 'operador_test',
+            'group_ids': [(6, 0, [self.env.ref('base.group_user').id,
+                                  self.env.ref('poultry_management.poultry_field_user').id])],
+        })
+        record = self._record()
+        self._generate(record)
+        record.action_send()
+
+        Record = self.Record.with_user(operator)
+        self.assertEqual([r['id'] for r in Record.poultry_mobile_list()], [record.id])
+        data = Record.browse(record.id).poultry_mobile_data()
+        line = data['cages'][0]['lines'][0]
+        Record.browse(record.id).poultry_mobile_set_weight(line['id'], 1980)
+        Record.browse(record.id).with_context(poultry_mobile=True).action_register(force=True)
+        self.assertEqual(record.state, 'registered')
+        self.assertEqual(record.registered_uid, operator)
+        with self.assertRaises(AccessError, msg='No crea partes ni entra a Gestión Avícola'):
+            Record.create({'coop_id': self.coop.id, 'batch_id': self.batch.id})
+        self.assertFalse(operator.has_group('poultry_management.poultry_user'))
+
     def test_mobile_flow(self):
         record = self._record()
         self._generate(record)
+        self.assertEqual(self.Record.poultry_mobile_list(), [],
+                         'En Borrador todavía no aparece en el celular')
+        with self.assertRaises(ValidationError):
+            record.poultry_mobile_set_weight(record.line_ids[0].id, 1900)
+        record.action_send()
         self.assertEqual([r['id'] for r in self.Record.poultry_mobile_list()], [record.id])
 
         data = record.poultry_mobile_data()

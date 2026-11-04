@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <menuitem id="menu_poultry_management_root" 
-              name="Gestión Avícola" 
+    <!-- Solo Usuario Avícola (el Gestor lo hereda): el Operador de Campo, que tiene
+         permiso de lectura sobre los partes de peso, no ve esta app sino Avícola Campo. -->
+    <menuitem id="menu_poultry_management_root"
+              name="Gestión Avícola"
               sequence="100"
+              groups="poultry_management.poultry_user"
               web_icon="poultry_management,static/description/icon.svg"/>
 
     <!-- Menú Principal: Producción -->
@@ -19,12 +22,14 @@
               action="action_poultry_weight_record"
               sequence="15"/>
 
-    <!-- Pantalla de celular: escanear la jaula y cargar los pesos -->
-    <menuitem id="menu_poultry_weighing"
-              name="Pesar"
-              parent="menu_poultry_management_root"
+    <!-- App Avícola Campo: app aparte en el inicio de Odoo para lo que se carga desde el
+         celular en el galpón. Solo la ven los Operadores de Campo (privilegio propio). -->
+    <menuitem id="menu_poultry_field_root"
+              name="Avícola Campo"
+              sequence="101"
               action="action_poultry_weighing"
-              sequence="16"/>
+              groups="poultry_management.poultry_field_user"
+              web_icon="poultry_management,static/description/icon_field.svg"/>
 
     <!-- Menú: Cierres -->
     <menuitem id="menu_poultry_closes"

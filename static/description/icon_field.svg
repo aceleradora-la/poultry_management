@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140">
+  <!-- App Avícola Campo: galpón sobre fondo del color de Gestión Avícola -->
+  <rect width="140" height="140" rx="28" fill="#714B67"/>
+  <path d="M26 112V62L70 30l44 32v50z" fill="#ffffff"/>
+  <path d="M26 62L70 30l44 32" fill="none" stroke="#f3eef2" stroke-width="6" stroke-linejoin="round"/>
+  <rect x="56" y="78" width="28" height="34" rx="3" fill="#714B67"/>
+  <circle cx="70" cy="60" r="8" fill="#714B67"/>
+</svg>

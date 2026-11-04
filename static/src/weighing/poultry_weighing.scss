@@ -4,12 +4,17 @@
     $pw-border: #d1d5db;
     $pw-muted: #4b5563;
 
+    // El contenedor de acciones de Odoo no scrollea: lo hace esta raíz, que ocupa
+    // justo la altura disponible. Sin esto, en el celular no se llega a las jaulas
+    // ni a los botones de abajo.
     display: flex;
     flex-direction: column;
-    min-height: 100%;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     background: #f3f4f6;
     color: #111827;
-    font-size: 15px;
+    font-size: 14px;
 
     .o_pw_header {
         display: flex;
@@ -19,10 +24,10 @@
         background: $pw-primary;
         color: #fff;
     }
-    .o_pw_title { font-size: 20px; font-weight: 700; line-height: 1.15; }
-    .o_pw_code { font-size: 24px; }
-    .o_pw_sub { font-size: 13px; opacity: 0.9; }
-    .o_pw_header_stats { text-align: right; font-size: 13px; line-height: 1.35; }
+    .o_pw_title { font-size: 18px; font-weight: 700; line-height: 1.15; }
+    .o_pw_code { font-size: 22px; }
+    .o_pw_sub { font-size: 12px; opacity: 0.9; }
+    .o_pw_header_stats { text-align: right; font-size: 12px; line-height: 1.35; }
     .o_pw_back {
         flex: 0 0 44px;
         width: 44px;
@@ -33,14 +38,63 @@
         font-size: 22px;
     }
 
+    .o_pw_header_home { padding: 16px; }
+    .o_pw_app_icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: #fff;
+        color: $pw-primary;
+        font-size: 24px;
+    }
+    .o_pw_section_title {
+        font-size: 12px;
+        font-weight: 600;
+        color: $pw-muted;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .o_pw_home_card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        padding: 14px;
+        text-align: left;
+        background: #fff;
+        border: 1px solid $pw-border;
+        border-radius: 12px;
+        color: #111827;
+    }
+    .o_pw_home_card_active { border: 2px solid $pw-primary; }
+    .o_pw_home_card_soon { background: #f9fafb; border-style: dashed; border-color: #9ca3af; color: $pw-muted; }
+    .o_pw_home_icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 48px;
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        background: #f3eef2;
+        color: $pw-primary;
+        font-size: 22px;
+    }
+    .o_pw_home_card_soon .o_pw_home_icon { background: #eceef2; color: #9ca3af; }
+    .o_pw_home_title { font-size: 17px; font-weight: 700; }
+    .o_pw_home_chevron { color: $pw-primary; font-size: 18px; }
+
     .o_pw_body {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 14px 16px;
+        gap: 10px;
+        padding: 12px 14px;
         flex-grow: 1;
     }
-    .o_pw_empty, .o_pw_muted { color: $pw-muted; font-size: 13px; }
+    .o_pw_empty, .o_pw_muted { color: $pw-muted; font-size: 12px; }
     .o_pw_hint { color: $pw-muted; font-size: 12px; line-height: 1.4; text-align: center; }
     .o_pw_link {
         background: none;
@@ -61,7 +115,7 @@
         border-radius: 10px;
     }
     .o_pw_card_draft { border: 2px solid $pw-primary; }
-    .o_pw_card_title { font-size: 18px; font-weight: 700; }
+    .o_pw_card_title { font-size: 17px; font-weight: 700; }
     .o_pw_badge {
         padding: 3px 10px;
         border-radius: 10px;
@@ -82,16 +136,16 @@
 
     .o_pw_btn {
         width: 100%;
-        height: 48px;
+        height: 46px;
         border-radius: 10px;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         &:disabled { opacity: 0.5; }
     }
     .o_pw_btn_primary { background: $pw-primary; color: #fff; border: none; }
     .o_pw_btn_secondary { background: #fff; color: $pw-primary; border: 2px solid $pw-primary; }
-    .o_pw_btn_scan { height: 56px; font-size: 18px; font-weight: 700; }
-    .o_pw_btn_small { height: 44px; font-size: 15px; }
+    .o_pw_btn_scan { height: 52px; font-size: 17px; font-weight: 700; }
+    .o_pw_btn_small { height: 44px; font-size: 14px; }
     .o_pw_manual { display: flex; flex-direction: column; gap: 6px; }
     .o_pw_input {
         flex-grow: 1;
@@ -106,14 +160,14 @@
     .o_pw_grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        gap: 8px;
     }
     .o_pw_cage_card {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        min-height: 64px;
-        padding: 10px 12px;
+        gap: 3px;
+        min-height: 56px;
+        padding: 8px 10px;
         text-align: left;
         background: #fff;
         border: 1px solid $pw-border;
@@ -130,25 +184,25 @@
     .o_pw_line {
         display: flex;
         align-items: center;
-        gap: 12px;
-        height: 54px;
-        padding: 0 14px;
+        gap: 10px;
+        height: 48px;
+        padding: 0 12px;
         background: #fff;
         border: 1px solid $pw-border;
         border-radius: 10px;
-        &:focus-within { border: 3px solid $pw-primary; padding: 0 12px; }
+        &:focus-within { border: 3px solid $pw-primary; padding: 0 10px; }
     }
     .o_pw_line_empty { background: #f9fafb; border-style: dashed; border-color: #9ca3af; }
-    .o_pw_line_label { flex: 0 0 60px; margin: 0; font-size: 15px; color: $pw-muted; white-space: nowrap; }
+    .o_pw_line_label { flex: 0 0 56px; margin: 0; font-size: 14px; color: $pw-muted; white-space: nowrap; }
     .o_pw_line:focus-within .o_pw_line_label { color: $pw-primary; font-weight: 700; }
     .o_pw_weight {
         flex-grow: 1;
         min-width: 0;
-        height: 44px;
+        height: 40px;
         padding: 0;
         border: none;
         background: transparent;
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 700;
         color: #111827;
         outline: none;

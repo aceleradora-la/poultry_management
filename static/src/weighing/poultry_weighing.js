@@ -8,10 +8,11 @@ import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_d
 const MODEL = "poultry.weight.record";
 
 /**
- * Pesar: pantalla pensada para el celular. Lista de pesadas → tarjetas por jaula →
- * pesos de una jaula. La jaula se abre escaneando su QR (cámara del navegador o de la
- * app de Odoo) o escribiendo el código. Solo se escribe el peso: Siguiente/Enter pasa
- * a la ave de abajo. Los avisos se ven en la tarjeta, no mientras se carga.
+ * App Avícola Campo, pensada para el celular: inicio → pesadas enviadas a pesar →
+ * tarjetas por jaula → pesos de una jaula. La jaula se abre escaneando su QR (cámara
+ * del navegador o de la app de Odoo) o escribiendo el código. Solo se escribe el peso:
+ * Siguiente/Enter pasa a la ave de abajo. Los avisos se ven en la tarjeta, no mientras
+ * se carga.
  */
 export class PoultryWeighing extends Component {
     static template = "poultry_management.PoultryWeighing";
@@ -22,7 +23,7 @@ export class PoultryWeighing extends Component {
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.state = useState({
-            screen: "list", // list | record | cage
+            screen: "home", // home | list | record | cage
             records: [],
             record: null,
             cageId: null,
@@ -32,8 +33,34 @@ export class PoultryWeighing extends Component {
         });
         this.scannerSupported = isBarcodeScannerSupported();
         this.focusPending = false;
-        onWillStart(() => this.loadList());
+        onWillStart(() => this.loadRecords());
         onPatched(() => this.focusFirstEmpty());
+    }
+
+    // ------------------------------------------------------------------
+    // Inicio
+    // ------------------------------------------------------------------
+    get todayLabel() {
+        const label = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+        return label.charAt(0).toUpperCase() + label.slice(1);
+    }
+
+    get pendingLabel() {
+        const pending = this.state.records.filter((rec) => rec.state === "in_progress");
+        if (!pending.length) {
+            return "Sin pesadas enviadas a pesar";
+        }
+        const coops = [...new Set(pending.map((rec) => rec.coop))].join(", ");
+        return `${pending.length} ${pending.length === 1 ? "pesada en curso" : "pesadas en curso"} · ${coops}`;
+    }
+
+    async goHome() {
+        await this.loadRecords();
+        this.state.screen = "home";
+    }
+
+    async openList() {
+        await this.loadList();
     }
 
     // ------------------------------------------------------------------
@@ -77,7 +104,7 @@ export class PoultryWeighing extends Component {
     }
 
     stateLabel(rec) {
-        return rec.state === "registered" ? "A verificar" : "Borrador";
+        return rec.state === "registered" ? "A verificar" : "En curso";
     }
 
     async call(method, args = [], kwargs = {}) {
@@ -93,10 +120,14 @@ export class PoultryWeighing extends Component {
         }
     }
 
-    async loadList() {
+    async loadRecords() {
         this.state.records = await this.call("poultry_mobile_list");
         this.state.record = null;
         this.state.cageId = null;
+    }
+
+    async loadList() {
+        await this.loadRecords();
         this.state.screen = "list";
     }
 

@@ -36,7 +36,7 @@ class PoultryWeightLinesWizard(models.TransientModel):
     def _compute_birds_per_cage(self):
         for wizard in self:
             previous = wizard._poultry_previous_record()
-            wizard.birds_per_cage = (previous.birds_per_cage if previous else 0) or 5
+            wizard.birds_per_cage = (previous.birds_per_cage if previous else 0) or 10
 
     @api.depends('record_id')
     def _compute_previous_name(self):

@@ -21,6 +21,7 @@ class PoultryWeightRecordCage(models.Model):
     batch_age_weeks = fields.Integer(string='Semana de Vida', readonly=True, aggregator=None)
     state = fields.Selection([
         ('draft', 'Borrador'),
+        ('in_progress', 'En Curso'),
         ('registered', 'Registrado'),
         ('done', 'Confirmado'),
         ('cancel', 'Cancelado'),

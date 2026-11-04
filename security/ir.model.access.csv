@@ -50,6 +50,12 @@ access_poultry_weight_record_user,poultry.weight.record.user,model_poultry_weigh
 access_poultry_weight_record_line_manager,poultry.weight.record.line.manager,model_poultry_weight_record_line,poultry_management.poultry_manager,1,1,1,1
 access_poultry_weight_record_line_user,poultry.weight.record.line.user,model_poultry_weight_record_line,poultry_management.poultry_user,1,1,1,1
 access_poultry_weight_record_cage_user,poultry.weight.record.cage.user,model_poultry_weight_record_cage,poultry_management.poultry_user,1,0,0,0
+access_poultry_weight_record_field,poultry.weight.record.field,model_poultry_weight_record,poultry_management.poultry_field_user,1,1,0,0
+access_poultry_weight_record_line_field,poultry.weight.record.line.field,model_poultry_weight_record_line,poultry_management.poultry_field_user,1,1,1,1
+access_poultry_weight_record_cage_field,poultry.weight.record.cage.field,model_poultry_weight_record_cage,poultry_management.poultry_field_user,1,0,0,0
+access_poultry_cage_field,poultry.cage.field,model_poultry_cage,poultry_management.poultry_field_user,1,0,0,0
+access_poultry_coop_field,poultry.coop.field,model_poultry_coop,poultry_management.poultry_field_user,1,0,0,0
+access_poultry_batch_field,poultry.batch.field,model_poultry_batch,poultry_management.poultry_field_user,1,0,0,0
 access_poultry_weight_lines_wizard_user,poultry.weight.lines.wizard.user,model_poultry_weight_lines_wizard,poultry_management.poultry_user,1,1,1,1
 access_poultry_weight_register_wizard_user,poultry.weight.register.wizard.user,model_poultry_weight_register_wizard,poultry_management.poultry_user,1,1,1,1
 access_poultry_vaccine_manager,poultry.vaccine.manager,model_poultry_vaccine,poultry_management.poultry_manager,1,1,1,1

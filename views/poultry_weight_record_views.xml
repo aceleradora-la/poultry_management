@@ -10,20 +10,59 @@
                 <field name="coop_id"/>
                 <field name="batch_id"/>
                 <field name="batch_age_weeks"/>
+                <field name="operator_id" optional="show"/>
+                <field name="progress_pct" string="Avance" widget="progressbar"
+                       options="{'editable': false}"/>
                 <field name="bird_count" sum="Aves"/>
                 <field name="planned_bird_count" optional="hide"/>
                 <field name="weighed_cage_count" optional="hide"/>
                 <field name="average_weight_g"/>
                 <field name="uniformity_pct"/>
                 <field name="cv_pct" optional="hide"/>
-                <field name="operator_id" optional="show"/>
                 <field name="registered_uid" optional="hide"/>
                 <field name="state" widget="badge"
                        decoration-muted="state == 'draft'"
+                       decoration-primary="state == 'in_progress'"
                        decoration-info="state == 'registered'"
                        decoration-success="state == 'done'"
                        decoration-danger="state == 'cancel'"/>
             </list>
+        </field>
+    </record>
+
+    <!-- Tarjetas: la vista por defecto, en columnas por estado. Con el filtro Pendientes
+         se ven Borrador y En Curso; sin filtro aparecen Registrado y Confirmado. -->
+    <record id="view_poultry_weight_record_kanban" model="ir.ui.view">
+        <field name="name">poultry.weight.record.kanban</field>
+        <field name="model">poultry.weight.record</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" group_create="0" group_delete="0" group_edit="0"
+                    records_draggable="0" quick_create="0" sample="1">
+                <field name="state"/>
+                <field name="bird_count"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <field name="name" class="fw-bold fs-5"/>
+                                <div class="text-muted small">
+                                    <field name="coop_id"/> · Lote <field name="batch_id"/> · Semana <field name="batch_age_weeks"/>
+                                </div>
+                            </div>
+                            <field name="date" class="text-muted small text-nowrap"/>
+                        </div>
+                        <div class="d-flex justify-content-between small mt-2">
+                            <span><field name="bird_count"/> de <field name="planned_bird_count"/> aves</span>
+                            <span><field name="weighed_cage_count"/> de <field name="cage_count"/> jaulas</span>
+                        </div>
+                        <field name="progress_pct" widget="progressbar" options="{'editable': false}" class="mt-1"/>
+                        <div class="d-flex justify-content-between align-items-center small mt-2">
+                            <field name="operator_id" class="text-muted"/>
+                            <span t-if="record.bird_count.raw_value" class="fw-bold">prom. <field name="average_weight_g"/> g</span>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
         </field>
     </record>
 
@@ -38,23 +77,26 @@
                             help="Crea una línea por ave prevista en cada jaula de muestreo del galpón, en el orden físico de las jaulas."/>
                     <button name="%(poultry_management.action_report_weight_sheet)d" string="Imprimir Planilla"
                             type="action" invisible="not line_ids"/>
-                    <button name="action_register" string="Registrar" type="object"
+                    <button name="action_send" string="Enviar a Pesar" type="object"
                             class="oe_highlight" invisible="state != 'draft' or not line_ids"
+                            help="Pasa el parte a En Curso: aparece en la app Avícola Campo del celular."/>
+                    <button name="action_register" string="Registrar" type="object"
+                            invisible="state not in ('draft', 'in_progress') or not line_ids"
                             help="Da por terminada la pesada. Si quedan jaulas sin pesar, avisa antes."/>
                     <button name="action_done" string="Confirmar" type="object"
-                            invisible="state != 'draft' or not line_ids"
+                            invisible="state not in ('draft', 'in_progress') or not line_ids"
                             confirm="Las líneas sin peso se borran al confirmar. ¿Continuar?"/>
                     <button name="action_done" string="Confirmar" type="object"
                             class="oe_highlight" invisible="state != 'registered'"
                             confirm="Las líneas sin peso se borran al confirmar. ¿Continuar?"/>
                     <button name="action_reopen" string="Volver a Borrador" type="object"
-                            invisible="state != 'registered'"/>
+                            invisible="state not in ('in_progress', 'registered')"/>
                     <button name="action_cancel" string="Cancelar" type="object"
-                            invisible="state not in ('draft', 'registered', 'done')"
+                            invisible="state == 'cancel'"
                             confirm="Al cancelar un parte confirmado se recalculan los indicadores de Peso Corporal y Uniformidad del lote. ¿Continuar?"/>
                     <button name="action_draft" string="Volver a Borrador" type="object"
                             invisible="state != 'cancel'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,registered,done"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,registered,done"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -67,7 +109,7 @@
                             <field name="batch_id" readonly="state != 'draft'"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="date" readonly="state != 'draft'"/>
-                            <field name="operator_id" readonly="state not in ('draft', 'registered')"
+                            <field name="operator_id" readonly="state not in ('draft', 'in_progress', 'registered')"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                         </group>
                         <group>
@@ -90,6 +132,8 @@
                                 <field name="weighed_cage_count" readonly="1"/>
                                 <span invisible="not cage_count">de <field name="cage_count" readonly="1" class="oe_inline"/></span>
                             </div>
+                            <field name="progress_pct" widget="progressbar" options="{'editable': false}"
+                                   invisible="not planned_bird_count"/>
                             <field name="average_weight_g" readonly="1"/>
                             <field name="uniformity_pct" readonly="1"/>
                         </group>
@@ -101,12 +145,12 @@
                     </group>
                     <notebook>
                         <page string="Pesos" name="weights">
-                            <div class="text-muted mb-2" invisible="state != 'draft' or not line_ids">
+                            <div class="text-muted mb-2" invisible="state not in ('draft', 'in_progress') or not line_ids">
                                 Mismo orden que la planilla. Solo se escribe el <strong>Peso</strong>:
                                 <kbd>Enter</kbd> pasa al peso de abajo. Las líneas que queden sin peso
                                 se borran al confirmar.
                             </div>
-                            <field name="line_ids" nolabel="1" readonly="state != 'draft'">
+                            <field name="line_ids" nolabel="1" readonly="state not in ('draft', 'in_progress')">
                                 <!-- Sin agrupar: la lista de un one2many no agrupa, y así Enter
                                      baja de fila en fila. Solo el Peso se edita. -->
                                 <list string="Pesos" editable="bottom" default_order="sequence, bird_no, id">
@@ -160,13 +204,16 @@
                 <field name="batch_id"/>
                 <field name="date"/>
                 <separator/>
-                <filter string="Borrador" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Pendientes" name="pending"
+                        domain="[('state', 'in', ('draft', 'in_progress'))]"
+                        help="En Borrador o En Curso"/>
                 <filter string="A Verificar" name="registered" domain="[('state', '=', 'registered')]"/>
                 <filter string="Confirmados" name="done" domain="[('state', '=', 'done')]"/>
                 <separator/>
                 <filter string="Últimos 30 días" name="last_30_days"
                         domain="[('date', '&gt;=', (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
                 <separator/>
+                <filter string="Por Estado" name="by_state" context="{'group_by': 'state'}"/>
                 <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
                 <filter string="Por Lote" name="by_batch" context="{'group_by': 'batch_id'}"/>
                 <filter string="Por Semana" name="by_week" context="{'group_by': 'date:week'}"/>
@@ -177,8 +224,9 @@
     <record id="action_poultry_weight_record" model="ir.actions.act_window">
         <field name="name">Pesaje de Aves</field>
         <field name="res_model">poultry.weight.record</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="search_view_id" ref="view_poultry_weight_record_search"/>
+        <field name="context">{'search_default_pending': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Registrá una pesada de aves
@@ -193,9 +241,9 @@
         </field>
     </record>
 
-    <!-- Pantalla de celular: escanear la jaula y cargar los pesos -->
+    <!-- App Avícola Campo: inicio y pesaje desde el celular -->
     <record id="action_poultry_weighing" model="ir.actions.client">
-        <field name="name">Pesar</field>
+        <field name="name">Avícola Campo</field>
         <field name="tag">poultry_weighing</field>
     </record>
 
