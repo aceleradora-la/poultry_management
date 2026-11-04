@@ -75,16 +75,18 @@
                     <button name="action_open_lines_wizard" string="Generar Líneas" type="object"
                             class="oe_highlight" invisible="state != 'draft' or line_ids"
                             help="Crea una línea por ave prevista en cada jaula de muestreo del galpón, en el orden físico de las jaulas."/>
-                    <button name="%(poultry_management.action_report_weight_sheet)d" string="Imprimir Planilla"
-                            type="action" invisible="not line_ids"/>
                     <button name="action_send" string="Enviar a Pesar" type="object"
                             class="oe_highlight" invisible="state != 'draft' or not line_ids"
                             help="Pasa el parte a En Curso: aparece en la app Avícola Campo del celular."/>
+                    <!-- La planilla se imprime una vez enviada a pesar; Registrar y Confirmar
+                         recién cuando hay algún peso cargado. -->
+                    <button name="%(poultry_management.action_report_weight_sheet)d" string="Imprimir Planilla"
+                            type="action" invisible="state not in ('in_progress', 'registered', 'done')"/>
                     <button name="action_register" string="Registrar" type="object"
-                            invisible="state not in ('draft', 'in_progress') or not line_ids"
+                            invisible="state not in ('draft', 'in_progress') or not bird_count"
                             help="Da por terminada la pesada. Si quedan jaulas sin pesar, avisa antes."/>
                     <button name="action_done" string="Confirmar" type="object"
-                            invisible="state not in ('draft', 'in_progress') or not line_ids"
+                            invisible="state not in ('draft', 'in_progress') or not bird_count"
                             confirm="Las líneas sin peso se borran al confirmar. ¿Continuar?"/>
                     <button name="action_done" string="Confirmar" type="object"
                             class="oe_highlight" invisible="state != 'registered'"
