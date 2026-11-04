@@ -1,28 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Odoo 19: res.groups usa privilege_id (res.groups.privilege); la categoría vive en el privilegio. -->
-    <record id="poultry_manager" model="res.groups">
-        <field name="name">Gestor Avícola</field>
+    <!-- Odoo 19: la ficha del usuario dibuja cada res.groups.privilege como UN desplegable
+         de un solo valor y, al guardar, conserva un grupo por privilegio. Los permisos que
+         se combinan entre sí necesitan cada uno su propio privilegio; compartir el de
+         Manufactura borra grupos sin avisar. -->
+    <record id="module_category_poultry" model="ir.module.category">
+        <field name="name">Gestión Avícola</field>
+        <field name="sequence">26</field>
+    </record>
+
+    <record id="res_groups_privilege_poultry_role" model="res.groups.privilege">
+        <field name="name">Rol</field>
+        <field name="sequence">10</field>
+        <field name="category_id" ref="module_category_poultry"/>
+    </record>
+
+    <record id="res_groups_privilege_poultry_collection" model="res.groups.privilege">
+        <field name="name">Partes de Producción</field>
+        <field name="sequence">20</field>
+        <field name="category_id" ref="module_category_poultry"/>
+    </record>
+
+    <record id="res_groups_privilege_poultry_coop_close" model="res.groups.privilege">
+        <field name="name">Cierres de Galpón</field>
         <field name="sequence">30</field>
-        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
+        <field name="category_id" ref="module_category_poultry"/>
+    </record>
+
+    <record id="res_groups_privilege_poultry_mortality" model="res.groups.privilege">
+        <field name="name">Mortandad</field>
+        <field name="sequence">40</field>
+        <field name="category_id" ref="module_category_poultry"/>
     </record>
 
     <record id="poultry_user" model="res.groups">
         <field name="name">Usuario Avícola</field>
-        <field name="sequence">40</field>
-        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_role"/>
+    </record>
+
+    <record id="poultry_manager" model="res.groups">
+        <field name="name">Gestor Avícola</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_role"/>
+        <field name="implied_ids" eval="[(4, ref('poultry_user'))]"/>
     </record>
 
     <record id="poultry_cancel_processed_collection" model="res.groups">
         <field name="name">Cancelar Partes Procesados</field>
-        <field name="sequence">50</field>
-        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_collection"/>
     </record>
 
     <record id="poultry_delete_coop_close" model="res.groups">
         <field name="name">Eliminar Cierres de Galpón</field>
-        <field name="sequence">60</field>
-        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_coop_close"/>
         <field name="comment">Permite eliminar cierres de galpón en estado Borrador.</field>
     </record>
 
@@ -30,8 +63,8 @@
          Reporte de Mortandad, para registrar aves muertas de fechas anteriores. -->
     <record id="group_poultry_mortality_manual" model="res.groups">
         <field name="name">Mortandad: Carga Manual</field>
-        <field name="sequence">70</field>
-        <field name="privilege_id" ref="mrp.res_groups_privilege_manufacturing"/>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_mortality"/>
         <field name="implied_ids" eval="[(4, ref('poultry_user'))]"/>
         <field name="comment">Permite crear y editar manualmente registros de mortandad
             (día por día y por lote) desde el Reporte de Mortandad, y corregir las Aves
