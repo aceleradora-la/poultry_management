@@ -341,4 +341,5 @@ class TestPoultryWeightRecord(TransactionCase):
         self.assertIn(record.name, html)
         self.assertIn('Jaula %s' % self.cage_c.code, html)
         self.assertNotIn('class="pw-break"', html, 'Entra en una sola hoja')
-        self.assertIn('class="header', html, 'Lleva el encabezado estándar de Odoo (logo)')
+        self.assertIn(self.env.company.name, html, 'Lleva los datos de la empresa')
+        self.assertIn('Hoja 1 de 1', html)
