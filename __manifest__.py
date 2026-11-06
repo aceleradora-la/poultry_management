@@ -3,16 +3,22 @@
     'name': 'Poultry Management',
     'version': '19.0.1.109.0',
     'category': 'Agriculture',
-    'summary': 'Gestión de Granjas de Huevos y Pollos',
+    'summary': 'Gestión integral de granjas de postura: producción, indicadores, sanidad y cobertura de stock',
     'description': """
-        Módulo para la gestión completa de granjas avícolas
-        - Gestión de Galpones con capacidad y tamaño
-        - Gestión de Lotes de Aves con genética y asignación
-        - Lista de Materiales de Alimento Balanceado por galpón
-        - Integración con Órdenes de Fabricación
+        Gestión avícola sobre Odoo 19
+        - Galpones, lotes de aves, genéticas y estándares de rendimiento por versión
+        - Partes de producción por calibre y envase, en cajones, maples y huevos
+        - Cierre de galpón con consumo de alimento y agua, y registro de mortandad
+        - Indicadores reales por lote con fórmulas configurables
+        - Seguimiento de estándares por semana de vida o calendario, con exportación a PDF y Excel
+        - Semáforo de indicadores según el desvío contra el estándar
+        - Planes de vacunación, cumplimiento sanitario y pesajes con uniformidad
+        - App de campo instalable en el celular, con jaulas identificadas por QR
+        - Análisis de facturas en huevos y cajones, con precio por cajón
+        - Tablero de cobertura de stock según consumo y plazo del proveedor
     """,
     'author': 'aceleradora.la',
-    'website': 'https://www.tuempresa.com',
+    'website': 'https://aceleradora.la',
     'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web', 'stock', 'purchase_stock', 'account'],
     'assets': {
         'web.assets_backend': [
