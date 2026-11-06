@@ -1,149 +1,55 @@
-# Módulo de Gestión Avícola (Poultry Management) para Odoo 19
+# Gestión Avícola (poultry_management) para Odoo 19
 
-## Descripción
+Módulo de aceleradora para gestionar granjas de postura sobre Odoo. Integra la operación diaria con Inventario, Manufactura, Compras y Contabilidad.
 
-Módulo completo para la gestión de granjas avícolas (huevos y pollos) en Odoo 19. Permite administrar galpones, lotes de aves, genéticas y listas de materiales de alimento balanceado, con integración al módulo de producción.
+Desarrollo a medida. Más información en https://aceleradora.la
 
-## Características Principales
+## Funcionalidades
 
-### 1. Gestión de Galpones (Poultry Coops)
-- **Información básica**: Código, nombre, tamaño (m²) y capacidad máxima de aves
-- **Control de ocupación**: Cálculo automático del total de aves y porcentaje de ocupación
-- **Asignación de lotes**: Visualización y gestión de los lotes de aves asignados al galpón
-- **Lista de materiales activa**: Cada galpón puede tener una sola lista de materiales de alimento balanceado activa en un momento dado
-- **Validaciones**: Previene que se exceda la capacidad del galpón
+### Producción
 
-### 2. Gestión de Lotes de Aves (Poultry Batches)
-- **Información del lote**: Código, nombre, fecha de nacimiento y genética
-- **Asignación a galpón**: Fecha de asignación y galpón asignado
-- **Cantidad de aves**: Control del número de aves por lote
-- **Cálculos automáticos**: Edad del lote en días y días en el galpón
-- **Proveedor**: Opción para registrar el proveedor del lote
+- **Galpones y lotes.** Capacidad, ocupación, lotes por genética, asignaciones y movimientos de aves (ingreso, traslado y retiro).
+- **Partes de producción.** Conteo inicial, bruto y final por calibre y envase, en cajones (360 huevos), maples (30 huevos) y huevos. Lo producido sale de la diferencia y entra al inventario con órdenes de fabricación.
+- **Cierre de galpón.** Reúne los partes del día en la orden de huevo sin clasificar, con consumo de alimento y agua y mortandad.
+- **Alimento balanceado.** Lista de materiales activa por galpón, con historial y carga automática en las órdenes de fabricación.
 
-### 3. Genéticas de Aves (Poultry Genetics)
-- **Maestro de genéticas**: Registro de diferentes genéticas (Lohmann Brown, Hy-Line, ISA Brown, Cobb 500, Ross 308, etc.)
-- **Datos precargados**: Incluye genéticas comunes de ponedoras y pollos de engorde
+### Indicadores
 
-### 4. Listas de Materiales por Galpón (Coop BOM)
-- **Historial completo**: Registro de todas las listas de materiales asignadas a cada galpón
-- **Lista activa única**: Solo una lista de materiales puede estar activa por galpón a la vez
-- **Control de fechas**: Fecha de inicio y fin de cada lista de materiales
-- **Integración con MRP**: Uso de las listas de materiales (BOM) estándar de Odoo
+- **Valores reales por lote.** Mortandad, viabilidad, peso corporal, uniformidad, consumo de alimento y agua, postura, masa y peso del huevo y conversión alimenticia.
+- **Fórmulas configurables.** Numerador, denominador y modo de cálculo por indicador, con recálculo y verificación contra el cálculo interno.
+- **Estándares de genética.** Valores bajo y alto por semana de vida, por versión de estándar.
+- **Seguimiento de estándares.** Reporte interactivo por semana de vida o calendario, comparación de lotes, detalle diario y exportación a PDF y Excel.
+- **Semáforo.** Cada valor semanal guarda su desvío y queda en verde, amarillo o rojo según la regla y la tolerancia del indicador.
 
-### 5. Extensión de Órdenes de Fabricación
-- **Campo galpón**: Se agregó el campo galpón a las órdenes de fabricación
-- **Carga automática**: Al seleccionar un galpón, se carga automáticamente:
-  - El producto de la lista de materiales activa
-  - La lista de materiales (BOM) activa del galpón
-  - Los componentes de la BOM
+### Sanidad y pesajes
 
-## Instalación
+- **Vacunación.** Vacunas, planes por lote, aplicaciones y cumplimiento (aplicada, pendiente o vencida).
+- **Pesajes.** Muestreo por jaula con peso promedio, coeficiente de variación y uniformidad, planilla imprimible y etiquetas QR por jaula.
+- **App Avícola Campo.** App instalable en el celular para cargar pesadas: la jaula se abre escaneando su QR o escribiendo el código.
 
-1. Coloque el módulo en la carpeta `addons` de su instalación de Odoo 19
-2. Actualice la lista de aplicaciones
-3. Instale el módulo "Poultry Management" desde el menú de Aplicaciones
+### Compras y facturación
 
-## Estructura del Módulo
-
-```
-poultry_management/
-├── __init__.py
-├── __manifest__.py
-├── README.md
-├── models/
-│   ├── __init__.py
-│   ├── poultry_coop.py          # Modelo de Galpones
-│   ├── poultry_batch.py          # Modelo de Lotes de Aves
-│   ├── poultry_coop_bom.py       # Modelo de Listas de Materiales por Galpón
-│   ├── poultry_genetics.py       # Modelo de Genéticas
-│   └── mrp_production.py         # Extensión de Órdenes de Fabricación
-├── views/
-│   ├── poultry_coop_views.xml    # Vistas de Galpones
-│   ├── poultry_batch_views.xml   # Vistas de Lotes de Aves
-│   ├── poultry_coop_bom_views.xml # Vistas de Listas de Materiales
-│   ├── poultry_genetics_views.xml # Vistas de Genéticas
-│   ├── mrp_production_views.xml  # Vistas extendidas de Producción
-│   └── poultry_menus.xml         # Menús del módulo
-├── security/
-│   ├── poultry_security.xml      # Grupos de seguridad
-│   └── ir.model.access.csv       # Permisos de acceso
-└── data/
-    ├── __init__.py
-    ├── ir_sequence_data.xml      # Secuencias para códigos automáticos
-    └── genetics_data.xml         # Datos iniciales de genéticas
-```
-
-## Uso
-
-### Crear un Galpón
-
-1. Navegue a **Gestión Avícola > Galpones**
-2. Haga clic en **Crear**
-3. Complete los campos:
-   - **Código**: Se genera automáticamente si se deja vacío
-   - **Nombre**: Nombre descriptivo del galpón
-   - **Tamaño**: Tamaño en metros cuadrados
-   - **Capacidad**: Cantidad máxima de aves que puede albergar
-
-### Crear un Lote de Aves
-
-1. Navegue a **Gestión Avícola > Lotes de Aves**
-2. Haga clic en **Crear**
-3. Complete los campos:
-   - **Código**: Se genera automáticamente si se deja vacío
-   - **Nombre**: Se genera automáticamente basado en genética y fecha
-   - **Genética**: Seleccione la genética del lote
-   - **Fecha de Nacimiento**: Fecha en que nacieron las aves
-   - **Galpón Asignado**: Seleccione el galpón donde se alojarán
-   - **Fecha de Asignación**: Fecha en que se asignaron al galpón
-   - **Cantidad de Aves**: Número de aves en el lote
-
-### Asignar Lista de Materiales a un Galpón
-
-1. Desde el formulario del galpón, vaya a la pestaña **Listas de Materiales**
-2. Haga clic en **Agregar una línea**
-3. Complete los campos:
-   - **Lista de Materiales**: Seleccione una BOM existente
-   - **Fecha de Inicio**: Fecha desde la cual esta lista está activa
-   - Haga clic en **Activar** para activarla
-
-### Crear Orden de Fabricación para un Galpón
-
-1. Navegue a **Manufactura > Órdenes de Fabricación**
-2. Haga clic en **Crear**
-3. En el campo **Galpón**, seleccione el galpón deseado
-4. Automáticamente se cargarán:
-   - El producto de la lista de materiales activa del galpón
-   - La lista de materiales activa
-   - Los componentes necesarios
-
-## Permisos y Seguridad
-
-El módulo incluye dos grupos de seguridad:
-- **Gestor Avícola**: Acceso completo (lectura, escritura, creación, eliminación)
-- **Usuario Avícola**: Solo lectura
+- **Cobertura de stock.** Tablero con días de cobertura real y pronosticada. El semáforo compara la cobertura con el plazo del proveedor, los días de compra y el margen de seguridad.
+- **Análisis de facturas.** Cantidades en huevos y cajones y precio por cajón como promedio ponderado, disponibles para reportes y tableros.
 
 ## Dependencias
 
-- `base`: Módulo base de Odoo
-- `mrp`: Módulo de manufactura (producción)
-- `product`: Módulo de productos
+Odoo 19 con `mrp`, `stock`, `purchase_stock`, `account`, `hr` y `mail`. En Python, `xlsxwriter` para la exportación a Excel.
 
-## Licencia
+## Instalación
 
-LGPL-3
+1. Copiá el módulo en la carpeta de addons.
+2. Actualizá la lista de aplicaciones.
+3. Instalá **Poultry Management**.
 
-## Autor
+## Configuración inicial
 
-aceleradora.la
+1. Cargá las genéticas, sus versiones de estándar y los indicadores.
+2. Creá los galpones y sus listas de materiales de alimento.
+3. Creá los lotes y asignalos a los galpones.
+4. Definí en cada galpón los tipos de operación y el producto de huevo sin clasificar.
+5. Elegí las categorías del tablero de cobertura en la empresa.
 
-## Versión
+## Permisos
 
-19.0.1.0.0 (rama `19.0`; la rama `18.0` mantiene la línea Odoo 18).
-
-## Migración desde Odoo 18
-
-- Actualice la base de datos con el procedimiento que corresponda (Enterprise, OpenUpgrade u otro).
-- En el servidor Odoo 19, actualice el módulo: `-u poultry_management`.
-- Si tras la actualización aparece algún error de carga, revise el log: suelen ser herencias de vistas estándar o campos renombrados en el core.
-
+Los permisos están en la categoría **Gestión Avícola**: rol, partes de producción, cierres de galpón, mortandad y app Avícola Campo.
