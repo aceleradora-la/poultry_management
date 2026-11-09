@@ -49,6 +49,11 @@
                         <group>
                             <field name="unclassified_production_id" readonly="1"
                                    invisible="not unclassified_production_id"/>
+                            <!-- Datos del galpón que traen los partes (celular): al confirmar
+                                 se vuelcan en la OF de Huevo sin Clasificar. -->
+                            <field name="farm_data_count" invisible="1"/>
+                            <field name="dead_count_total" invisible="not farm_data_count"/>
+                            <field name="feed_consumed_kg_total" invisible="not farm_data_count"/>
                         </group>
                     </group>
                     <notebook>

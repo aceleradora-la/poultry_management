@@ -14,6 +14,7 @@
                 <!-- Mostrar el PRODUCTO BASE (no la primera variante) -->
                 <field name="product_tmpl_id" string="Producto"/>
                 <field name="date"/>
+                <field name="mobile_source" string="Celular" optional="show"/>
                 <field name="total_eggs"/>
                 <field name="total_boxes"/>
                 <field name="total_weight"/>
@@ -80,6 +81,18 @@
                             invisible="state != 'done'"/>
                     <widget name="web_ribbon" title="Cancelada" bg_color="text-danger"
                             invisible="state != 'cancel'"/>
+                    <!-- Partes cargados desde la app Avícola Campo: la oficina ve quién y cuándo. -->
+                    <field name="mobile_source" invisible="1"/>
+                    <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="status"
+                         invisible="not mobile_source">
+                        <i class="fa fa-mobile fa-lg" title="Celular" aria-hidden="true"/>
+                        <div>
+                            <strong>Cargado desde el celular.</strong>
+                            <span invisible="not initial_date"> Inicial: <field name="initial_date" class="oe_inline" readonly="1"/>.</span>
+                            <span invisible="not gross_date"> Bruto: <field name="gross_date" class="oe_inline" readonly="1"/>.</span>
+                            <span invisible="not farm_data_date"> Datos del galpón: <field name="farm_data_date" class="oe_inline" readonly="1"/>.</span>
+                        </div>
+                    </div>
                     <group>
                         <group>
                             <field name="name" placeholder="Se genera automáticamente" 
@@ -190,6 +203,25 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Datos del galpón" name="farm_data">
+                            <group>
+                                <group string="Mortandad y alimento del día">
+                                    <field name="dead_count" readonly="state == 'cancel'"/>
+                                    <field name="feed_consumed_kg" readonly="state == 'cancel'"/>
+                                    <field name="farm_data_date" readonly="1" invisible="not farm_data_date"/>
+                                </group>
+                                <group>
+                                    <div class="text-muted" colspan="2">
+                                        Se cargan desde el celular o acá. Al confirmar el Cierre de Galpón se
+                                        vuelcan en la OF de Huevo sin Clasificar: las aves muertas en
+                                        "Aves Muertas (total galpón)" y el alimento en el componente de tipo
+                                        Alimento. Si quedan en cero, la OF avisa al marcarla hecha, como hasta ahora.
+                                    </div>
+                                </group>
+                            </group>
+                            <field name="farm_notes" readonly="state == 'cancel'"
+                                   placeholder="Observaciones del galpón: agua, temperatura, novedades..."/>
+                        </page>
                         <page string="Órdenes de Fabricación" name="productions" invisible="production_count == 0">
                             <field name="production_ids" nolabel="1" readonly="1">
                                 <list>
@@ -228,6 +260,8 @@
                 <filter string="Inicio" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Bruto" name="counted" domain="[('state', '=', 'counted')]"/>
                 <filter string="Completada" name="completed" domain="[('state', '=', 'completed')]"/>
+                <separator/>
+                <filter string="Desde el celular" name="mobile" domain="[('mobile_source', '=', True)]"/>
                 <separator/>
                 <filter string="Por Galpón" name="by_coop" context="{'group_by': 'coop_id'}"/>
                 <filter string="Por Producto" name="by_product" context="{'group_by': 'product_variant_id'}"/>

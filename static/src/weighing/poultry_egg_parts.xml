@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="poultry_management.PoultryEggParts">
+
+    <!-- Galpones de hoy -->
+    <t t-if="state.screen === 'coops'">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver al inicio" t-on-click="props.onHome">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div>
+                <div class="o_pw_title">Partes de Producción</div>
+                <div class="o_pw_sub"><t t-esc="dateLabel"/> · huevos por galpón</div>
+            </div>
+        </div>
+        <div class="o_pw_body">
+            <div t-if="chips.length" class="o_pw_chips">
+                <t t-foreach="chips" t-as="chip" t-key="chip_index">
+                    <span t-attf-class="o_pw_chip {{ chip.cls }}" t-esc="chip.text"/>
+                </t>
+            </div>
+            <div class="o_pw_section_title">Hoy</div>
+            <div t-if="!state.coops.length" class="o_pw_empty">No hay galpones activos.</div>
+            <t t-foreach="state.coops" t-as="item" t-key="item.coop_id">
+                <!-- "st", no "status": una variable de plantilla con el nombre del método lo pisaría. -->
+                <t t-set="st" t-value="status(item)"/>
+                <t t-set="rec" t-value="item.record"/>
+
+                <div t-if="st === 'nobirds'" class="o_pw_card o_pw_card_off">
+                    <div class="d-flex justify-content-between align-items-baseline gap-2">
+                        <span class="o_pw_card_title" t-esc="item.coop"/>
+                        <span class="o_pw_muted">Sin aves alojadas · no lleva parte</span>
+                    </div>
+                </div>
+
+                <div t-elif="st === 'none'" class="o_pw_card">
+                    <div class="d-flex justify-content-between align-items-baseline gap-2">
+                        <span class="o_pw_card_title" t-esc="item.coop"/>
+                        <span class="o_pw_muted" t-if="item.batch">Lote <t t-esc="item.batch"/> · Sem. <t t-esc="item.week"/></span>
+                    </div>
+                    <div class="o_pw_muted">Sin inicial todavía</div>
+                    <button type="button" class="o_pw_btn o_pw_btn_secondary" t-att-disabled="state.busy" t-on-click="() => this.openCoop(item)">Cargar inicial</button>
+                </div>
+
+                <div t-elif="st === 'counted'" class="o_pw_card o_pw_card_draft">
+                    <div class="d-flex justify-content-between align-items-baseline gap-2">
+                        <span class="o_pw_card_title" t-esc="item.coop"/>
+                        <span class="o_pw_muted" t-if="item.batch">Lote <t t-esc="item.batch"/> · Sem. <t t-esc="item.week"/></span>
+                    </div>
+                    <div class="o_pw_muted">
+                        <i class="fa fa-check o_pw_check me-1" aria-hidden="true"/>Inicial cargado <t t-esc="rec.initial_time"/>
+                        <strong class="o_pw_follow"> · falta el bruto</strong>
+                    </div>
+                    <button type="button" class="o_pw_btn o_pw_btn_primary" t-att-disabled="state.busy" t-on-click="() => this.openRecord(rec.id)">Cargar bruto</button>
+                </div>
+
+                <button t-else="" type="button" class="o_pw_card o_pw_card_link" t-on-click="() => this.openRecord(rec.id)">
+                    <div class="d-flex justify-content-between align-items-baseline gap-2">
+                        <span class="o_pw_card_title" t-esc="item.coop"/>
+                        <span class="o_pw_muted" t-if="item.batch">Lote <t t-esc="item.batch"/> · Sem. <t t-esc="item.week"/></span>
+                    </div>
+                    <div class="o_pw_ok">
+                        <i class="fa fa-check me-1" aria-hidden="true"/>
+                        <t t-if="st === 'done'">Procesado por la oficina</t>
+                        <t t-else="">Completo <t t-esc="rec.gross_time"/></t>
+                        · <t t-esc="fmt(rec.total_eggs)"/> huevos · <t t-esc="d1(rec.total_boxes)"/> cajones
+                    </div>
+                    <div class="d-flex justify-content-between o_pw_muted">
+                        <span t-if="st === 'done'">Tocá para verlo</span>
+                        <span t-else="">Tocá para ver o corregir</span>
+                        <span t-if="rec.farm_data_time"><i class="fa fa-check me-1" aria-hidden="true"/>Mortandad y alimento</span>
+                    </div>
+                </button>
+            </t>
+
+            <t t-if="state.late.length">
+                <div class="o_pw_section_title o_pw_warn_text">Atrasados</div>
+                <t t-foreach="state.late" t-as="rec" t-key="rec.id">
+                    <div class="o_pw_card o_pw_card_late">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="o_pw_card_title"><t t-esc="rec.coop"/> · <t t-esc="rec.date_label"/></div>
+                                <div class="o_pw_warn_text">
+                                    <t t-if="rec.state === 'counted'">Inicial cargado · falta el bruto</t>
+                                    <t t-else="">Empezado y sin inicial guardado</t>
+                                </div>
+                            </div>
+                            <button type="button" class="o_pw_btn o_pw_btn_warn o_pw_btn_small" t-att-disabled="state.busy" t-on-click="() => this.openRecord(rec.id)">Completar</button>
+                        </div>
+                    </div>
+                </t>
+            </t>
+
+            <div class="o_pw_hint mt-auto">
+                El parte del día se crea solo al tocar Cargar inicial, con la fecha de hoy, el producto del último
+                parte del galpón y vos como operador. La oficina lo procesa y hace el cierre como siempre.
+            </div>
+        </div>
+    </t>
+
+    <!-- Paso 1: inicial por calibre -->
+    <t t-if="state.screen === 'initial' and state.record">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver a los galpones" t-on-click="loadCoops">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div class="flex-grow-1">
+                <div class="o_pw_title"><t t-esc="state.record.coop"/> · Inicial</div>
+                <div class="o_pw_sub"><t t-esc="state.record.date_label"/> · <t t-esc="state.record.product"/></div>
+            </div>
+            <span class="o_pw_badge_step">Paso 1 de 2</span>
+        </div>
+        <div class="o_pw_body">
+            <div class="o_pw_lead">Lo que hay en el galpón <strong>antes de la primera juntada</strong>, por calibre. Lo que quede vacío vale 0.</div>
+            <div class="o_pw_eggs_grid">
+                <div class="o_pw_eggs_head o_pw_eggs_cols3">
+                    <div>Calibre</div>
+                    <t t-foreach="unitNames" t-as="name" t-key="name_index"><div t-esc="name"/></t>
+                </div>
+                <t t-foreach="state.form" t-as="line" t-key="line.id">
+                    <div class="o_pw_eggs_card">
+                        <div class="o_pw_eggs_row o_pw_eggs_cols3">
+                            <div class="o_pw_eggs_cal" t-esc="line.calibre"/>
+                            <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
+                                <input type="number" inputmode="numeric" enterkeyhint="next" min="0" step="1" placeholder="0"
+                                       class="o_pw_eggs_input" t-att-value="line.qty[col]"
+                                       t-attf-aria-label="Calibre {{ line.calibre }}, {{ unitNames[col] }}"
+                                       t-on-change="(ev) => this.onValueChange(line, col, ev)"
+                                       t-on-keydown="onKeydown"/>
+                            </t>
+                        </div>
+                    </div>
+                </t>
+            </div>
+            <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-att-disabled="state.busy" t-on-click="copyPrevious">Traer el bruto del último parte</button>
+            <div class="o_pw_hint">
+                Si no salió nada del galpón, el inicial de hoy es el bruto del parte anterior; después se corrige lo que haga falta.
+                Siguiente pasa a la celda de la derecha y, al terminar la fila, baja al calibre siguiente.
+            </div>
+        </div>
+        <div class="o_pw_footer">
+            <button type="button" class="o_pw_btn o_pw_btn_primary" t-att-disabled="state.busy" t-on-click="saveInitial">Guardar inicial</button>
+            <div class="o_pw_hint">Cada celda se guarda sola al salir de ella. Guardar inicial deja el parte listo para el bruto.</div>
+        </div>
+    </t>
+
+    <!-- Paso 2: bruto y peso medio -->
+    <t t-if="state.screen === 'gross' and state.record">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver a los galpones" t-on-click="loadCoops">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div class="flex-grow-1">
+                <div class="o_pw_title"><t t-esc="state.record.coop"/> · Bruto</div>
+                <div class="o_pw_sub"><t t-esc="state.record.date_label"/> · inicial cargado <t t-esc="state.record.initial_time"/></div>
+            </div>
+            <span class="o_pw_badge_step">Paso 2 de 2</span>
+        </div>
+        <div class="o_pw_body">
+            <div class="o_pw_lead">Todo lo que hay en el galpón <strong>al terminar el día</strong>, por calibre. Debajo de cada fila se ve lo producido: bruto menos inicial.</div>
+            <div class="o_pw_eggs_grid">
+                <div class="o_pw_eggs_head o_pw_eggs_cols4">
+                    <div>Cal.</div>
+                    <t t-foreach="unitNames" t-as="name" t-key="name_index"><div t-esc="name"/></t>
+                    <div>P. medio g</div>
+                </div>
+                <t t-foreach="grossRows" t-as="row" t-key="row.line.id">
+                    <div t-attf-class="o_pw_eggs_card {{ row.info.error ? 'o_pw_eggs_card_error' : '' }}">
+                        <div class="o_pw_eggs_row o_pw_eggs_cols4">
+                            <div class="o_pw_eggs_cal" t-esc="row.line.calibre"/>
+                            <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
+                                <input type="number" inputmode="numeric" enterkeyhint="next" min="0" step="1" placeholder="0"
+                                       class="o_pw_eggs_input" t-att-value="row.line.qty[col]"
+                                       t-attf-aria-label="Calibre {{ row.line.calibre }}, {{ unitNames[col] }}"
+                                       t-on-change="(ev) => this.onValueChange(row.line, col, ev)"
+                                       t-on-keydown="onKeydown"/>
+                            </t>
+                            <input type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1" placeholder="—"
+                                   class="o_pw_eggs_input o_pw_eggs_pm" t-att-value="row.line.pm"
+                                   t-attf-aria-label="Calibre {{ row.line.calibre }}, peso medio en gramos"
+                                   t-on-change="(ev) => this.onValueChange(row.line, 'pm', ev)"
+                                   t-on-keydown="onKeydown"/>
+                        </div>
+                        <div t-attf-class="o_pw_eggs_note {{ row.info.error ? 'o_pw_eggs_note_error' : (row.info.typed ? 'o_pw_eggs_note_ok' : '') }}" t-esc="row.info.text"/>
+                    </div>
+                </t>
+            </div>
+            <button type="button" class="o_pw_link" t-on-click="correctInitial">Corregir el inicial</button>
+        </div>
+        <div class="o_pw_footer">
+            <button type="button" t-attf-class="o_pw_btn {{ canReview ? 'o_pw_btn_primary' : 'o_pw_btn_secondary' }}"
+                    t-att-disabled="state.busy or !canReview" t-on-click="review">Revisar y completar</button>
+            <div class="o_pw_hint">
+                Se habilita con algún bruto cargado y ningún calibre por debajo del inicial. El peso medio es opcional:
+                si falta, ese calibre no entra en el peso medio elaborado.
+            </div>
+        </div>
+    </t>
+
+    <!-- Resumen y completar -->
+    <t t-if="state.screen === 'summary' and state.record">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver a los galpones" t-on-click="loadCoops">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div>
+                <div class="o_pw_title"><t t-esc="state.record.coop"/> · Resumen</div>
+                <div class="o_pw_sub">
+                    <t t-esc="state.record.date_label"/>
+                    <t t-if="state.record.initial_time"> · inicial <t t-esc="state.record.initial_time"/></t>
+                    <t t-if="state.record.gross_time"> · bruto <t t-esc="state.record.gross_time"/></t>
+                </div>
+            </div>
+        </div>
+        <div class="o_pw_body">
+            <div class="o_pw_kpis">
+                <div class="o_pw_kpi">
+                    <div class="o_pw_muted">Huevos producidos</div>
+                    <div class="o_pw_kpi_value" t-esc="fmt(state.record.total_eggs)"/>
+                    <div class="o_pw_muted" t-esc="splitLabel(state.record.total_eggs)"/>
+                </div>
+                <div class="o_pw_kpi">
+                    <div class="o_pw_muted">Cajones</div>
+                    <div class="o_pw_kpi_value" t-esc="d1(state.record.total_boxes)"/>
+                    <div class="o_pw_muted">de 360 huevos</div>
+                </div>
+                <div class="o_pw_kpi">
+                    <div class="o_pw_muted">Peso medio elaborado</div>
+                    <div class="o_pw_kpi_value"><t t-esc="d1(state.record.average_weight_elaborated)"/> g</div>
+                    <div class="o_pw_muted"><t t-esc="d1(state.record.total_weight_estimated)"/> kg estimados</div>
+                </div>
+                <div class="o_pw_kpi">
+                    <div class="o_pw_muted">Contra el parte anterior</div>
+                    <div class="o_pw_kpi_value" t-esc="vsPrevious || '—'"/>
+                    <div class="o_pw_muted">
+                        <t t-if="state.record.previous_total_eggs"><t t-esc="state.record.previous_date"/>: <t t-esc="fmt(state.record.previous_total_eggs)"/> huevos</t>
+                        <t t-else="">sin parte anterior</t>
+                    </div>
+                </div>
+            </div>
+
+            <div class="o_pw_table">
+                <div class="o_pw_table_row o_pw_table_head">
+                    <div>Cal.</div><div>Producido</div><div class="o_pw_right">Huevos</div><div class="o_pw_right">%</div>
+                </div>
+                <t t-foreach="summaryRows" t-as="row" t-key="row.id">
+                    <div class="o_pw_table_row">
+                        <div class="o_pw_eggs_cal" t-esc="row.calibre"/>
+                        <div>
+                            <div t-esc="row.split"/>
+                            <div t-attf-class="o_pw_muted {{ row.noPm ? 'o_pw_warn_text' : '' }}" t-esc="row.pm"/>
+                        </div>
+                        <div class="o_pw_right fw-bold" t-esc="row.eggs"/>
+                        <div class="o_pw_right o_pw_muted" t-esc="row.pct"/>
+                    </div>
+                </t>
+                <div class="o_pw_table_row o_pw_table_total">
+                    <div>Total</div><div t-esc="splitLabel(state.record.total_eggs)"/>
+                    <div class="o_pw_right" t-esc="fmt(state.record.total_eggs)"/><div class="o_pw_right">100 %</div>
+                </div>
+            </div>
+
+            <div t-if="noPmCalibres.length" class="o_pw_notice">
+                <strong>Sin peso medio: calibre <t t-esc="noPmCalibres.join(', ')"/>.</strong> Queda fuera del peso medio elaborado. Se puede completar igual.
+            </div>
+            <div t-if="state.record.farm_data_time" class="o_pw_muted">
+                <i class="fa fa-check o_pw_check me-1" aria-hidden="true"/>Mortandad y alimento cargados <t t-esc="state.record.farm_data_time"/>:
+                <t t-esc="state.record.dead_count"/> aves muertas · <t t-esc="d1(state.record.feed_consumed_kg)"/> kg de alimento.
+            </div>
+
+            <div class="o_pw_two" t-if="state.record.state !== 'done'">
+                <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-att-disabled="state.busy" t-on-click="correctGross">Corregir bruto</button>
+                <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-att-disabled="state.busy" t-on-click="openFarm">Mortandad y alimento</button>
+            </div>
+        </div>
+        <div class="o_pw_footer">
+            <t t-if="state.record.state === 'counted'">
+                <button type="button" class="o_pw_btn o_pw_btn_primary" t-att-disabled="state.busy" t-on-click="complete">Completar parte</button>
+                <div class="o_pw_hint">Queda Completado para que la oficina lo procese y genere las OF. Hasta que lo procesen se puede volver a abrir desde acá.</div>
+            </t>
+            <t t-elif="state.record.state === 'completed'">
+                <div class="o_pw_ok text-center"><i class="fa fa-check me-1" aria-hidden="true"/>Completado · a la espera de que la oficina lo procese</div>
+                <div class="o_pw_hint">Si hay que cambiar algo, Corregir bruto lo vuelve a abrir.</div>
+            </t>
+            <t t-else="">
+                <div class="o_pw_hint">Procesado por la oficina: ya no se puede cambiar desde el celular.</div>
+            </t>
+        </div>
+    </t>
+
+    <!-- Mortandad y alimento del galpón -->
+    <t t-if="state.screen === 'farm' and state.record">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver" t-on-click="closeFarm">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div>
+                <div class="o_pw_title"><t t-esc="state.record.coop"/> · Mortandad y alimento</div>
+                <div class="o_pw_sub"><t t-esc="state.record.date_label"/> · <t t-esc="fmt(state.record.live_bird_count)"/> aves vivas</div>
+            </div>
+        </div>
+        <div class="o_pw_body">
+            <div class="o_pw_farm_card">
+                <label for="o_pw_farm_dead">Aves muertas hoy</label>
+                <div class="d-flex align-items-center gap-3">
+                    <input id="o_pw_farm_dead" type="number" inputmode="numeric" min="0" step="1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.dead"/>
+                    <div class="o_pw_muted">
+                        <div>de <t t-esc="fmt(state.record.live_bird_count)"/> aves vivas</div>
+                        <div t-if="deadPct" t-esc="deadPct"/>
+                    </div>
+                </div>
+                <div class="o_pw_hint text-start">Se reparte por lote según las aves vivas, igual que en la OF. Con 0 se guarda el cero explícito: el cierre no vuelve a preguntar.</div>
+            </div>
+
+            <div class="o_pw_farm_card">
+                <label for="o_pw_farm_feed">Alimento consumido</label>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <input id="o_pw_farm_feed" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.feed"/>
+                    <div class="o_pw_toggle" role="group" aria-label="Unidad del alimento">
+                        <button type="button" t-attf-class="{{ state.farm.unit === 'kg' ? 'active' : '' }}" t-on-click="() => this.setUnit('kg')">kg</button>
+                        <button type="button" t-attf-class="{{ state.farm.unit === 'bag' ? 'active' : '' }}" t-on-click="() => this.setUnit('bag')">bolsas de <t t-esc="fmt(state.record.feed_bag_kg)"/> kg</button>
+                    </div>
+                </div>
+                <div class="o_pw_muted" t-if="feedAlt" t-esc="feedAlt"/>
+                <div class="o_pw_hint text-start">
+                    <t t-if="state.record.feed_product"><t t-esc="state.record.feed_product"/> (fórmula activa del galpón). </t>
+                    El cierre pasa este consumo a la OF de Huevo sin Clasificar en vez de escribirlo a mano.
+                </div>
+            </div>
+
+            <div class="o_pw_farm_card">
+                <label for="o_pw_farm_notes">Observaciones</label>
+                <textarea id="o_pw_farm_notes" rows="2" class="o_pw_textarea" placeholder="Opcional: agua, temperatura, novedades del galpón" t-model="state.farm.notes"/>
+            </div>
+        </div>
+        <div class="o_pw_footer">
+            <button type="button" class="o_pw_btn o_pw_btn_primary" t-att-disabled="state.busy" t-on-click="saveFarm">Guardar</button>
+            <div class="o_pw_hint">Viaja con el parte del día. La oficina lo ve en la solapa Datos del galpón y el Cierre lo vuelca en la OF.</div>
+        </div>
+    </t>
+
+</t>
+
+</templates>

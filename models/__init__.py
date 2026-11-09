@@ -36,6 +36,7 @@ from . import poultry_vaccination_compliance
 from . import poultry_egg_collection
 from . import poultry_egg_collection_line
 from . import poultry_egg_collection_line_uom
+from . import poultry_egg_collection_field
 from . import mrp_bom
 from . import mrp_bom_line
 from . import mrp_production

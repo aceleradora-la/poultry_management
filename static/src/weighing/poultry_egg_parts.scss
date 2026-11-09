@@ -1,0 +1,99 @@
+// Partes de producción de huevos en la app Avícola Campo. Comparte la base visual de
+// poultry_weighing.scss (.o_pw_*): acá van solo las piezas propias de esta pantalla.
+.o_poultry_weighing {
+    .o_pw_lead { font-size: 13px; color: #374151; line-height: 1.4; }
+    .o_pw_chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .o_pw_chip {
+        padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+        background: #e5e7eb; color: #374151;
+    }
+    .o_pw_chip_ok { background: #dcfce7; color: #166534; }
+    .o_pw_chip_primary { background: #f3eef2; color: #714B67; }
+    .o_pw_chip_warn { background: #ffedd5; color: #9a3412; }
+    .o_pw_badge_step {
+        background: #fff; color: #714B67; font-size: 12px; font-weight: 700;
+        padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+    }
+    .o_pw_card_link { text-align: left; width: 100%; cursor: pointer; font: inherit; color: inherit; }
+    .o_pw_card_late { background: #fff7ed; border: 1px solid #fdba74; }
+    .o_pw_card_off { background: #f9fafb; border: 1px dashed #9ca3af; color: #6b7280; }
+    .o_pw_ok { color: #166534; font-weight: 600; font-size: 13px; }
+    .o_pw_warn_text { color: #9a3412; }
+    .o_pw_btn_warn { background: #fff; color: #9a3412; border: 2px solid #ea580c; padding: 0 14px; }
+
+    // Grilla por calibre: una tarjeta por fila, celdas grandes para el pulgar.
+    .o_pw_eggs_grid { display: flex; flex-direction: column; gap: 6px; }
+    .o_pw_eggs_head, .o_pw_eggs_row { display: grid; gap: 5px; align-items: center; }
+    .o_pw_eggs_cols3 { grid-template-columns: 56px repeat(3, minmax(0, 1fr)); }
+    .o_pw_eggs_cols4 { grid-template-columns: 40px repeat(3, minmax(0, 1fr)) 64px; }
+    .o_pw_eggs_head {
+        padding: 0 8px; font-size: 11px; color: #4b5563; font-weight: 600; text-align: center;
+        div:first-child { text-align: left; }
+    }
+    .o_pw_eggs_card {
+        background: #fff; border: 1px solid #d1d5db; border-radius: 10px; padding: 5px 7px;
+        display: flex; flex-direction: column; gap: 3px;
+        &:focus-within { background: #fbf8fa; border: 2px solid #714B67; padding: 4px 6px; }
+    }
+    .o_pw_eggs_card_error, .o_pw_eggs_card_error:focus-within {
+        background: #fef2f2; border: 2px solid #dc2626; padding: 4px 6px;
+    }
+    .o_pw_eggs_cal { font-size: 15px; font-weight: 700; }
+    .o_pw_eggs_input {
+        width: 100%; min-width: 0; height: 44px; box-sizing: border-box;
+        border: 1px solid #d1d5db; border-radius: 8px; text-align: center;
+        font-size: 19px; font-weight: 700; color: #111827; background: #fff; padding: 0 2px;
+        outline: none; -moz-appearance: textfield;
+        &:focus { border: 3px solid #714B67; }
+        &::-webkit-outer-spin-button, &::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    }
+    .o_pw_eggs_pm { font-size: 15px; font-weight: 600; color: #374151; background: #f9fafb; }
+    .o_pw_eggs_note { font-size: 12px; color: #4b5563; padding-left: 45px; }
+    .o_pw_eggs_note_ok { color: #166534; }
+    .o_pw_eggs_note_error { color: #b91c1c; font-weight: 600; }
+
+    // Resumen
+    .o_pw_kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .o_pw_kpi {
+        background: #fff; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 12px;
+        .o_pw_kpi_value { font-size: 22px; font-weight: 700; line-height: 1.1; }
+    }
+    .o_pw_table { background: #fff; border: 1px solid #d1d5db; border-radius: 10px; overflow: hidden; }
+    .o_pw_table_row {
+        display: grid; grid-template-columns: 40px minmax(0, 1fr) 64px 52px; gap: 6px;
+        padding: 8px 12px; border-bottom: 1px solid #f3f4f6; align-items: center; font-size: 13px;
+    }
+    .o_pw_table_head { background: #f9fafb; font-size: 11px; color: #4b5563; font-weight: 600; }
+    .o_pw_table_total { background: #f9fafb; font-weight: 700; border-bottom: none; }
+    .o_pw_right { text-align: right; }
+    .o_pw_notice {
+        background: #fff7ed; border: 1px solid #fdba74; border-radius: 10px; padding: 10px 12px;
+        font-size: 12px; color: #9a3412; line-height: 1.4;
+    }
+    .o_pw_two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+    // Mortandad y alimento
+    .o_pw_farm_card {
+        background: #fff; border: 1px solid #d1d5db; border-radius: 12px; padding: 12px 14px;
+        display: flex; flex-direction: column; gap: 8px;
+        label { font-size: 15px; font-weight: 700; margin: 0; }
+    }
+    .o_pw_farm_input {
+        width: 120px; height: 52px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 10px;
+        text-align: center; font-size: 26px; font-weight: 700; color: #111827; background: #fff; outline: none;
+        -moz-appearance: textfield;
+        &:focus { border: 2px solid #714B67; }
+        &::-webkit-outer-spin-button, &::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    }
+    .o_pw_toggle {
+        display: flex; border: 1px solid #714B67; border-radius: 8px; overflow: hidden;
+        font-size: 13px; font-weight: 600;
+        button { height: 40px; padding: 0 12px; border: none; background: #fff; color: #714B67; cursor: pointer; }
+        button.active { background: #714B67; color: #fff; }
+    }
+    .o_pw_textarea {
+        width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px;
+        padding: 8px 10px; font-size: 14px; font-family: inherit; resize: none; outline: none;
+        &:focus { border-color: #714B67; }
+    }
+}

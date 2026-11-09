@@ -7,6 +7,15 @@
         <field name="key">poultry_management.unclassified_egg_product_id</field>
         <field name="value"></field>
     </record>
-    
+
+    <!-- Kilos por bolsa de alimento: la app Avícola Campo deja cargar el consumo del
+         galpón en bolsas y lo convierte a kg. noupdate: si lo cambian, no se pisa. -->
+    <data noupdate="1">
+        <record id="config_parameter_feed_bag_kg" model="ir.config_parameter">
+            <field name="key">poultry_management.feed_bag_kg</field>
+            <field name="value">25</field>
+        </record>
+    </data>
+
 </odoo>
 

@@ -4,8 +4,10 @@ import { useService } from "@web/core/utils/hooks";
 import { scanBarcode } from "@web/core/barcode/barcode_dialog";
 import { isBarcodeScannerSupported } from "@web/core/barcode/barcode_video_scanner";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { PoultryEggParts } from "./poultry_egg_parts";
 
 const MODEL = "poultry.weight.record";
+const EGG_MODEL = "poultry.egg.collection";
 
 /**
  * App Avícola Campo, pensada para el celular: inicio → pesadas enviadas a pesar →
@@ -16,6 +18,7 @@ const MODEL = "poultry.weight.record";
  */
 export class PoultryWeighing extends Component {
     static template = "poultry_management.PoultryWeighing";
+    static components = { PoultryEggParts };
     static props = ["*"];
 
     setup() {
@@ -24,8 +27,9 @@ export class PoultryWeighing extends Component {
         this.notification = useService("notification");
         this.pwa = useService("pwa");
         this.state = useState({
-            screen: "home", // home | list | record | cage
+            screen: "home", // home | list | record | cage | eggs
             records: [],
+            eggSummary: "",
             record: null,
             cageId: null,
             manualCode: "",
@@ -34,7 +38,7 @@ export class PoultryWeighing extends Component {
         });
         this.scannerSupported = isBarcodeScannerSupported();
         this.focusPending = false;
-        onWillStart(() => this.loadRecords());
+        onWillStart(() => this.loadHome());
         onPatched(() => this.focusFirstEmpty());
     }
 
@@ -71,8 +75,56 @@ export class PoultryWeighing extends Component {
     }
 
     async goHome() {
-        await this.loadRecords();
+        await this.loadHome();
         this.state.screen = "home";
+        this.state.record = null;
+        this.state.cageId = null;
+    }
+
+    async loadHome() {
+        await Promise.all([this.loadRecords(), this.loadEggSummary()]);
+    }
+
+    /** Resumen de los partes de huevos del día para la tarjeta del inicio. */
+    async loadEggSummary() {
+        try {
+            const data = await this.orm.call(EGG_MODEL, "poultry_mobile_coops", []);
+            const counts = { done: 0, counted: 0, none: 0 };
+            for (const item of data.coops) {
+                const rec = item.record;
+                if (!rec) {
+                    if (item.live_bird_count) {
+                        counts.none += 1;
+                    }
+                } else if (rec.state === "completed" || rec.state === "done") {
+                    counts.done += 1;
+                } else if (rec.state === "counted") {
+                    counts.counted += 1;
+                } else {
+                    counts.none += 1;
+                }
+            }
+            const parts = [];
+            if (counts.none) {
+                parts.push(`${counts.none} sin inicial`);
+            }
+            if (counts.counted) {
+                parts.push(`${counts.counted} falta el bruto`);
+            }
+            if (counts.done) {
+                parts.push(`${counts.done} ${counts.done === 1 ? "completo" : "completos"}`);
+            }
+            if (data.late.length) {
+                parts.push(`${data.late.length} ${data.late.length === 1 ? "atrasado" : "atrasados"}`);
+            }
+            this.state.eggSummary = parts.length ? parts.join(" · ") : "Sin galpones con aves";
+        } catch {
+            this.state.eggSummary = "Huevos, mortandad y alimento desde el galpón";
+        }
+    }
+
+    openEggs() {
+        this.state.screen = "eggs";
         this.state.record = null;
         this.state.cageId = null;
     }
