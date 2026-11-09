@@ -1,6 +1,7 @@
 import { Component, useState, onWillStart, onPatched } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { formatNum, normalizeNum, parseNum, selectOnFocus } from "./poultry_number_input";
 
 const MODEL = "poultry.egg.collection";
 
@@ -32,6 +33,11 @@ export class PoultryEggParts extends Component {
         // Los guardados de celdas van en fila: una red lenta no puede hacer que una celda
         // vieja pise a la siguiente, y Guardar/Revisar esperan a que termine la fila.
         this.saveQueue = Promise.resolve();
+        // Lo último tipeado en cada celda ("línea:columna"), tecla por tecla y sin redibujar.
+        // Es la red de seguridad si el evento de cambio de una celda no llega (visto en
+        // pre-prod: se perdieron valores sueltos al tipear rápido).
+        this.drafts = new Map();
+        this.selectOnFocus = selectOnFocus;
         onWillStart(() => this.loadCoops());
         onPatched(() => this.focusFirst());
     }
@@ -58,9 +64,9 @@ export class PoultryEggParts extends Component {
         return (value || 0).toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     }
 
-    /** Valor para un input type=number: sin ceros ni coma decimal. */
+    /** Valor para una celda: sin ceros, coma decimal y sin separador de miles. */
     qtyText(value) {
-        return value ? String(Math.round(value * 100) / 100) : "";
+        return formatNum(value);
     }
 
     get dateLabel() {
@@ -78,7 +84,7 @@ export class PoultryEggParts extends Component {
     }
 
     eggsOf(values) {
-        return values.reduce((sum, value, index) => sum + (parseFloat(value) || 0) * (this.factors[index] || 0), 0);
+        return values.reduce((sum, value, index) => sum + parseNum(value) * (this.factors[index] || 0), 0);
     }
 
     /** Reparte huevos en las unidades del parte, de la mayor a la menor (17 cajón · 8 maple · 25 huevo). */
@@ -186,6 +192,7 @@ export class PoultryEggParts extends Component {
     }
 
     fillForm(kind) {
+        this.drafts = new Map();
         this.state.form = this.state.record.lines.map((line) => ({
             id: line.id,
             calibre: line.calibre,
@@ -228,39 +235,70 @@ export class PoultryEggParts extends Component {
 
     payload() {
         return this.state.form.map((line) => {
-            const item = { line_id: line.id, qty: line.qty.map((value) => parseFloat(value) || 0) };
+            const item = { line_id: line.id, qty: line.qty.map((value) => parseNum(value)) };
             if (this.kind === "final") {
-                item.average_weight = parseFloat(line.pm) || 0;
+                item.average_weight = parseNum(line.pm);
             }
             return item;
         });
     }
 
+    cellValue(line, col) {
+        return col === "pm" ? line.pm : line.qty[col];
+    }
+
+    /** La línea y la columna de una celda, leídas de sus atributos data-line / data-col. */
+    cellOf(input) {
+        const line = this.state.form.find((l) => String(l.id) === input.dataset.line);
+        const col = input.dataset.col === "pm" ? "pm" : parseInt(input.dataset.col);
+        return { line, col };
+    }
+
+    /** Cada tecla queda en el borrador de la celda; no toca el estado (no redibuja). */
+    onCellInput(ev) {
+        this.drafts.set(`${ev.target.dataset.line}:${ev.target.dataset.col}`, ev.target.value);
+    }
+
     /**
-     * Cada celda se guarda al salir de ella: si el celular se apaga, no se pierde nada.
-     * El guardado NO toca el estado ni redibuja al volver: el operador ya está escribiendo la
-     * celda siguiente y un redibujo asincrónico le borraba lo tipeado (visto en pruebas).
+     * Pasa una celda al estado y la guarda (si cambió). Cada celda se guarda al salir de ella:
+     * si el celular se apaga, no se pierde nada. El guardado NO toca el estado al volver: el
+     * operador ya está escribiendo la celda siguiente y un redibujo le borraría lo tipeado.
      */
-    onValueChange(line, col, ev) {
-        const raw = ev.target.value;
-        const value = raw === "" ? "" : String(Math.max(parseFloat(raw) || 0, 0));
+    commitCell(input) {
+        const { line, col } = this.cellOf(input);
+        if (!line) {
+            return;
+        }
+        const value = normalizeNum(input.value);
+        this.drafts.set(`${input.dataset.line}:${input.dataset.col}`, value);
+        if (input.value !== value) {
+            input.value = value;
+        }
+        if (value === this.cellValue(line, col)) {
+            return;
+        }
         if (col === "pm") {
             line.pm = value;
         } else {
             line.qty[col] = value;
         }
-        ev.target.value = value;
         const args = [[this.state.record.id], this.kind, this.payload()];
         return this.enqueue(() =>
             this.orm.call(MODEL, "poultry_mobile_write_values", args).catch((error) => this.notifyError(error))
         );
     }
 
+    onCellChange(ev) {
+        return this.commitCell(ev.target);
+    }
+
+    /** Siguiente/Enter: guarda la celda (sin esperar al evento de cambio) y pasa a la próxima. */
     onKeydown(ev) {
         if (ev.key !== "Enter") {
             return;
         }
         ev.preventDefault();
+        this.commitCell(ev.target);
         const inputs = [...ev.target.closest(".o_pw_eggs_grid").querySelectorAll("input")];
         const next = inputs[inputs.indexOf(ev.target) + 1];
         if (next) {
@@ -268,6 +306,30 @@ export class PoultryEggParts extends Component {
             next.select();
         } else {
             ev.target.blur();
+        }
+    }
+
+    /**
+     * Antes de Guardar inicial / Revisar se vuelve a leer cada celda: lo que se guarda es lo
+     * que el operador tipeó, aunque el evento de cambio de alguna celda no haya llegado. Si la
+     * pantalla quedó vacía pero la celda tiene borrador, gana el borrador.
+     */
+    syncFromCells() {
+        for (const input of document.querySelectorAll(".o_pw_eggs_grid input[data-line]")) {
+            const { line, col } = this.cellOf(input);
+            if (!line) {
+                continue;
+            }
+            const draft = this.drafts.get(`${input.dataset.line}:${input.dataset.col}`);
+            const typed = input.value !== "" ? input.value : draft || "";
+            const value = normalizeNum(typed);
+            if (value !== this.cellValue(line, col)) {
+                if (col === "pm") {
+                    line.pm = value;
+                } else {
+                    line.qty[col] = value;
+                }
+            }
         }
     }
 
@@ -301,6 +363,7 @@ export class PoultryEggParts extends Component {
 
     async saveInitial() {
         const { id, coop } = this.state.record;
+        this.syncFromCells();
         this.state.record = await this.call("poultry_mobile_save_initial", [[id], this.payload()]);
         this.notification.add(`Inicial de ${coop} guardado. A la tarde falta el bruto.`, { type: "success" });
         await this.loadCoops();
@@ -312,6 +375,11 @@ export class PoultryEggParts extends Component {
     }
 
     async review() {
+        this.syncFromCells();
+        if (!this.canReview) {
+            this.notification.add("Revisá las filas en rojo: hay un bruto por debajo del inicial.", { type: "warning" });
+            return;
+        }
         this.state.record = await this.call("poultry_mobile_save_gross", [[this.state.record.id], this.payload()]);
         this.state.screen = "summary";
     }
@@ -406,7 +474,7 @@ export class PoultryEggParts extends Component {
     }
 
     get feedKg() {
-        const value = parseFloat(this.state.farm.feed) || 0;
+        const value = parseNum(this.state.farm.feed);
         return this.state.farm.unit === "kg" ? value : value * this.state.record.feed_bag_kg;
     }
 
@@ -440,7 +508,7 @@ export class PoultryEggParts extends Component {
 
     get deadPct() {
         const rec = this.state.record;
-        const dead = parseInt(this.state.farm.dead) || 0;
+        const dead = Math.round(parseNum(this.state.farm.dead));
         if (!rec.live_bird_count || !dead) {
             return "";
         }
@@ -451,7 +519,7 @@ export class PoultryEggParts extends Component {
         const farm = this.state.farm;
         this.state.record = await this.call("poultry_mobile_save_farm", [
             [this.state.record.id],
-            parseInt(farm.dead) || 0,
+            Math.round(parseNum(farm.dead)),
             this.feedKg,
             farm.notes,
         ]);

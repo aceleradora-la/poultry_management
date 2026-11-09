@@ -86,7 +86,7 @@
             <div class="o_pw_farm_card">
                 <label for="o_pw_order_dead">Aves muertas del día</label>
                 <div class="d-flex align-items-center gap-3">
-                    <input id="o_pw_order_dead" type="number" inputmode="numeric" min="0" step="1" placeholder="0" class="o_pw_farm_input" t-model="state.form.dead"/>
+                    <input id="o_pw_order_dead" type="text" inputmode="numeric" autocomplete="off" placeholder="0" class="o_pw_farm_input" t-on-focus="selectOnFocus" t-model="state.form.dead"/>
                     <div class="o_pw_muted">
                         <div t-if="state.order.live_bird_count">de <t t-esc="fmt(state.order.live_bird_count)"/> aves vivas</div>
                         <div t-if="orderDeadPct" t-esc="orderDeadPct"/>
@@ -101,7 +101,7 @@
                 <div class="o_pw_farm_card">
                     <label t-attf-for="o_pw_line_{{ line.id }}" t-esc="line.product"/>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <input t-attf-id="o_pw_line_{{ line.id }}" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0"
+                        <input t-attf-id="o_pw_line_{{ line.id }}" type="text" inputmode="decimal" autocomplete="off" placeholder="0" t-on-focus="selectOnFocus"
                                class="o_pw_farm_input o_pw_farm_input_sm" t-model="line.qty"/>
                         <div t-if="line.isKg" class="o_pw_toggle" role="group" aria-label="Unidad">
                             <button type="button" t-attf-class="{{ line.unit === 'kg' ? 'active' : '' }}" t-on-click="() => this.setLineUnit(line, 'kg')">kg</button>
@@ -139,7 +139,7 @@
             <div class="o_pw_farm_card">
                 <label for="o_pw_part_dead">Aves muertas del día</label>
                 <div class="d-flex align-items-center gap-3">
-                    <input id="o_pw_part_dead" type="number" inputmode="numeric" min="0" step="1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.dead"/>
+                    <input id="o_pw_part_dead" type="text" inputmode="numeric" autocomplete="off" placeholder="0" class="o_pw_farm_input" t-on-focus="selectOnFocus" t-model="state.farm.dead"/>
                     <div class="o_pw_muted">
                         <div>de <t t-esc="fmt(state.part.live_bird_count)"/> aves vivas</div>
                         <div t-if="partDeadPct" t-esc="partDeadPct"/>
@@ -149,7 +149,7 @@
             <div class="o_pw_farm_card">
                 <label for="o_pw_part_feed">Alimento consumido</label>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <input id="o_pw_part_feed" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.feed"/>
+                    <input id="o_pw_part_feed" type="text" inputmode="decimal" autocomplete="off" placeholder="0" class="o_pw_farm_input" t-on-focus="selectOnFocus" t-model="state.farm.feed"/>
                     <div class="o_pw_toggle" role="group" aria-label="Unidad del alimento">
                         <button type="button" t-attf-class="{{ state.farm.unit === 'kg' ? 'active' : '' }}" t-on-click="() => this.setUnit('kg')">kg</button>
                         <button type="button" t-attf-class="{{ state.farm.unit === 'bag' ? 'active' : '' }}" t-on-click="() => this.setUnit('bag')">bolsas de <t t-esc="fmt(state.part.feed_bag_kg)"/> kg</button>

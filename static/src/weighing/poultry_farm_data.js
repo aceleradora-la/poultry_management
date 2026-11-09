@@ -1,5 +1,6 @@
 import { Component, useState, onWillStart } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
+import { formatNum, parseNum, selectOnFocus } from "./poultry_number_input";
 
 const CLOSE_MODEL = "poultry.coop.close";
 const EGG_MODEL = "poultry.egg.collection";
@@ -16,6 +17,7 @@ export class PoultryFarmData extends Component {
 
     setup() {
         this.orm = useService("orm");
+        this.selectOnFocus = selectOnFocus;
         this.notification = useService("notification");
         this.state = useState({
             screen: "list", // list | order | part
@@ -41,8 +43,9 @@ export class PoultryFarmData extends Component {
         return (value || 0).toLocaleString("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     }
 
+    /** Valor para un campo: sin ceros, coma decimal y sin separador de miles. */
     qtyText(value) {
-        return value ? String(Math.round(value * 100) / 100) : "";
+        return formatNum(value);
     }
 
     dateLabel(iso) {
@@ -114,7 +117,7 @@ export class PoultryFarmData extends Component {
 
     /** Cantidad en la unidad del componente (las bolsas se convierten a kg). */
     lineValue(line) {
-        const value = parseFloat(line.qty) || 0;
+        const value = parseNum(line.qty);
         return line.isKg && line.unit === "bag" ? value * this.state.order.feed_bag_kg : value;
     }
 
@@ -152,7 +155,7 @@ export class PoultryFarmData extends Component {
 
     get orderDeadPct() {
         const order = this.state.order;
-        const dead = parseInt(this.state.form.dead) || 0;
+        const dead = Math.round(parseNum(this.state.form.dead));
         if (!order.live_bird_count || !dead) {
             return "";
         }
@@ -164,7 +167,7 @@ export class PoultryFarmData extends Component {
         const lines = this.state.form.lines.map((line) => ({ move_id: line.id, quantity: this.lineValue(line) }));
         this.state.order = await this.call(CLOSE_MODEL, "poultry_mobile_save", [
             [id],
-            parseInt(this.state.form.dead) || 0,
+            Math.round(parseNum(this.state.form.dead)),
             lines,
             this.state.form.note,
         ]);
@@ -188,7 +191,7 @@ export class PoultryFarmData extends Component {
     }
 
     get feedKg() {
-        const value = parseFloat(this.state.farm.feed) || 0;
+        const value = parseNum(this.state.farm.feed);
         return this.state.farm.unit === "kg" ? value : value * this.state.part.feed_bag_kg;
     }
 
@@ -220,7 +223,7 @@ export class PoultryFarmData extends Component {
 
     get partDeadPct() {
         const part = this.state.part;
-        const dead = parseInt(this.state.farm.dead) || 0;
+        const dead = Math.round(parseNum(this.state.farm.dead));
         if (!part.live_bird_count || !dead) {
             return "";
         }
@@ -232,7 +235,7 @@ export class PoultryFarmData extends Component {
         const { id, coop } = this.state.part;
         this.state.part = await this.call(EGG_MODEL, "poultry_mobile_save_farm", [
             [id],
-            parseInt(farm.dead) || 0,
+            Math.round(parseNum(farm.dead)),
             this.feedKg,
             farm.notes,
         ]);

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.110.0',
+    'version': '19.0.1.111.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -24,6 +24,7 @@
             'poultry_management/static/src/weighing/poultry_weighing.js',
             'poultry_management/static/src/weighing/poultry_weighing.xml',
             'poultry_management/static/src/weighing/poultry_weighing.scss',
+            'poultry_management/static/src/weighing/poultry_number_input.js',
             'poultry_management/static/src/weighing/poultry_egg_parts.js',
             'poultry_management/static/src/weighing/poultry_egg_parts.xml',
             'poultry_management/static/src/weighing/poultry_egg_parts.scss',

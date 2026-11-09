@@ -123,11 +123,12 @@
                         <div class="o_pw_eggs_row o_pw_eggs_cols3">
                             <div class="o_pw_eggs_cal" t-esc="line.calibre"/>
                             <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
-                                <input type="number" inputmode="numeric" enterkeyhint="next" min="0" step="1" placeholder="0"
+                                <input type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" placeholder="0"
                                        class="o_pw_eggs_input" t-att-value="line.qty[col]"
+                                       t-att-data-line="line.id" t-att-data-col="col"
                                        t-attf-aria-label="Calibre {{ line.calibre }}, {{ unitNames[col] }}"
-                                       t-on-change="(ev) => this.onValueChange(line, col, ev)"
-                                       t-on-keydown="onKeydown"/>
+                                       t-on-focus="selectOnFocus" t-on-input="onCellInput"
+                                       t-on-change="onCellChange" t-on-keydown="onKeydown"/>
                             </t>
                         </div>
                     </div>
@@ -170,17 +171,19 @@
                         <div class="o_pw_eggs_row o_pw_eggs_cols4">
                             <div class="o_pw_eggs_cal" t-esc="row.line.calibre"/>
                             <t t-foreach="[0, 1, 2]" t-as="col" t-key="col">
-                                <input type="number" inputmode="numeric" enterkeyhint="next" min="0" step="1" placeholder="0"
+                                <input type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" placeholder="0"
                                        class="o_pw_eggs_input" t-att-value="row.line.qty[col]"
+                                       t-att-data-line="row.line.id" t-att-data-col="col"
                                        t-attf-aria-label="Calibre {{ row.line.calibre }}, {{ unitNames[col] }}"
-                                       t-on-change="(ev) => this.onValueChange(row.line, col, ev)"
-                                       t-on-keydown="onKeydown"/>
+                                       t-on-focus="selectOnFocus" t-on-input="onCellInput"
+                                       t-on-change="onCellChange" t-on-keydown="onKeydown"/>
                             </t>
-                            <input type="number" inputmode="decimal" enterkeyhint="next" min="0" step="0.1" placeholder="—"
+                            <input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="—"
                                    class="o_pw_eggs_input o_pw_eggs_pm" t-att-value="row.line.pm"
+                                   t-att-data-line="row.line.id" data-col="pm"
                                    t-attf-aria-label="Calibre {{ row.line.calibre }}, peso medio en gramos"
-                                   t-on-change="(ev) => this.onValueChange(row.line, 'pm', ev)"
-                                   t-on-keydown="onKeydown"/>
+                                   t-on-focus="selectOnFocus" t-on-input="onCellInput"
+                                   t-on-change="onCellChange" t-on-keydown="onKeydown"/>
                         </div>
                         <div t-attf-class="o_pw_eggs_note {{ row.info.error ? 'o_pw_eggs_note_error' : (row.info.typed ? 'o_pw_eggs_note_ok' : '') }}" t-esc="row.info.text"/>
                     </div>
@@ -304,7 +307,7 @@
             <div class="o_pw_farm_card">
                 <label for="o_pw_farm_dead">Aves muertas hoy</label>
                 <div class="d-flex align-items-center gap-3">
-                    <input id="o_pw_farm_dead" type="number" inputmode="numeric" min="0" step="1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.dead"/>
+                    <input id="o_pw_farm_dead" type="text" inputmode="numeric" autocomplete="off" placeholder="0" class="o_pw_farm_input" t-on-focus="selectOnFocus" t-model="state.farm.dead"/>
                     <div class="o_pw_muted">
                         <div>de <t t-esc="fmt(state.record.live_bird_count)"/> aves vivas</div>
                         <div t-if="deadPct" t-esc="deadPct"/>
@@ -316,7 +319,7 @@
             <div class="o_pw_farm_card">
                 <label for="o_pw_farm_feed">Alimento consumido</label>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <input id="o_pw_farm_feed" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.feed"/>
+                    <input id="o_pw_farm_feed" type="text" inputmode="decimal" autocomplete="off" placeholder="0" class="o_pw_farm_input" t-on-focus="selectOnFocus" t-model="state.farm.feed"/>
                     <div class="o_pw_toggle" role="group" aria-label="Unidad del alimento">
                         <button type="button" t-attf-class="{{ state.farm.unit === 'kg' ? 'active' : '' }}" t-on-click="() => this.setUnit('kg')">kg</button>
                         <button type="button" t-attf-class="{{ state.farm.unit === 'bag' ? 'active' : '' }}" t-on-click="() => this.setUnit('bag')">bolsas de <t t-esc="fmt(state.record.feed_bag_kg)"/> kg</button>
