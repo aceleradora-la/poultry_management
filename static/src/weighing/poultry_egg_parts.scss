@@ -85,6 +85,8 @@
         &:focus { border: 2px solid #714B67; }
         &::-webkit-outer-spin-button, &::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     }
+    .o_pw_farm_input_sm { width: 110px; height: 46px; font-size: 20px; }
+    .o_pw_unit { font-size: 14px; color: #4b5563; }
     .o_pw_toggle {
         display: flex; border: 1px solid #714B67; border-radius: 8px; overflow: hidden;
         font-size: 13px; font-weight: 600;

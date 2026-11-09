@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="poultry_management.PoultryFarmData">
+
+    <!-- Lista: OF pendientes y días sin OF -->
+    <t t-if="state.screen === 'list'">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver al inicio" t-on-click="props.onHome">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div>
+                <div class="o_pw_title">Mortandad y consumos</div>
+                <div class="o_pw_sub">OF de Huevo sin Clasificar pendientes</div>
+            </div>
+        </div>
+        <div class="o_pw_body">
+            <div t-if="!state.orders.length and !state.parts.length" class="o_pw_empty">
+                No hay OF pendientes ni partes sin cierre. Las OF aparecen cuando la oficina confirma el Cierre de Galpón.
+            </div>
+
+            <t t-if="state.orders.length">
+                <div class="o_pw_section_title">OF pendientes</div>
+                <t t-foreach="state.orders" t-as="order" t-key="order.id">
+                    <t t-set="st" t-value="orderStatus(order)"/>
+                    <div t-attf-class="o_pw_card {{ st.complete ? '' : 'o_pw_card_draft' }}">
+                        <div class="d-flex justify-content-between align-items-baseline gap-2">
+                            <span class="o_pw_card_title"><t t-esc="order.coop"/> · <t t-esc="dateLabel(order.date)"/></span>
+                            <span class="o_pw_muted">OF <t t-esc="order.order_name"/></span>
+                        </div>
+                        <div class="o_pw_muted"><t t-esc="fmt(order.eggs)"/> <t t-esc="order.eggs_uom"/> · postura del <t t-esc="order.date_label"/></div>
+                        <div t-attf-class="{{ order.dead_count ? 'o_pw_ok' : 'o_pw_warn_text' }}">
+                            <i t-attf-class="fa me-1 {{ order.dead_count ? 'fa-check' : 'fa-exclamation-circle' }}" aria-hidden="true"/><t t-esc="st.dead"/>
+                            <span class="o_pw_muted"> · <t t-esc="st.lines"/></span>
+                        </div>
+                        <button type="button" t-attf-class="o_pw_btn {{ st.complete ? 'o_pw_btn_secondary' : 'o_pw_btn_primary' }}"
+                                t-att-disabled="state.busy" t-on-click="() => this.openOrder(order.id)">
+                            <t t-if="st.complete">Corregir</t><t t-else="">Cargar</t>
+                        </button>
+                    </div>
+                </t>
+            </t>
+
+            <t t-if="state.parts.length">
+                <div class="o_pw_section_title">Días sin OF todavía</div>
+                <t t-foreach="state.parts" t-as="part" t-key="part.id">
+                    <div class="o_pw_card">
+                        <div class="d-flex justify-content-between align-items-baseline gap-2">
+                            <span class="o_pw_card_title"><t t-esc="part.coop"/> · <t t-esc="dateLabel(part.date)"/></span>
+                            <span class="o_pw_muted">Parte <t t-esc="part.name"/></span>
+                        </div>
+                        <div class="o_pw_muted"><t t-esc="fmt(part.total_eggs)"/> huevos · sin Cierre de Galpón</div>
+                        <div t-if="part.farm_data_time" class="o_pw_ok">
+                            <i class="fa fa-check me-1" aria-hidden="true"/>Cargado <t t-esc="part.farm_data_time"/> · <t t-esc="part.dead_count"/> aves muertas · <t t-esc="d1(part.feed_consumed_kg)"/> kg de alimento
+                        </div>
+                        <div t-else="" class="o_pw_warn_text"><i class="fa fa-exclamation-circle me-1" aria-hidden="true"/>Sin cargar</div>
+                        <button type="button" class="o_pw_btn o_pw_btn_secondary" t-att-disabled="state.busy" t-on-click="() => this.openPart(part.id)">
+                            <t t-if="part.farm_data_time">Corregir en el parte</t><t t-else="">Cargar en el parte</t>
+                        </button>
+                    </div>
+                </t>
+            </t>
+
+            <div class="o_pw_hint mt-auto">
+                La OF se marca Hecha en la oficina al otro día: hasta entonces se cargan y corrigen acá las aves muertas y
+                los consumos. Lo cargado en un parte sin OF pasa a la OF cuando se confirma el cierre.
+            </div>
+        </div>
+    </t>
+
+    <!-- Una OF: aves muertas y consumo por componente -->
+    <t t-if="state.screen === 'order' and state.order">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver a la lista" t-on-click="loadList">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div>
+                <div class="o_pw_title"><t t-esc="state.order.coop"/> · OF <t t-esc="state.order.order_name"/></div>
+                <div class="o_pw_sub">
+                    Postura <t t-esc="dateLabel(state.order.date)"/> · <t t-esc="fmt(state.order.eggs)"/> <t t-esc="state.order.eggs_uom"/>
+                    <t t-if="state.order.live_bird_count"> · <t t-esc="fmt(state.order.live_bird_count)"/> aves vivas</t>
+                </div>
+            </div>
+        </div>
+        <div class="o_pw_body">
+            <div class="o_pw_farm_card">
+                <label for="o_pw_order_dead">Aves muertas del día</label>
+                <div class="d-flex align-items-center gap-3">
+                    <input id="o_pw_order_dead" type="number" inputmode="numeric" min="0" step="1" placeholder="0" class="o_pw_farm_input" t-model="state.form.dead"/>
+                    <div class="o_pw_muted">
+                        <div t-if="state.order.live_bird_count">de <t t-esc="fmt(state.order.live_bird_count)"/> aves vivas</div>
+                        <div t-if="orderDeadPct" t-esc="orderDeadPct"/>
+                    </div>
+                </div>
+                <div class="o_pw_hint text-start">Se reparte por lote según las aves vivas al marcar la OF como hecha.</div>
+            </div>
+
+            <div class="o_pw_section_title">Consumos de la OF</div>
+            <div t-if="!state.form.lines.length" class="o_pw_empty">La OF no tiene componentes para cargar.</div>
+            <t t-foreach="state.form.lines" t-as="line" t-key="line.id">
+                <div class="o_pw_farm_card">
+                    <label t-attf-for="o_pw_line_{{ line.id }}" t-esc="line.product"/>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <input t-attf-id="o_pw_line_{{ line.id }}" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0"
+                               class="o_pw_farm_input o_pw_farm_input_sm" t-model="line.qty"/>
+                        <div t-if="line.isKg" class="o_pw_toggle" role="group" aria-label="Unidad">
+                            <button type="button" t-attf-class="{{ line.unit === 'kg' ? 'active' : '' }}" t-on-click="() => this.setLineUnit(line, 'kg')">kg</button>
+                            <button type="button" t-attf-class="{{ line.unit === 'bag' ? 'active' : '' }}" t-on-click="() => this.setLineUnit(line, 'bag')">bolsas de <t t-esc="fmt(state.order.feed_bag_kg)"/> kg</button>
+                        </div>
+                        <span t-else="" class="o_pw_unit" t-esc="line.uom"/>
+                    </div>
+                    <div class="o_pw_muted" t-esc="lineAlt(line)"/>
+                </div>
+            </t>
+
+            <div class="o_pw_farm_card">
+                <label for="o_pw_order_note">Observaciones</label>
+                <textarea id="o_pw_order_note" rows="2" class="o_pw_textarea" placeholder="Opcional: quedan en el chatter de la OF" t-model="state.form.note"/>
+            </div>
+        </div>
+        <div class="o_pw_footer">
+            <button type="button" class="o_pw_btn o_pw_btn_primary" t-att-disabled="state.busy" t-on-click="saveOrder">Guardar en la OF</button>
+            <div class="o_pw_hint">La oficina marca la OF como hecha; hasta entonces se puede volver a corregir acá.</div>
+        </div>
+    </t>
+
+    <!-- Un parte sin OF: aves muertas y alimento, que el cierre pasa a la OF -->
+    <t t-if="state.screen === 'part' and state.part">
+        <div class="o_pw_header">
+            <button type="button" class="o_pw_back" aria-label="Volver a la lista" t-on-click="loadList">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <div>
+                <div class="o_pw_title"><t t-esc="state.part.coop"/> · <t t-esc="dateLabel(state.part.date)"/></div>
+                <div class="o_pw_sub">Parte <t t-esc="state.part.name"/> · todavía sin OF · <t t-esc="fmt(state.part.live_bird_count)"/> aves vivas</div>
+            </div>
+        </div>
+        <div class="o_pw_body">
+            <div class="o_pw_farm_card">
+                <label for="o_pw_part_dead">Aves muertas del día</label>
+                <div class="d-flex align-items-center gap-3">
+                    <input id="o_pw_part_dead" type="number" inputmode="numeric" min="0" step="1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.dead"/>
+                    <div class="o_pw_muted">
+                        <div>de <t t-esc="fmt(state.part.live_bird_count)"/> aves vivas</div>
+                        <div t-if="partDeadPct" t-esc="partDeadPct"/>
+                    </div>
+                </div>
+            </div>
+            <div class="o_pw_farm_card">
+                <label for="o_pw_part_feed">Alimento consumido</label>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <input id="o_pw_part_feed" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0" class="o_pw_farm_input" t-model="state.farm.feed"/>
+                    <div class="o_pw_toggle" role="group" aria-label="Unidad del alimento">
+                        <button type="button" t-attf-class="{{ state.farm.unit === 'kg' ? 'active' : '' }}" t-on-click="() => this.setUnit('kg')">kg</button>
+                        <button type="button" t-attf-class="{{ state.farm.unit === 'bag' ? 'active' : '' }}" t-on-click="() => this.setUnit('bag')">bolsas de <t t-esc="fmt(state.part.feed_bag_kg)"/> kg</button>
+                    </div>
+                </div>
+                <div class="o_pw_muted" t-if="feedAlt" t-esc="feedAlt"/>
+                <div class="o_pw_hint text-start">Cuando se confirme el cierre, pasa al componente de tipo Alimento de la OF. El resto de los componentes se carga en la OF.</div>
+            </div>
+            <div class="o_pw_farm_card">
+                <label for="o_pw_part_notes">Observaciones</label>
+                <textarea id="o_pw_part_notes" rows="2" class="o_pw_textarea" placeholder="Opcional" t-model="state.farm.notes"/>
+            </div>
+        </div>
+        <div class="o_pw_footer">
+            <button type="button" class="o_pw_btn o_pw_btn_primary" t-att-disabled="state.busy" t-on-click="savePart">Guardar en el parte</button>
+        </div>
+    </t>
+
+</t>
+
+</templates>

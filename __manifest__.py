@@ -27,6 +27,8 @@
             'poultry_management/static/src/weighing/poultry_egg_parts.js',
             'poultry_management/static/src/weighing/poultry_egg_parts.xml',
             'poultry_management/static/src/weighing/poultry_egg_parts.scss',
+            'poultry_management/static/src/weighing/poultry_farm_data.js',
+            'poultry_management/static/src/weighing/poultry_farm_data.xml',
         ],
     },
     'data': [

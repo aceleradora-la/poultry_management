@@ -46,6 +46,7 @@ from . import poultry_account_move_line
 from . import poultry_account_invoice_report
 from . import poultry_coop_close
 from . import poultry_coop_close_wizard
+from . import poultry_coop_close_field
 from . import poultry_config_settings
 from . import poultry_recompute_indicators_wizard
 from . import poultry_zero_mortality_wizard

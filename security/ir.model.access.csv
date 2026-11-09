@@ -76,3 +76,4 @@ access_poultry_formula_check_wizard,poultry.formula.check.wizard,model_poultry_f
 access_poultry_egg_collection_field,poultry.egg.collection.field,model_poultry_egg_collection,poultry_management.poultry_field_user,1,1,1,0
 access_poultry_egg_collection_line_field,poultry.egg.collection.line.field,model_poultry_egg_collection_line,poultry_management.poultry_field_user,1,1,1,0
 access_poultry_egg_collection_line_uom_field,poultry.egg.collection.line.uom.field,model_poultry_egg_collection_line_uom,poultry_management.poultry_field_user,1,1,1,0
+access_poultry_coop_close_field,poultry.coop.close.field,model_poultry_coop_close,poultry_management.poultry_field_user,1,0,0,0

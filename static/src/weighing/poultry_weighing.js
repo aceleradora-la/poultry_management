@@ -5,9 +5,11 @@ import { scanBarcode } from "@web/core/barcode/barcode_dialog";
 import { isBarcodeScannerSupported } from "@web/core/barcode/barcode_video_scanner";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { PoultryEggParts } from "./poultry_egg_parts";
+import { PoultryFarmData } from "./poultry_farm_data";
 
 const MODEL = "poultry.weight.record";
 const EGG_MODEL = "poultry.egg.collection";
+const CLOSE_MODEL = "poultry.coop.close";
 
 /**
  * App Avícola Campo, pensada para el celular: inicio → pesadas enviadas a pesar →
@@ -18,7 +20,7 @@ const EGG_MODEL = "poultry.egg.collection";
  */
 export class PoultryWeighing extends Component {
     static template = "poultry_management.PoultryWeighing";
-    static components = { PoultryEggParts };
+    static components = { PoultryEggParts, PoultryFarmData };
     static props = ["*"];
 
     setup() {
@@ -27,9 +29,10 @@ export class PoultryWeighing extends Component {
         this.notification = useService("notification");
         this.pwa = useService("pwa");
         this.state = useState({
-            screen: "home", // home | list | record | cage | eggs
+            screen: "home", // home | list | record | cage | eggs | farm
             records: [],
             eggSummary: "",
+            farmSummary: "",
             record: null,
             cageId: null,
             manualCode: "",
@@ -82,7 +85,34 @@ export class PoultryWeighing extends Component {
     }
 
     async loadHome() {
-        await Promise.all([this.loadRecords(), this.loadEggSummary()]);
+        await Promise.all([this.loadRecords(), this.loadEggSummary(), this.loadFarmSummary()]);
+    }
+
+    /** Resumen de las OF de Huevo sin Clasificar pendientes para la tarjeta del inicio. */
+    async loadFarmSummary() {
+        try {
+            const data = await this.orm.call(CLOSE_MODEL, "poultry_mobile_pending", []);
+            const parts = [];
+            const missing = data.orders.filter((order) => !order.dead_count || order.loaded_count < order.line_count);
+            if (missing.length) {
+                parts.push(`${missing.length} OF ${missing.length === 1 ? "pendiente" : "pendientes"} de cargar`);
+            } else if (data.orders.length) {
+                parts.push(`${data.orders.length} OF ${data.orders.length === 1 ? "cargada" : "cargadas"}, falta que la oficina la haga`);
+            }
+            const unloaded = data.parts.filter((part) => !part.farm_data_time);
+            if (unloaded.length) {
+                parts.push(`${unloaded.length} ${unloaded.length === 1 ? "día sin OF sin cargar" : "días sin OF sin cargar"}`);
+            }
+            this.state.farmSummary = parts.length ? parts.join(" · ") : "Nada pendiente";
+        } catch {
+            this.state.farmSummary = "Aves muertas y consumos de la OF de Huevo sin Clasificar";
+        }
+    }
+
+    openFarm() {
+        this.state.screen = "farm";
+        this.state.record = null;
+        this.state.cageId = null;
     }
 
     /** Resumen de los partes de huevos del día para la tarjeta del inicio. */
