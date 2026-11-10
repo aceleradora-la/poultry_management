@@ -143,8 +143,16 @@ class TestPoultryEggMobile(TransactionCase):
         record.write({'state': 'done'})
         with self.assertRaises(UserError):
             record.poultry_mobile_reopen()
-        with self.assertRaises(UserError):
-            record.poultry_mobile_save_farm(1, 0)
+
+    def test_part_has_no_farm_data(self):
+        """Las aves muertas y los consumos no van en el parte: solo en la OF de Huevo sin
+        Clasificar (pedido del usuario del 2026-11-10)."""
+        for name in ('dead_count', 'feed_consumed_kg', 'farm_notes', 'farm_data_date'):
+            self.assertNotIn(name, self.Collection._fields)
+        self.assertFalse(hasattr(self.Collection, 'poultry_mobile_save_farm'))
+        _record, data = self._open()
+        self.assertNotIn('dead_count', data)
+        self.assertNotIn('feed_bag_kg', data)
 
     def test_gross_below_initial_blocks_complete(self):
         record, data = self._open()
@@ -223,13 +231,7 @@ class TestPoultryEggMobile(TransactionCase):
         record.poultry_mobile_save_gross(self._values(data, **{'1': {'qty': [3, 0, 0], 'average_weight': 61}}))
         data = record.poultry_mobile_complete()
         self.assertEqual(data['total_eggs'], 720)
-        data = record.poultry_mobile_save_farm(4, 50.5, 'Sin novedad')
-        self.assertEqual(data['dead_count'], 4)
-        self.assertEqual(data['feed_consumed_kg'], 50.5)
         self.assertEqual(data['live_bird_count'], 500)
-        self.assertEqual(data['feed_bag_kg'], 25)
-        with self.assertRaises(UserError):
-            record.poultry_mobile_save_farm(501, 0)
         self.assertEqual(Collection.poultry_mobile_coops()['coops'][0]['coop'], 'Galpón Huevos')
 
     def _setup_unclassified(self):
@@ -261,39 +263,47 @@ class TestPoultryEggMobile(TransactionCase):
             'unclassified_egg_bom_id': bom.id,
         })
 
-    def _closed_day(self, dead=12, feed=450):
+    def _closed_day(self):
         """Parte de hoy completado, procesado (estado forzado) y cerrado: devuelve el cierre."""
         record, data = self._open()
         record.poultry_mobile_save_initial([])
         record.poultry_mobile_save_gross(self._values(data, **{'1': {'qty': [10, 0, 0]}}))
         record.poultry_mobile_complete()
-        record.poultry_mobile_save_farm(dead, feed, '')
         record.write({'state': 'done'})  # como si la oficina lo hubiera procesado
         close = self.env['poultry.coop.close'].create({'coop_id': self.coop.id, 'date': self.today})
         record.write({'coop_close_id': close.id})
         return record, close
 
-    def test_farm_data_reaches_the_close(self):
+    def test_close_creates_order_to_load(self):
+        """El cierre crea la OF sin aves muertas ni consumos confirmados: se cargan en ella."""
         self._setup_unclassified()
-        record, close = self._closed_day()
-        self.assertEqual(close.dead_count_total, 12)
-        self.assertEqual(close.feed_consumed_kg_total, 450)
+        _record, close = self._closed_day()
         close.action_confirm()
         production = close.unclassified_production_id
         self.assertTrue(production)
         self.assertEqual(production.product_qty, 3600)
-        self.assertEqual(production.poultry_dead_count_total, 12)
-        self.assertAlmostEqual(production._poultry_feed_consumed_total(), 450)
+        self.assertEqual(production.poultry_dead_count_total, 0)
+        self.assertFalse(any(production.move_raw_ids.mapped('picked')))
+
+        # Un día sin bajas: guardado con 0 y los consumos como los propuso la lista, la OF
+        # queda cargada (no sigue figurando como pendiente por tener 0 aves muertas).
+        Close = self.env['poultry.coop.close'].with_user(self.operator)
+        data = Close.browse(close.id).poultry_mobile_data()
+        Close.browse(close.id).poultry_mobile_save(
+            0, [{'move_id': l['id'], 'quantity': l['quantity']} for l in data['lines']], '')
+        header = Close.poultry_mobile_pending()['orders'][0]
+        self.assertEqual((header['dead_count'], header['loaded_count'], header['complete']), (0, 2, True))
 
     def test_close_order_from_mobile(self):
         """El operador carga en la OF del cierre las aves muertas y TODOS los componentes."""
         self._setup_unclassified()
-        yesterday = self.Collection.create({
+        # Un parte completado sin cierre no ofrece nada para cargar: espera a su OF.
+        self.Collection.create({
             'coop_id': self.coop.id, 'product_tmpl_id': self.template.id,
             'date': self.today - timedelta(days=1), 'state': 'completed',
             'line_ids': [(0, 0, {'product_variant_id': v.id}) for v in self.template.product_variant_ids],
         })
-        record, close = self._closed_day()
+        _record, close = self._closed_day()
         close.action_confirm()
         production = close.unclassified_production_id
 
@@ -302,19 +312,17 @@ class TestPoultryEggMobile(TransactionCase):
         self.assertEqual([o['id'] for o in pending['orders']], [close.id])
         header = pending['orders'][0]
         self.assertEqual(header['order_name'], production.name)
-        self.assertEqual(header['dead_count'], 12, 'Lo que traía el parte')
-        self.assertEqual((header['line_count'], header['loaded_count']), (2, 1),
-                         'El alimento vino del parte; el agua sigue sin cargar')
-        self.assertEqual([p['id'] for p in pending['parts']], [yesterday.id],
-                         'Un parte completado sin cierre se carga en el parte')
+        self.assertEqual(header['dead_count'], 0)
+        self.assertEqual((header['line_count'], header['loaded_count'], header['complete']), (2, 0, False))
+        self.assertEqual(set(pending), {'orders'}, 'Solo OF: los partes no se cargan')
 
         data = Close.browse(close.id).poultry_mobile_data()
         self.assertEqual(data['live_bird_count'], 500)
         self.assertEqual([(l['product'], l['uom'], l['planned'], l['quantity'], l['picked'], l['type'], l['is_kg'])
                           for l in data['lines']],
-                         [('Balanceado Test', 'kg', 450, 450, True, 'feed', True),
+                         [('Balanceado Test', 'kg', 450, 450, False, 'feed', True),
                           ('Agua Test', 'L', 900, 900, False, 'water', False)],
-                         'El agua viene propuesta por la lista pero sin confirmar')
+                         'Los consumos vienen propuestos por la lista pero sin confirmar')
         feed_line, water_line = data['lines']
 
         data = Close.browse(close.id).poultry_mobile_save(
@@ -325,6 +333,7 @@ class TestPoultryEggMobile(TransactionCase):
         self.assertEqual(production.poultry_dead_count_total, 15)
         self.assertAlmostEqual(production._poultry_feed_consumed_total(), 480)
         self.assertTrue(all(production.move_raw_ids.mapped('picked')))
+        self.assertTrue(Close.poultry_mobile_pending()['orders'][0]['complete'])
         body = production.message_ids[0].body
         self.assertIn('15 aves muertas', body)
         self.assertIn('Llovió', body)

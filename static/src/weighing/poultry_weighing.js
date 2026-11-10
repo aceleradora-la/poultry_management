@@ -92,18 +92,17 @@ export class PoultryWeighing extends Component {
     async loadFarmSummary() {
         try {
             const data = await this.orm.call(CLOSE_MODEL, "poultry_mobile_pending", []);
-            const parts = [];
-            const missing = data.orders.filter((order) => !order.dead_count || order.loaded_count < order.line_count);
-            if (missing.length) {
-                parts.push(`${missing.length} OF ${missing.length === 1 ? "pendiente" : "pendientes"} de cargar`);
-            } else if (data.orders.length) {
-                parts.push(`${data.orders.length} OF ${data.orders.length === 1 ? "cargada" : "cargadas"}, falta que la oficina la haga`);
+            const missing = data.orders.filter((order) => !order.complete).length;
+            const loaded = data.orders.length - missing;
+            if (missing) {
+                this.state.farmSummary = `${missing} OF por cargar: aves muertas y consumos`;
+            } else if (loaded) {
+                this.state.farmSummary = loaded === 1
+                    ? "1 OF cargada, falta que la oficina la marque hecha"
+                    : `${loaded} OF cargadas, falta que la oficina las marque hechas`;
+            } else {
+                this.state.farmSummary = "Nada pendiente";
             }
-            const unloaded = data.parts.filter((part) => !part.farm_data_time);
-            if (unloaded.length) {
-                parts.push(`${unloaded.length} ${unloaded.length === 1 ? "día sin OF sin cargar" : "días sin OF sin cargar"}`);
-            }
-            this.state.farmSummary = parts.length ? parts.join(" · ") : "Nada pendiente";
         } catch {
             this.state.farmSummary = "Aves muertas y consumos de la OF de Huevo sin Clasificar";
         }

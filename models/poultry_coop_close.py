@@ -28,25 +28,6 @@ class PoultryCoopClose(models.Model):
     unclassified_production_id = fields.Many2one(
         'mrp.production', string='OF Huevo sin Clasificar',
         readonly=True, copy=False)
-    # Mortandad y alimento cargados en los partes del día (desde el celular o en la solapa
-    # Datos del galpón): al confirmar el cierre se vuelcan en la OF de Huevo sin Clasificar,
-    # que es donde hasta ahora se tipeaban a mano.
-    farm_data_count = fields.Integer(compute='_compute_farm_totals')
-    dead_count_total = fields.Integer(string='Aves muertas (de los partes)',
-                                      compute='_compute_farm_totals')
-    feed_consumed_kg_total = fields.Float(string='Alimento consumido (kg, de los partes)',
-                                          compute='_compute_farm_totals', digits=(16, 2))
-
-    @api.depends('egg_collection_ids.dead_count', 'egg_collection_ids.feed_consumed_kg',
-                 'egg_collection_ids.farm_data_date')
-    def _compute_farm_totals(self):
-        for record in self:
-            parts = record.egg_collection_ids.filtered(
-                lambda c: c.farm_data_date or c.dead_count or c.feed_consumed_kg)
-            record.farm_data_count = len(parts)
-            record.dead_count_total = sum(parts.mapped('dead_count'))
-            record.feed_consumed_kg_total = sum(parts.mapped('feed_consumed_kg'))
-
     @api.model
     def _get_sequence_for_coop_close(self, coop_id):
         """Obtiene o crea una secuencia para cierres basada en el prefijo del galpón"""
@@ -182,38 +163,7 @@ class PoultryCoopClose(models.Model):
         production = self.env['mrp.production'].create(vals)
         production.action_confirm()
         production.qty_producing = production.product_qty
-        self._poultry_apply_farm_data(production)
         return production
-
-    def _poultry_apply_farm_data(self, production):
-        """Vuelca en la OF de Huevo sin Clasificar la mortandad y el alimento que traen los
-        partes del día, para no tipearlos de nuevo en la OF. Sin datos, la OF queda como
-        antes (y avisa al marcarla hecha). El alimento se reparte entre los componentes de
-        tipo Alimento en proporción a lo planificado; va en la unidad de cada componente."""
-        self.ensure_one()
-        if not self.farm_data_count:
-            return
-        if self.dead_count_total:
-            production.write({'poultry_dead_count_total': self.dead_count_total})
-        feed_kg = self.feed_consumed_kg_total
-        if feed_kg <= 0:
-            return
-        feed_moves = production.move_raw_ids.filtered(
-            lambda m: m.state != 'cancel' and m._poultry_consumption_type() == 'feed')
-        if not feed_moves:
-            production.message_post(
-                body='Los partes del día traen %g kg de alimento, pero la Lista de Materiales no '
-                     'tiene un componente de tipo Alimento: hay que cargarlo a mano.' % feed_kg)
-            return
-        kg_uom = self.env.ref('uom.product_uom_kgm', raise_if_not_found=False)
-        planned = {move.id: move.product_uom_qty for move in feed_moves}
-        total_planned = sum(planned.values())
-        for move in feed_moves:
-            share = (planned[move.id] / total_planned) if total_planned else (1.0 / len(feed_moves))
-            qty = feed_kg * share
-            if kg_uom and move.product_uom and kg_uom._has_common_reference(move.product_uom):
-                qty = kg_uom._compute_quantity(qty, move.product_uom)
-            move.write({'quantity': qty, 'picked': True})
 
     def action_cancel(self):
         """Revierte el cierre: en draft elimina; en done desmantela OF y desvincula"""

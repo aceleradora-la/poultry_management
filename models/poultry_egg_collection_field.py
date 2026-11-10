@@ -2,18 +2,16 @@
 """Parte de producción de huevos desde el celular (app Avícola Campo).
 
 El operador carga el Inicial a la mañana y el Bruto al final del día, por calibre y en las
-mismas unidades del parte (Cajón, Maple, Huevo), y opcionalmente las aves muertas y el
-alimento consumido del galpón; el Cierre de Galpón vuelca estos dos últimos en la OF de
-Huevo sin Clasificar. Todo vive en el mismo poultry.egg.collection: la oficina ve el parte
-como siempre, ya escrito, y lo procesa igual que hoy.
+mismas unidades del parte (Cajón, Maple, Huevo). Todo vive en el mismo poultry.egg.collection:
+la oficina ve el parte como siempre, ya escrito, y lo procesa igual que hoy. Las aves muertas y
+los consumos NO van en el parte: se cargan siempre en la OF de Huevo sin Clasificar que crea el
+Cierre de Galpón (ver poultry_coop_close_field.py).
 """
 from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-FEED_BAG_KG_PARAM = 'poultry_management.feed_bag_kg'
-DEFAULT_FEED_BAG_KG = 25.0
 # Partes empezados en el celular y sin completar se siguen ofreciendo estos días.
 LATE_DAYS = 7
 
@@ -29,29 +27,16 @@ class PoultryEggCollection(models.Model):
     gross_uid = fields.Many2one('res.users', string='Bruto cargado por', readonly=True, copy=False)
     mobile_source = fields.Boolean(string='Cargado desde el celular', compute='_compute_mobile_source',
                                    store=True)
-    # Datos del galpón del día: hoy se tipean en la OF de Huevo sin Clasificar que crea el
-    # Cierre de Galpón; cargados acá, el cierre los vuelca él mismo en esa OF.
-    dead_count = fields.Integer(string='Aves muertas', tracking=True,
-                                help='Aves muertas del galpón en el día del parte. El Cierre de '
-                                     'Galpón las pasa a la OF de Huevo sin Clasificar.')
-    feed_consumed_kg = fields.Float(string='Alimento consumido (kg)', digits=(16, 2), tracking=True,
-                                    help='Kilos de alimento consumidos en el galpón en el día. El '
-                                         'Cierre de Galpón los pasa al componente de tipo Alimento '
-                                         'de la OF de Huevo sin Clasificar.')
-    farm_notes = fields.Text(string='Observaciones del galpón')
-    farm_data_date = fields.Datetime(string='Datos del galpón cargados', readonly=True, copy=False)
-    farm_data_uid = fields.Many2one('res.users', string='Datos del galpón cargados por',
-                                    readonly=True, copy=False)
 
     _POULTRY_MOBILE_FIELDS = {
         'initial': ('initial_box', 'initial_map', 'initial_egg'),
         'final': ('final_box', 'final_map', 'final_egg'),
     }
 
-    @api.depends('initial_date', 'gross_date', 'farm_data_date')
+    @api.depends('initial_date', 'gross_date')
     def _compute_mobile_source(self):
         for record in self:
-            record.mobile_source = bool(record.initial_date or record.gross_date or record.farm_data_date)
+            record.mobile_source = bool(record.initial_date or record.gross_date)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -97,14 +82,6 @@ class PoultryEggCollection(models.Model):
             return ''
         return fields.Datetime.context_timestamp(self, value).strftime('%H:%M')
 
-    @api.model
-    def _poultry_feed_bag_kg(self):
-        raw = self.env['ir.config_parameter'].sudo().get_param(FEED_BAG_KG_PARAM, DEFAULT_FEED_BAG_KG)
-        try:
-            return float(raw) or DEFAULT_FEED_BAG_KG
-        except (TypeError, ValueError):
-            return DEFAULT_FEED_BAG_KG
-
     # ------------------------------------------------------------------
     # Lectura para el celular
     # ------------------------------------------------------------------
@@ -122,21 +99,16 @@ class PoultryEggCollection(models.Model):
             'product': self.product_tmpl_id.name or '',
             'initial_time': self._poultry_mobile_stamp(self.initial_date),
             'gross_time': self._poultry_mobile_stamp(self.gross_date),
-            'farm_data_time': self._poultry_mobile_stamp(self.farm_data_date),
             'has_initial': any(l.initial_box or l.initial_map or l.initial_egg for l in lines),
             'has_gross': any(l.final_box or l.final_map or l.final_egg for l in lines),
             'total_eggs': round(self.total_eggs),
             'total_boxes': round(self.total_boxes, 1),
             'average_weight_elaborated': round(self.average_weight_elaborated, 1),
-            'dead_count': self.dead_count,
-            'feed_consumed_kg': self.feed_consumed_kg,
-            'farm_notes': self.farm_notes or '',
         }
 
     def poultry_mobile_data(self):
         """Todo lo que el celular muestra de un parte: cabecera, unidades, líneas por calibre
-        (inicial, bruto, producido), totales, el parte anterior para comparar y los datos
-        del galpón."""
+        (inicial, bruto, producido), totales y el parte anterior para comparar."""
         self.ensure_one()
         uoms = self._poultry_mobile_uoms()
         factors = [factor for _, factor in uoms]
@@ -166,8 +138,6 @@ class PoultryEggCollection(models.Model):
             'previous_total_eggs': round(previous.total_eggs) if previous else 0,
             'previous_date': previous.date.strftime('%d/%m') if previous else '',
             'live_bird_count': coop.live_bird_count,
-            'feed_bag_kg': self._poultry_feed_bag_kg(),
-            'feed_product': coop.active_bom_id.bom_product_id.display_name or '',
         })
         return data
 
@@ -365,28 +335,4 @@ class PoultryEggCollection(models.Model):
         labels = dict(self._fields['state']._description_selection(self.env))
         self.message_post(body='Parte reabierto desde el celular para corregir: vuelve a %s.'
                                % labels.get(self.state, self.state))
-        return self.poultry_mobile_data()
-
-    # ------------------------------------------------------------------
-    # Datos del galpón
-    # ------------------------------------------------------------------
-    def poultry_mobile_save_farm(self, dead_count, feed_consumed_kg, notes=''):
-        self.ensure_one()
-        self._poultry_mobile_check_open()
-        dead = int(dead_count or 0)
-        feed = float(feed_consumed_kg or 0)
-        if dead < 0 or feed < 0:
-            raise UserError('Las aves muertas y el alimento no pueden ser negativos.')
-        live = self.coop_id.sudo().live_bird_count
-        if live and dead > live:
-            raise UserError('Las aves muertas (%d) superan las aves vivas del galpón (%d).' % (dead, live))
-        self.write({
-            'dead_count': dead,
-            'feed_consumed_kg': feed,
-            'farm_notes': (notes or '').strip() or False,
-            'farm_data_date': fields.Datetime.now(),
-            'farm_data_uid': self.env.uid,
-        })
-        self.message_post(body='Datos del galpón cargados desde el celular: %d aves muertas, '
-                               '%s kg de alimento.' % (dead, ('%.2f' % feed).rstrip('0').rstrip('.')))
         return self.poultry_mobile_data()

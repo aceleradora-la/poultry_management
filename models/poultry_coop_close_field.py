@@ -4,17 +4,17 @@
 La OF que crea el Cierre de Galpón se marca Hecha al otro día: hasta entonces el operador
 carga desde la app las aves muertas del galpón y la cantidad consumida de CADA componente de
 la OF (alimento, agua, lo que tenga la lista), que es lo que hoy tipea la oficina en la OF.
+Es el ÚNICO lugar de carga: el parte de huevos no lleva mortandad ni consumos, así que un día
+sin OF todavía no tiene dónde cargarse (se espera a que la oficina confirme el cierre).
 La API vive en el cierre (dato avícola que el Operador de Campo puede leer) y toca la OF con
 sudo tras verificar el rol: así no hace falta abrirle Manufactura al operador.
 """
-from datetime import timedelta
-
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 PENDING_STATES = ('draft', 'confirmed', 'progress', 'to_close')
-# Días hacia atrás en que se ofrecen los partes completados que todavía no tienen OF.
-PART_DAYS = 7
+FEED_BAG_KG_PARAM = 'poultry_management.feed_bag_kg'
+DEFAULT_FEED_BAG_KG = 25.0
 
 
 class PoultryCoopClose(models.Model):
@@ -56,9 +56,14 @@ class PoultryCoopClose(models.Model):
         return order.move_raw_ids.filtered(lambda m: m.state != 'cancel').sorted(
             key=lambda m: (rank.get(m._poultry_consumption_type(), 2), m.id))
 
-    @staticmethod
-    def _poultry_mobile_stamp(record, value):
-        return fields.Datetime.context_timestamp(record, value).strftime('%H:%M') if value else ''
+    @api.model
+    def _poultry_feed_bag_kg(self):
+        """Kilos de una bolsa de alimento, para cargar el consumo en bolsas."""
+        raw = self.env['ir.config_parameter'].sudo().get_param(FEED_BAG_KG_PARAM, DEFAULT_FEED_BAG_KG)
+        try:
+            return float(raw) or DEFAULT_FEED_BAG_KG
+        except (TypeError, ValueError):
+            return DEFAULT_FEED_BAG_KG
 
     # ------------------------------------------------------------------
     # Lectura
@@ -68,6 +73,7 @@ class PoultryCoopClose(models.Model):
         order = self._poultry_mobile_order()
         target = order._poultry_target_date()
         moves = self._poultry_mobile_moves(order)
+        loaded = moves.filtered('picked')
         return {
             'id': self.id,
             'name': self.name,
@@ -83,7 +89,10 @@ class PoultryCoopClose(models.Model):
             'line_count': len(moves),
             # Odoo precarga en cada componente la cantidad de la lista al crear la OF: un
             # consumo cuenta como cargado recién cuando alguien lo confirmó (picked).
-            'loaded_count': len(moves.filtered('picked')),
+            'loaded_count': len(loaded),
+            # Cargada = todos los consumos confirmados (Guardar los confirma a todos). Las aves
+            # muertas solas no alcanzan: un día sin bajas deja 0 y no por eso falta cargarlo.
+            'complete': len(loaded) == len(moves) if moves else order.poultry_dead_count_total > 0,
         }
 
     def poultry_mobile_data(self):
@@ -97,7 +106,7 @@ class PoultryCoopClose(models.Model):
         data = self._poultry_mobile_header()
         data.update({
             'live_bird_count': total_birds,
-            'feed_bag_kg': self.env['poultry.egg.collection']._poultry_feed_bag_kg(),
+            'feed_bag_kg': self._poultry_feed_bag_kg(),
             'lines': [{
                 'id': move.id,
                 'product': move.product_id.display_name,
@@ -113,9 +122,7 @@ class PoultryCoopClose(models.Model):
 
     @api.model
     def poultry_mobile_pending(self):
-        """Lo que el operador puede cargar: las OF de cierre todavía sin hacer y, aparte, los
-        partes completados de los últimos días que aún no tienen OF (ahí la carga queda en el
-        parte y el cierre la pasa a la OF al crearla)."""
+        """Las OF de Huevo sin Clasificar todavía sin hacer, la más reciente primero."""
         self._poultry_mobile_check_user()
         closes = self.sudo().search([
             ('state', '=', 'done'),
@@ -124,19 +131,7 @@ class PoultryCoopClose(models.Model):
         ])
         closes = closes.sorted(key=lambda c: (c._poultry_mobile_order()._poultry_target_date(), c.id),
                                reverse=True)
-        today = fields.Date.context_today(self)
-        parts = self.env['poultry.egg.collection'].sudo().search([
-            ('date', '>=', today - timedelta(days=PART_DAYS)),
-            ('state', 'in', ('completed', 'done')),
-            ('coop_close_id', '=', False),
-        ], order='date desc, id')
-        by_day = {}
-        for part in parts:
-            by_day.setdefault((part.coop_id.id, part.date), part)
-        return {
-            'orders': [close._poultry_mobile_header() for close in closes],
-            'parts': [part._poultry_mobile_header() for part in by_day.values()],
-        }
+        return {'orders': [close._poultry_mobile_header() for close in closes]}
 
     # ------------------------------------------------------------------
     # Guardado

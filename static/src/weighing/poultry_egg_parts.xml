@@ -66,10 +66,9 @@
                         <t t-else="">Completo <t t-esc="rec.gross_time"/></t>
                         · <t t-esc="fmt(rec.total_eggs)"/> huevos · <t t-esc="d1(rec.total_boxes)"/> cajones
                     </div>
-                    <div class="d-flex justify-content-between o_pw_muted">
+                    <div class="o_pw_muted">
                         <span t-if="st === 'done'">Tocá para verlo</span>
                         <span t-else="">Tocá para ver o corregir</span>
-                        <span t-if="rec.farm_data_time"><i class="fa fa-check me-1" aria-hidden="true"/>Mortandad y alimento</span>
                     </div>
                 </button>
             </t>
@@ -267,14 +266,12 @@
             <div t-if="noPmCalibres.length" class="o_pw_notice">
                 <strong>Sin peso medio: calibre <t t-esc="noPmCalibres.join(', ')"/>.</strong> Queda fuera del peso medio elaborado. Se puede completar igual.
             </div>
-            <div t-if="state.record.farm_data_time" class="o_pw_muted">
-                <i class="fa fa-check o_pw_check me-1" aria-hidden="true"/>Mortandad y alimento cargados <t t-esc="state.record.farm_data_time"/>:
-                <t t-esc="state.record.dead_count"/> aves muertas · <t t-esc="d1(state.record.feed_consumed_kg)"/> kg de alimento.
-            </div>
+            <button t-if="state.record.state !== 'done'" type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small"
+                    t-att-disabled="state.busy" t-on-click="correctGross">Corregir bruto</button>
 
-            <div class="o_pw_two" t-if="state.record.state !== 'done'">
-                <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-att-disabled="state.busy" t-on-click="correctGross">Corregir bruto</button>
-                <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-att-disabled="state.busy" t-on-click="openFarm">Mortandad y alimento</button>
+            <div class="o_pw_muted">
+                <i class="fa fa-info-circle me-1" aria-hidden="true"/>Las aves muertas y los consumos del día no van en el parte:
+                se cargan en <strong>OF Huevo sin Clasificar</strong>, desde el inicio, cuando la oficina confirma el cierre del galpón.
             </div>
         </div>
         <div class="o_pw_footer">
@@ -289,57 +286,6 @@
             <t t-else="">
                 <div class="o_pw_hint">Procesado por la oficina: ya no se puede cambiar desde el celular.</div>
             </t>
-        </div>
-    </t>
-
-    <!-- Mortandad y alimento del galpón -->
-    <t t-if="state.screen === 'farm' and state.record">
-        <div class="o_pw_header">
-            <button type="button" class="o_pw_back" aria-label="Volver" t-on-click="closeFarm">
-                <i class="fa fa-chevron-left"/>
-            </button>
-            <div>
-                <div class="o_pw_title"><t t-esc="state.record.coop"/> · Mortandad y alimento</div>
-                <div class="o_pw_sub"><t t-esc="state.record.date_label"/> · <t t-esc="fmt(state.record.live_bird_count)"/> aves vivas</div>
-            </div>
-        </div>
-        <div class="o_pw_body">
-            <div class="o_pw_farm_card">
-                <label for="o_pw_farm_dead">Aves muertas hoy</label>
-                <div class="d-flex align-items-center gap-3">
-                    <input id="o_pw_farm_dead" type="text" inputmode="numeric" autocomplete="off" placeholder="0" class="o_pw_farm_input" t-on-focus="selectOnFocus" t-model="state.farm.dead"/>
-                    <div class="o_pw_muted">
-                        <div>de <t t-esc="fmt(state.record.live_bird_count)"/> aves vivas</div>
-                        <div t-if="deadPct" t-esc="deadPct"/>
-                    </div>
-                </div>
-                <div class="o_pw_hint text-start">Se reparte por lote según las aves vivas, igual que en la OF. Con 0 se guarda el cero explícito: el cierre no vuelve a preguntar.</div>
-            </div>
-
-            <div class="o_pw_farm_card">
-                <label for="o_pw_farm_feed">Alimento consumido</label>
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <input id="o_pw_farm_feed" type="text" inputmode="decimal" autocomplete="off" placeholder="0" class="o_pw_farm_input" t-on-focus="selectOnFocus" t-model="state.farm.feed"/>
-                    <div class="o_pw_toggle" role="group" aria-label="Unidad del alimento">
-                        <button type="button" t-attf-class="{{ state.farm.unit === 'kg' ? 'active' : '' }}" t-on-click="() => this.setUnit('kg')">kg</button>
-                        <button type="button" t-attf-class="{{ state.farm.unit === 'bag' ? 'active' : '' }}" t-on-click="() => this.setUnit('bag')">bolsas de <t t-esc="fmt(state.record.feed_bag_kg)"/> kg</button>
-                    </div>
-                </div>
-                <div class="o_pw_muted" t-if="feedAlt" t-esc="feedAlt"/>
-                <div class="o_pw_hint text-start">
-                    <t t-if="state.record.feed_product"><t t-esc="state.record.feed_product"/> (fórmula activa del galpón). </t>
-                    El cierre pasa este consumo a la OF de Huevo sin Clasificar en vez de escribirlo a mano.
-                </div>
-            </div>
-
-            <div class="o_pw_farm_card">
-                <label for="o_pw_farm_notes">Observaciones</label>
-                <textarea id="o_pw_farm_notes" rows="2" class="o_pw_textarea" placeholder="Opcional: agua, temperatura, novedades del galpón" t-model="state.farm.notes"/>
-            </div>
-        </div>
-        <div class="o_pw_footer">
-            <button type="button" class="o_pw_btn o_pw_btn_primary" t-att-disabled="state.busy" t-on-click="saveFarm">Guardar</button>
-            <div class="o_pw_hint">Viaja con el parte del día. La oficina lo ve en la solapa Datos del galpón y el Cierre lo vuelca en la OF.</div>
         </div>
     </t>
 

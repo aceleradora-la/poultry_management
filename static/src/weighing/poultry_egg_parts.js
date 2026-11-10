@@ -9,7 +9,8 @@ const MODEL = "poultry.egg.collection";
  * Partes de producción de huevos desde el celular: galpones de hoy → Inicial por calibre
  * (paso 1) → Bruto y peso medio (paso 2) → resumen y completar. Cada celda se guarda al
  * salir de ella; Siguiente/Enter recorre las celdas hacia la derecha y baja de calibre.
- * Mortandad y alimento del día se cargan en una pantalla aparte y los toma el Cierre.
+ * Las aves muertas y los consumos no van en el parte: se cargan en la OF de Huevo sin
+ * Clasificar (PoultryFarmData) cuando la oficina confirma el Cierre de Galpón.
  */
 export class PoultryEggParts extends Component {
     static template = "poultry_management.PoultryEggParts";
@@ -20,13 +21,12 @@ export class PoultryEggParts extends Component {
         this.dialog = useService("dialog");
         this.notification = useService("notification");
         this.state = useState({
-            screen: "coops", // coops | initial | gross | summary | farm
+            screen: "coops", // coops | initial | gross | summary
             date: "",
             coops: [],
             late: [],
             record: null,
             form: [], // [{ id, calibre, qty: ["", "", ""], pm: "" }] en el mismo orden que record.lines
-            farm: { dead: "", feed: "", unit: "kg", notes: "" },
             busy: false,
         });
         this.focusPending = false;
@@ -455,89 +455,5 @@ export class PoultryEggParts extends Component {
         }
         const pct = (rec.total_eggs / rec.previous_total_eggs - 1) * 100;
         return (pct >= 0 ? "+" : "−") + this.d1(Math.abs(pct)) + " %";
-    }
-
-    // ------------------------------------------------------------------
-    // Mortandad y alimento del galpón
-    // ------------------------------------------------------------------
-    openFarm() {
-        const rec = this.state.record;
-        // Al guardar o volver se regresa a la pantalla desde la que se abrió (resumen o carga).
-        this.farmReturn = this.state.screen;
-        this.state.farm = {
-            dead: rec.dead_count ? String(rec.dead_count) : "",
-            feed: this.qtyText(rec.feed_consumed_kg),
-            unit: "kg",
-            notes: rec.farm_notes || "",
-        };
-        this.state.screen = "farm";
-    }
-
-    get feedKg() {
-        const value = parseNum(this.state.farm.feed);
-        return this.state.farm.unit === "kg" ? value : value * this.state.record.feed_bag_kg;
-    }
-
-    setUnit(unit) {
-        const farm = this.state.farm;
-        if (unit === farm.unit) {
-            return;
-        }
-        const kg = this.feedKg;
-        farm.unit = unit;
-        farm.feed = kg ? this.qtyText(unit === "kg" ? kg : kg / this.state.record.feed_bag_kg) : "";
-    }
-
-    get feedAlt() {
-        const rec = this.state.record;
-        const kg = this.feedKg;
-        if (!kg) {
-            return "";
-        }
-        const parts = [];
-        if (this.state.farm.unit === "kg") {
-            parts.push(`= ${this.d1(kg / rec.feed_bag_kg)} bolsas de ${this.fmt(rec.feed_bag_kg)} kg`);
-        } else {
-            parts.push(`= ${this.fmt(kg)} kg`);
-        }
-        if (rec.live_bird_count) {
-            parts.push(`${this.fmt((kg * 1000) / rec.live_bird_count)} g por ave`);
-        }
-        return parts.join(" · ");
-    }
-
-    get deadPct() {
-        const rec = this.state.record;
-        const dead = Math.round(parseNum(this.state.farm.dead));
-        if (!rec.live_bird_count || !dead) {
-            return "";
-        }
-        return this.d1((dead / rec.live_bird_count) * 100) + " % del galpón";
-    }
-
-    async saveFarm() {
-        const farm = this.state.farm;
-        this.state.record = await this.call("poultry_mobile_save_farm", [
-            [this.state.record.id],
-            Math.round(parseNum(farm.dead)),
-            this.feedKg,
-            farm.notes,
-        ]);
-        this.notification.add("Mortandad y alimento guardados.", { type: "success" });
-        this.closeFarm();
-    }
-
-    closeFarm() {
-        if (this.farmReturn === "summary" || this.farmReturn === "gross" || this.farmReturn === "initial") {
-            if (this.farmReturn === "gross") {
-                this.showGross();
-            } else if (this.farmReturn === "initial") {
-                this.showInitial();
-            } else {
-                this.state.screen = "summary";
-            }
-            return;
-        }
-        this.route();
     }
 }

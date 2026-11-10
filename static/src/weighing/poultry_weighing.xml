@@ -32,9 +32,9 @@
                     <i class="fa fa-chevron-right o_pw_home_chevron" aria-hidden="true"/>
                 </button>
                 <button type="button" class="o_pw_home_card o_pw_home_card_active" t-on-click="openFarm">
-                    <div class="o_pw_home_icon" aria-hidden="true"><i class="fa fa-medkit"/></div>
+                    <div class="o_pw_home_icon" aria-hidden="true"><i class="fa fa-industry"/></div>
                     <div class="flex-grow-1">
-                        <div class="o_pw_home_title">Mortandad y consumos</div>
+                        <div class="o_pw_home_title">OF Huevo sin Clasificar</div>
                         <div class="o_pw_muted" t-esc="state.farmSummary"/>
                     </div>
                     <i class="fa fa-chevron-right o_pw_home_chevron" aria-hidden="true"/>
@@ -194,7 +194,7 @@
             <PoultryEggParts onHome.bind="goHome"/>
         </t>
 
-        <!-- Mortandad y consumos de la OF de Huevo sin Clasificar (componente propio) -->
+        <!-- Aves muertas y consumos en la OF de Huevo sin Clasificar (componente propio) -->
         <t t-if="state.screen === 'farm'">
             <PoultryFarmData onHome.bind="goHome"/>
         </t>
