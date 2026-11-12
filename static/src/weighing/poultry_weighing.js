@@ -9,6 +9,10 @@ import { PoultryEggParts } from "./poultry_egg_parts";
 import { PoultryFarmData } from "./poultry_farm_data";
 
 const MODEL = "poultry.weight.record";
+// Un peso que se aleja más que esto del promedio pide confirmación antes de guardarse:
+// atrapa errores de tipeo (4523 por 1523: en el teclado el 4 está arriba del 1, o 152
+// por 1520) sin molestar con las aves reales, que rara vez se alejan tanto.
+const OUTLIER_PCT = 30;
 const EGG_MODEL = "poultry.egg.collection";
 const CLOSE_MODEL = "poultry.coop.close";
 
@@ -354,21 +358,88 @@ export class PoultryWeighing extends Component {
     // ------------------------------------------------------------------
     // Pesos
     // ------------------------------------------------------------------
+    /** Peso contra el que se compara una ave: el promedio de las demás aves ya pesadas
+     * en esta pesada (desde 3) o, antes, el de la pesada anterior del galpón. */
+    referenceWeight(line) {
+        const rec = this.state.record;
+        let count = rec.bird_count || 0;
+        let total = (rec.average_weight_g || 0) * count;
+        if (line.weight_g > 0) {
+            count -= 1;
+            total -= line.weight_g;
+        }
+        if (count >= 3 && total > 0) {
+            return total / count;
+        }
+        return rec.previous_average_g || 0;
+    }
+
+    /** true si el peso está dentro del rango o el operador confirma que es correcto. */
+    confirmOutlier(line, value) {
+        const reference = this.referenceWeight(line);
+        if (!value || !reference) {
+            return Promise.resolve(true);
+        }
+        const dev = ((value - reference) / reference) * 100;
+        if (Math.abs(dev) <= OUTLIER_PCT) {
+            return Promise.resolve(true);
+        }
+        return new Promise((resolve) => {
+            this.dialog.add(
+                ConfirmationDialog,
+                {
+                    title: "Peso fuera de rango",
+                    body:
+                        `Ave ${line.bird_no}: ${this.fmt(value)} g está ${dev > 0 ? "+" : "−"}${this.pct(Math.abs(dev))} % ` +
+                        `del promedio (${this.fmt(reference)} g). ¿Es correcto?`,
+                    confirmLabel: "Sí, guardar",
+                    cancelLabel: "Corregir",
+                    confirm: () => resolve(true),
+                    cancel: () => resolve(false),
+                },
+                { onClose: () => resolve(false) }
+            );
+        });
+    }
+
+    /** Guarda el peso tipeado. Devuelve false si no se guardó (el operador eligió
+     * corregirlo o falló el guardado): el campo vuelve al último peso guardado y queda
+     * listo para tipear de nuevo. */
     async commitWeight(line, input) {
         const value = input.value === "" ? 0 : parseFloat(input.value);
         if (Number.isNaN(value) || value < 0) {
             input.value = line.weight_g || "";
-            return;
+            return false;
         }
         if (value === line.weight_g) {
-            return;
+            return true;
+        }
+        // Mientras se pregunta, el campo pierde el foco y vuelve a disparar el guardado:
+        // ese segundo intento no hace nada.
+        if (this.checkingLine === line.id) {
+            return false;
+        }
+        this.checkingLine = line.id;
+        let confirmed;
+        try {
+            confirmed = await this.confirmOutlier(line, value);
+        } finally {
+            this.checkingLine = null;
+        }
+        if (!confirmed) {
+            input.value = line.weight_g || "";
+            input.focus();
+            input.select();
+            return false;
         }
         try {
             const result = await this.call("poultry_mobile_set_weight", [[this.state.record.id], line.id, value]);
             line.weight_g = value;
             this.applyCageState(result);
+            return true;
         } catch {
             input.value = line.weight_g || "";
+            return false;
         }
     }
 
@@ -382,7 +453,9 @@ export class PoultryWeighing extends Component {
         }
         ev.preventDefault();
         const input = ev.target;
-        await this.commitWeight(line, input);
+        if (!(await this.commitWeight(line, input))) {
+            return;
+        }
         const inputs = [...input.closest(".o_pw_cage").querySelectorAll("input.o_pw_weight")];
         const next = inputs[inputs.indexOf(input) + 1];
         if (next) {

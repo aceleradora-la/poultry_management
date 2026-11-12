@@ -188,6 +188,7 @@
                 </div>
                 <div class="o_pw_hint">
                     Siguiente pasa a la ave de abajo. Cerrar la jaula con aves sin peso está bien: se pesan las que hay.
+                    Un peso que se aleja más de un 30 % del promedio pide confirmarlo antes de guardarse.
                 </div>
             </div>
         </t>

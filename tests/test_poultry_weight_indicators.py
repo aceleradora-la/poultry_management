@@ -230,3 +230,13 @@ class TestPoultryWeightIndicators(TransactionCase):
         record.invalidate_recordset()
         self.assertEqual((record.bird_count, record.average_weight_g), (4, 2125))
         self.assertEqual(record.uniformity_pct, 50, 'Promedio 2125 g, banda ±10 %: entran 2100 y 2000')
+
+    def test_previous_average_for_the_phone(self):
+        """El celular recibe el promedio de la pesada anterior del galpón: es la referencia
+        del aviso "peso fuera de rango" hasta que la pesada tenga 3 aves."""
+        self._confirmed(self.coop, [1900, 2100], date=self.today - timedelta(days=14))
+        self._confirmed(self.coop, [900], date=self.today - timedelta(days=7), exceptional=True)
+        record = self.env['poultry.weight.record'].create({
+            'coop_id': self.coop.id, 'batch_id': self.batch.id, 'date': self.today})
+        self.assertEqual(record.poultry_mobile_data()['previous_average_g'], 2000,
+                         'La pesada excepcional no es referencia')

@@ -480,6 +480,9 @@ class PoultryWeightRecord(models.Model):
             'closed_cage_count': len(self.closed_cage_ids & self.line_ids.cage_id),
             'progress_pct': round(self.progress_pct),
             'average_weight_g': round(self.average_weight_g, 1),
+            # Referencia del aviso "peso fuera de rango" del celular mientras la pesada
+            # todavía tiene pocas aves: el promedio de la pesada anterior del galpón.
+            'previous_average_g': round(self._poultry_previous_record().average_weight_g, 1),
             'registered': registered or '',
         }
 
