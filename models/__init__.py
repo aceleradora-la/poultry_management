@@ -44,6 +44,7 @@ from . import mrp_unbuild
 from . import poultry_stock_move
 from . import poultry_account_move_line
 from . import poultry_account_invoice_report
+from . import poultry_purchase_cost
 from . import poultry_coop_close
 from . import poultry_coop_close_wizard
 from . import poultry_coop_close_field

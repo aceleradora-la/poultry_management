@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.117.0',
+    'version': '19.0.1.118.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -13,7 +13,7 @@
     """,
     'author': 'aceleradora.la',
     'website': 'https://www.tuempresa.com',
-    'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web', 'stock', 'purchase_stock', 'account'],
+    'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web', 'stock', 'purchase_stock', 'stock_landed_costs', 'account'],
     'assets': {
         'web.assets_backend': [
             'poultry_management/static/src/css/poultry_stock_cover_dashboard.css',
