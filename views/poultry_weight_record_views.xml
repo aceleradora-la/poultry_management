@@ -146,7 +146,8 @@
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                         </group>
                         <group>
-                            <field name="batch_age_weeks" readonly="1"/>
+                            <field name="batch_age_weeks" readonly="1" string="Semana de vida"
+                                   help="Sale de la fecha de la pesada: si cambiás la fecha, cambia la semana."/>
                             <field name="birds_per_cage" readonly="1" invisible="not birds_per_cage"/>
                             <field name="uniformity_band_pct" readonly="state != 'draft'"/>
                             <field name="is_exceptional" readonly="state == 'cancel'"/>

@@ -138,6 +138,9 @@ class TestPoultryWeightPlan(TransactionCase):
         self.assertEqual((record.plan_week, record.batch_age_weeks), (19, 20),
                          'Cubre la 19 del plan pero queda registrada en su semana real, la 20')
         self.assertFalse(record.is_late)
+        self.assertEqual(record.calendar_start, batch._poultry_week_start(20),
+                         'En el calendario pasa a la semana en que se pesó')
+        self.assertEqual(record._poultry_week_label(), 'Semana 20 (plan 19)')
 
     def test_changing_the_plan_replans(self):
         batch = self._batch(33)
@@ -177,6 +180,19 @@ class TestPoultryWeightPlan(TransactionCase):
         self.assertEqual((manual.calendar_start, manual.calendar_stop), (self.today, self.today))
         label = planned.with_context(poultry_calendar_label=True).display_name
         self.assertEqual(label, 'Galpón Plan · Sem. 34 · Planificada')
+
+        # Si la oficina le cambia la fecha a otra semana, la semana de vida sale de la fecha:
+        # la barra se muda a esa semana y se aclara cuál le tocaba en el plan.
+        planned.date = batch._poultry_week_start(35) + timedelta(days=2)
+        self.assertEqual(planned.batch_age_weeks, 35)
+        self.assertEqual((planned.calendar_start, planned.calendar_stop),
+                         (batch._poultry_week_start(35), batch._poultry_week_end(35)))
+        self.assertEqual(planned.plan_week, 34, 'Sigue siendo la pesada de la 34 del plan')
+        label = planned.with_context(poultry_calendar_label=True).display_name
+        self.assertEqual(label, 'Galpón Plan · Sem. 35 (plan 34) · Planificada')
+        phone = next(item for item in self.Record.poultry_mobile_list() if item['id'] == planned.id)
+        self.assertEqual((phone['week'], phone['week_label'], phone['week_start']),
+                         (35, 'Semana 35 (plan 34)', fields.Date.to_string(batch._poultry_week_start(35))))
 
     def test_kanban_columns_follow_the_process(self):
         batch = self._batch(20)

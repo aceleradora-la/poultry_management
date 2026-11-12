@@ -69,7 +69,7 @@ export class PoultryWeighing extends Component {
         if (!pending.length) {
             const next = this.upcomingRecords[0];
             return next
-                ? `Sin pesadas esta semana · próxima ${this.dayLabel(next.plan_week_start)}, ${next.coop}`
+                ? `Sin pesadas esta semana · próxima ${this.dayLabel(next.week_start || next.plan_week_start)}, ${next.coop}`
                 : "Sin pesadas enviadas a pesar";
         }
         const coops = [...new Set(pending.map((rec) => rec.coop))].join(", ");

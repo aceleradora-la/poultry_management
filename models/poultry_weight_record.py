@@ -285,13 +285,20 @@ class PoultryWeightRecord(models.Model):
         positive = (operator == '=') == value
         return late if positive else ['!'] + late
 
-    @api.depends('plan_week_start', 'plan_week_end', 'date')
+    @api.depends('plan_week', 'plan_week_start', 'plan_week_end', 'date', 'batch_age_weeks')
     def _compute_calendar(self):
-        """En el calendario, una pesada del plan ocupa su semana de vida entera (7 días que
-        arrancan el día en que ese lote cambia de semana); una cargada a mano, su día."""
+        """En el calendario, una pesada del plan ocupa entera la semana de vida de su fecha
+        (7 días que arrancan el día en que ese lote cambia de semana): si se le cambia la
+        fecha a otra semana, la barra se muda con ella (pedido del usuario del 2026-11-12).
+        Una cargada a mano ocupa su día."""
         for record in self:
-            record.calendar_start = record.plan_week_start or record.date
-            record.calendar_stop = record.plan_week_end or record.date
+            week, batch = record.batch_age_weeks, record.batch_id
+            if record.plan_week and week and batch.birth_date:
+                record.calendar_start = batch._poultry_week_start(week)
+                record.calendar_stop = batch._poultry_week_end(week)
+            else:
+                record.calendar_start = record.date or record.plan_week_start
+                record.calendar_stop = record.date or record.plan_week_end
 
     @api.depends('name', 'coop_id', 'plan_week', 'batch_age_weeks', 'state')
     @api.depends_context('poultry_calendar_label')
@@ -301,9 +308,19 @@ class PoultryWeightRecord(models.Model):
             return super()._compute_display_name()
         labels = dict(self._fields['state']._description_selection(self.env))
         for record in self:
-            week = record.plan_week or record.batch_age_weeks
             state = 'Atrasada' if record.is_late else labels.get(record.state, record.state)
-            record.display_name = '%s · Sem. %s · %s' % (record.coop_id.name or '', week, state)
+            record.display_name = '%s · %s · %s' % (
+                record.coop_id.name or '', record._poultry_week_label('Sem.'), state)
+
+    def _poultry_week_label(self, word='Semana'):
+        """La semana de vida de la fecha de la pesada; si no es la que le tocaba en el plan,
+        lo aclara: "Sem. 22 (plan 21)"."""
+        self.ensure_one()
+        week = self.batch_age_weeks or self.plan_week
+        label = '%s %s' % (word, week)
+        if self.plan_week and week != self.plan_week:
+            label += ' (plan %s)' % self.plan_week
+        return label
 
     @api.constrains('is_exceptional', 'exceptional_reason')
     def _check_exceptional_reason(self):
@@ -652,6 +669,10 @@ class PoultryWeightRecord(models.Model):
             'batch': self.batch_id.name,
             'date': fields.Date.to_string(self.date),
             'week': self.batch_age_weeks,
+            # "Semana 22 (plan 21)": la semana de vida sale de la fecha de la pesada.
+            'week_label': self._poultry_week_label(),
+            # Primer día de esa semana de vida: el día que muestran las Próximas.
+            'week_start': fields.Date.to_string(self.calendar_start) if self.calendar_start else '',
             'birds_per_cage': self.birds_per_cage,
             'planned_bird_count': self.planned_bird_count,
             'bird_count': self.bird_count,
