@@ -19,6 +19,7 @@
                 <field name="average_weight_g"/>
                 <field name="uniformity_pct"/>
                 <field name="cv_pct" optional="hide"/>
+                <field name="is_exceptional" string="Excepcional" optional="show"/>
                 <field name="registered_uid" optional="hide"/>
                 <field name="state" widget="badge"
                        decoration-muted="state == 'draft'"
@@ -40,6 +41,7 @@
                     records_draggable="0" quick_create="0" sample="1">
                 <field name="state"/>
                 <field name="bird_count"/>
+                <field name="is_exceptional"/>
                 <templates>
                     <t t-name="card">
                         <div class="d-flex justify-content-between align-items-start gap-2">
@@ -51,6 +53,7 @@
                             </div>
                             <field name="date" class="text-muted small text-nowrap"/>
                         </div>
+                        <span t-if="record.is_exceptional.raw_value" class="badge text-bg-warning">Excepcional: no entra en indicadores</span>
                         <div class="d-flex justify-content-between small mt-2">
                             <span><field name="bird_count"/> de <field name="planned_bird_count"/> aves</span>
                             <span><field name="weighed_cage_count"/> de <field name="cage_count"/> jaulas</span>
@@ -101,6 +104,8 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,registered,done"/>
                 </header>
                 <sheet>
+                    <widget name="web_ribbon" title="Excepcional" bg_color="text-bg-warning"
+                            invisible="not is_exceptional"/>
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
@@ -118,6 +123,10 @@
                             <field name="batch_age_weeks" readonly="1"/>
                             <field name="birds_per_cage" readonly="1" invisible="not birds_per_cage"/>
                             <field name="uniformity_band_pct" readonly="state != 'draft'"/>
+                            <field name="is_exceptional" readonly="state == 'cancel'"/>
+                            <field name="exceptional_reason" invisible="not is_exceptional"
+                                   required="is_exceptional" readonly="state == 'cancel'"
+                                   placeholder="Control puntual, aves enfermas, re-pesada..."/>
                             <field name="registered_date" invisible="not registered_date"/>
                             <field name="registered_uid" invisible="not registered_date"/>
                         </group>
@@ -211,6 +220,8 @@
                         help="En Borrador o En Curso"/>
                 <filter string="A Verificar" name="registered" domain="[('state', '=', 'registered')]"/>
                 <filter string="Confirmados" name="done" domain="[('state', '=', 'done')]"/>
+                <separator/>
+                <filter string="Excepcionales" name="exceptional" domain="[('is_exceptional', '=', True)]"/>
                 <separator/>
                 <filter string="Últimos 30 días" name="last_30_days"
                         domain="[('date', '&gt;=', (datetime.datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>

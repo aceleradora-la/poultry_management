@@ -442,6 +442,43 @@ class PoultryIndicator(models.Model):
             domain.append(('formula_numerator', 'not in', list(self._POULTRY_WEIGHT_SOURCE_NUMERATORS)))
         return self.search(domain)
 
+    @api.model
+    def _poultry_ensure_uniformity_indicator(self):
+        """Crea el indicador UNIFORMIDAD (%) si la base no tiene ninguno de uniformidad
+        (ni activo ni archivado: uno archivado es una decisión de alguien) y publica sus
+        valores desde los Partes de Peso confirmados. Misma configuración que PESO
+        CORPORAL (g): fórmula del día, aves dentro de la banda / aves pesadas × 100."""
+        Indicator = self.sudo().with_context(active_test=False)
+        existing = Indicator.search(['|', ('category', '=', 'uniformity'),
+                                     ('formula_numerator', '=', 'uniform_birds')], limit=1)
+        if existing:
+            return existing
+        Uom = self.env['uom.uom'].sudo()
+        percent = Uom.search([('name', '=', '%')], limit=1) or Uom.create({'name': '%'})
+        indicator = Indicator.create({
+            'name': 'UNIFORMIDAD (%)',
+            'code': 'UNIF',
+            'uom_id': percent.id,
+            'calculation_source': 'formula',
+            'category': 'uniformity',
+            'sequence': 25,
+            'period_scope': 'both',
+            'accumulation_type': 'none',
+            'formula_numerator': 'uniform_birds',
+            'formula_denominator': 'weighed_birds',
+            'formula_factor': '100',
+            'formula_mode': 'daily',
+            'weekly_aggregation': 'auto',
+            # Poca uniformidad es lo que preocupa: alerta por debajo del estándar.
+            'alert_below': 'alert',
+            'alert_above': 'normal',
+            'alert_tolerance_pct': 2.0,
+            'color_below': '#dc3545',
+            'color_above': '#539d0b',
+        })
+        self.env['poultry.weight.record'].sudo()._poultry_rebuild_indicator(indicator)
+        return indicator
+
     def _poultry_formula_denominator_value(self, magnitudes):
         """Denominador de la fórmula para un lote. Los dos casos que dependen de
         Huevos por Unidad se resuelven acá y no en el recolector, porque esa

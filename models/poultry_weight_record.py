@@ -60,6 +60,15 @@ class PoultryWeightRecord(models.Model):
     # Banda de uniformidad: % de desvío respecto del promedio dentro del cual un ave
     # se considera "uniforme". El estándar de la industria es ±10%.
     uniformity_band_pct = fields.Float(string='Banda de Uniformidad (±%)', default=10.0)
+    # Pesada excepcional (pedido del usuario del 2026-11-12): se pesa y se guarda igual,
+    # pero no publica indicadores del lote ni se repite como pesada anterior.
+    is_exceptional = fields.Boolean(
+        string='Pesada excepcional', tracking=True, copy=False,
+        help='Para una pesada fuera de la rutina (control puntual, aves enfermas, '
+             're-pesada...): se guarda con sus pesos y resultados, pero no entra en los '
+             'indicadores del lote (Peso Corporal, Uniformidad) ni se usa como pesada '
+             'anterior al generar las líneas de la próxima.')
+    exceptional_reason = fields.Char(string='Motivo', tracking=True, copy=False)
 
     # Los totales cuentan solo las líneas con peso: las que quedan en cero son aves que
     # todavía no se pesaron (o que no estaban) y no deben bajar el promedio.
@@ -204,13 +213,27 @@ class PoultryWeightRecord(models.Model):
 
     def write(self, vals):
         before = {record.id: (record.coop_id, record.date.year) for record in self}
+        # Marcar o desmarcar como excepcional un parte ya confirmado cambia lo que
+        # publica: se recalculan los indicadores de su lote y fecha.
+        republish = self.browse()
+        if 'is_exceptional' in vals:
+            republish = self.filtered(
+                lambda r: r.state == 'done' and r.is_exceptional != bool(vals['is_exceptional']))
         res = super().write(vals)
+        if republish:
+            republish._poultry_apply_indicator_values()
         if 'coop_id' in vals or 'date' in vals:
             # El número lleva el galpón y el año: si cambian en Borrador, se renumera.
             for record in self.filtered(lambda r: r.state == 'draft'):
                 if before[record.id] != (record.coop_id, record.date.year):
                     record.name = self._poultry_next_name(record.coop_id, record.date)
         return res
+
+    @api.constrains('is_exceptional', 'exceptional_reason')
+    def _check_exceptional_reason(self):
+        for record in self:
+            if record.is_exceptional and not (record.exceptional_reason or '').strip():
+                raise ValidationError('Indicá el motivo de la pesada excepcional.')
 
     @api.onchange('coop_id')
     def _onchange_coop_id(self):
@@ -239,11 +262,13 @@ class PoultryWeightRecord(models.Model):
         ], limit=1)
 
     def _poultry_previous_record(self):
-        """Último parte registrado o confirmado del mismo galpón, anterior a este."""
+        """Último parte registrado o confirmado del mismo galpón, anterior a este. Una
+        pesada excepcional no cuenta: sus jaulas no son la muestra de rutina."""
         self.ensure_one()
         return self.search([
             ('coop_id', '=', self.coop_id.id),
             ('state', 'in', ('registered', 'done')),
+            ('is_exceptional', '=', False),
             ('id', '!=', self.id),
             ('date', '<=', self.date),
         ], order='date desc, id desc', limit=1)
@@ -613,6 +638,9 @@ class PoultryWeightRecord(models.Model):
         only_indicators (opcional): recordset de poultry.indicator para publicar SOLO
         esos (botón "Recalcular este indicador"), sin tocar los valores de los demás.
 
+        Las pesadas excepcionales no entran: un día con solo pesadas excepcionales
+        queda sin valor, igual que si se hubieran cancelado.
+
         Como el valor real es único por (lote, indicador, fecha) y un lote puede pesarse
         el mismo día en más de un galpón, siempre se agregan TODOS los partes confirmados
         del lote en esa fecha (no solo self): promedio ponderado por ave y uniformidad
@@ -652,6 +680,7 @@ class PoultryWeightRecord(models.Model):
                 ('batch_id', '=', batch_id),
                 ('date', '=', target_date),
                 ('state', '=', 'done'),
+                ('is_exceptional', '=', False),
             ])
             lines = siblings.mapped('line_ids')
             if lines:
@@ -746,8 +775,10 @@ class PoultryWeightRecord(models.Model):
         touched = {(value.batch_id, value.date) for value in stale}
         stale.unlink()
         records = self.sudo().search([('state', '=', 'done')], order='date, id')
+        # También los días con solo pesadas excepcionales: así se limpia su valor.
         records._poultry_apply_indicator_values(only_indicators=indicator)
-        published = {(record.batch_id, record.date) for record in records}
+        published = {(record.batch_id, record.date) for record in records
+                     if not record.is_exceptional}
         for batch, target_date in touched - published:
             self._poultry_refresh_week(batch, indicator, target_date)
         return len(published)

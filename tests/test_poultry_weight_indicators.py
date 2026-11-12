@@ -5,6 +5,7 @@ desde los partes confirmados."""
 from datetime import timedelta
 
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
 
 
@@ -47,9 +48,11 @@ class TestPoultryWeightIndicators(TransactionCase):
         cls.Value = cls.env['poultry.batch.indicator.value']
         cls.Weekly = cls.env['poultry.batch.indicator.weekly.value']
 
-    def _confirmed(self, coop, weights, date=None):
-        record = self.env['poultry.weight.record'].create({
-            'coop_id': coop.id, 'batch_id': self.batch.id, 'date': date or self.today})
+    def _confirmed(self, coop, weights, date=None, exceptional=False):
+        vals = {'coop_id': coop.id, 'batch_id': self.batch.id, 'date': date or self.today}
+        if exceptional:
+            vals.update({'is_exceptional': True, 'exceptional_reason': 'Control puntual'})
+        record = self.env['poultry.weight.record'].create(vals)
         wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': record.id})
         wizard.mode = 'fixed'
         wizard.birds_per_cage = len(weights)
@@ -137,3 +140,57 @@ class TestPoultryWeightIndicators(TransactionCase):
         self.assertEqual(self._weekly(old_date), [], 'y su semanal de origen Sistema también')
         self.assertEqual([v for v, _n, _d in self._daily(manual_date)], [999],
                          'Un valor sin pesada ni OF (carga manual) no se toca')
+
+    def test_exceptional_weighing_is_left_out(self):
+        """Una pesada excepcional se guarda pero no entra en los indicadores del lote."""
+        routine = self._confirmed(self.coop, [1900, 2100, 2000])
+        special = self._confirmed(self.coop2, [1000], exceptional=True)
+        self.assertEqual(special.average_weight_g, 1000, 'Sus resultados propios se ven igual')
+        self.assertEqual(self._daily(), [(2000, 6000, 3)], 'La excepcional no entra')
+
+        # Marcarla o desmarcarla con el parte ya confirmado recalcula el día.
+        routine.write({'is_exceptional': True, 'exceptional_reason': 'Re-pesada'})
+        self.assertEqual(self._daily(), [], 'Con solo pesadas excepcionales el día queda sin valor')
+        self.assertEqual(self._weekly(), [])
+        special.write({'is_exceptional': False})
+        self.assertEqual(self._daily(), [(1000, 1000, 1)])
+
+        with self.assertRaises(ValidationError, msg='La marca pide el motivo'):
+            special.write({'is_exceptional': True, 'exceptional_reason': ' '})
+
+        # El botón de recálculo tampoco la toma.
+        self.indicator.action_recompute_indicator()
+        self.assertEqual(self._daily(), [(1000, 1000, 1)])
+
+    def test_exceptional_is_not_the_previous_weighing(self):
+        routine = self._confirmed(self.coop, [2000], date=self.today - timedelta(days=14))
+        self._confirmed(self.coop, [1500, 1600], date=self.today - timedelta(days=7), exceptional=True)
+        record = self.env['poultry.weight.record'].create({
+            'coop_id': self.coop.id, 'batch_id': self.batch.id, 'date': self.today})
+        self.assertEqual(record._poultry_previous_record(), routine,
+                         'Generar líneas repite la última pesada de rutina, no la excepcional')
+
+    def test_uniformity_indicator(self):
+        """La actualización crea UNIFORMIDAD (%) y publica la historia de los partes."""
+        Indicator = self.env['poultry.indicator']
+        Indicator.with_context(active_test=False).search([
+            '|', ('category', '=', 'uniformity'), ('formula_numerator', '=', 'uniform_birds')]).unlink()
+        # Promedio 2125 g, banda ±10 % = ±212,5 g: entran 2100 y 2000, quedan afuera 1900 y 2500.
+        record = self._confirmed(self.coop, [1900, 2100, 2000, 2500])
+        self.assertEqual(record.uniformity_pct, 50)
+        self._confirmed(self.coop2, [3000], exceptional=True)
+
+        uniformity = Indicator._poultry_ensure_uniformity_indicator()
+        self.assertEqual((uniformity.name, uniformity.uom_id.name, uniformity.formula_factor),
+                         ('UNIFORMIDAD (%)', '%', '100'))
+        values = self.Value.search([('indicator_id', '=', uniformity.id)])
+        self.assertEqual([(v.date, v.value, v.numerator, v.denominator) for v in values],
+                         [(self.today, 50, 200, 4)], 'Igual que la uniformidad del parte, sin la excepcional')
+        weekly = self.Weekly.search([('indicator_id', '=', uniformity.id)])
+        self.assertEqual(weekly.mapped('real_value'), [50])
+        self.assertEqual(Indicator._poultry_ensure_uniformity_indicator(), uniformity,
+                         'No se duplica si ya existe')
+
+        # De ahí en más se publica sola al confirmar y se borra al cancelar.
+        record.action_cancel()
+        self.assertFalse(self.Value.search([('indicator_id', '=', uniformity.id)]))
