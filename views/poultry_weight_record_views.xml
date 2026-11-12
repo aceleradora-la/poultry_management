@@ -4,9 +4,11 @@
         <field name="name">poultry.weight.record.tree</field>
         <field name="model">poultry.weight.record</field>
         <field name="arch" type="xml">
-            <list string="Partes de Peso">
+            <list string="Partes de Peso" decoration-warning="is_late">
                 <field name="name"/>
                 <field name="date"/>
+                <field name="plan_week" optional="show" string="Sem. del plan"/>
+                <field name="is_late" column_invisible="1"/>
                 <field name="coop_id"/>
                 <field name="batch_id"/>
                 <field name="batch_age_weeks"/>
@@ -22,7 +24,7 @@
                 <field name="is_exceptional" string="Excepcional" optional="show"/>
                 <field name="registered_uid" optional="hide"/>
                 <field name="state" widget="badge"
-                       decoration-muted="state == 'draft'"
+                       decoration-muted="state in ('planned', 'draft')"
                        decoration-primary="state == 'in_progress'"
                        decoration-info="state == 'registered'"
                        decoration-success="state == 'done'"
@@ -42,6 +44,9 @@
                 <field name="state"/>
                 <field name="bird_count"/>
                 <field name="is_exceptional"/>
+                <field name="is_late"/>
+                <field name="plan_week"/>
+                <field name="plan_week_start"/>
                 <templates>
                     <t t-name="card">
                         <div class="d-flex justify-content-between align-items-start gap-2">
@@ -54,6 +59,10 @@
                             <field name="date" class="text-muted small text-nowrap"/>
                         </div>
                         <span t-if="record.is_exceptional.raw_value" class="badge text-bg-warning">Excepcional: no entra en indicadores</span>
+                        <span t-if="record.is_late.raw_value" class="badge text-bg-danger">Atrasada</span>
+                        <div t-if="record.plan_week.raw_value and record.state.raw_value == 'planned'" class="small text-muted mt-1">
+                            Semana del plan <field name="plan_week"/> · desde <field name="plan_week_start"/>
+                        </div>
                         <div class="d-flex justify-content-between small mt-2">
                             <span><field name="bird_count"/> de <field name="planned_bird_count"/> aves</span>
                             <span><field name="weighed_cage_count"/> de <field name="cage_count"/> jaulas</span>
@@ -76,10 +85,10 @@
             <form string="Parte de Registro de Peso">
                 <header>
                     <button name="action_open_lines_wizard" string="Generar Líneas" type="object" groups="poultry_management.poultry_user"
-                            class="oe_highlight" invisible="state != 'draft' or line_ids"
+                            class="oe_highlight" invisible="state not in ('planned', 'draft') or line_ids"
                             help="Crea una línea por ave prevista en cada jaula de muestreo del galpón, en el orden físico de las jaulas."/>
                     <button name="action_send" string="Enviar a Pesar" type="object" groups="poultry_management.poultry_user"
-                            class="oe_highlight" invisible="state != 'draft' or not line_ids"
+                            class="oe_highlight" invisible="state not in ('planned', 'draft') or not line_ids"
                             help="Pasa el parte a En Curso: aparece en la app Avícola Campo del celular."/>
                     <!-- La planilla se imprime una vez enviada a pesar; Registrar y Confirmar
                          recién cuando hay algún peso cargado. Generar, Enviar, Confirmar,
@@ -103,7 +112,7 @@
                             confirm="Al cancelar un parte confirmado se recalculan los indicadores de Peso Corporal y Uniformidad del lote. ¿Continuar?"/>
                     <button name="action_draft" string="Volver a Borrador" type="object" groups="poultry_management.poultry_user"
                             invisible="state != 'cancel'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,registered,done"/>
+                    <field name="state" widget="statusbar" statusbar_visible="planned,draft,in_progress,registered,done"/>
                 </header>
                 <sheet>
                     <widget name="web_ribbon" title="Excepcional" bg_color="text-bg-warning"
@@ -111,13 +120,28 @@
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
+                    <field name="is_late" invisible="1"/>
+                    <field name="plan_needs_office" invisible="1"/>
+                    <div class="alert alert-danger" role="alert" invisible="not is_late">
+                        Atrasada: su semana de vida terminó el <field name="plan_week_end" class="oe_inline" readonly="1"/>
+                        y todavía no se registró. Si se pesa ahora, queda registrada en la semana de vida de hoy.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not plan_needs_office or state != 'planned'">
+                        No se pudo enviar sola: no hay una pesada anterior de este galpón para copiar
+                        las jaulas. Generá las líneas y enviala a pesar.
+                    </div>
                     <group>
                         <group>
                             <field name="coop_id" readonly="state != 'draft' or line_ids"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="batch_id" readonly="state != 'draft'"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
-                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="date" readonly="state not in ('planned', 'draft', 'in_progress', 'registered')"/>
+                            <label for="plan_week" invisible="not plan_week"/>
+                            <div class="o_row" invisible="not plan_week">
+                                <field name="plan_week" readonly="1"/>
+                                <span>del <field name="plan_week_start" readonly="1" class="oe_inline"/> al <field name="plan_week_end" readonly="1" class="oe_inline"/></span>
+                            </div>
                             <field name="operator_id" readonly="state not in ('draft', 'in_progress', 'registered')"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                         </group>
@@ -218,8 +242,10 @@
                 <field name="date"/>
                 <separator/>
                 <filter string="Pendientes" name="pending"
-                        domain="[('state', 'in', ('draft', 'in_progress'))]"
-                        help="En Borrador o En Curso"/>
+                        domain="[('state', 'in', ('planned', 'draft', 'in_progress'))]"
+                        help="Planificadas, en Borrador o En Curso"/>
+                <filter string="Planificadas" name="planned" domain="[('state', '=', 'planned')]"/>
+                <filter string="Atrasadas" name="late" domain="[('is_late', '=', True)]"/>
                 <filter string="A Verificar" name="registered" domain="[('state', '=', 'registered')]"/>
                 <filter string="Confirmados" name="done" domain="[('state', '=', 'done')]"/>
                 <separator/>
@@ -239,7 +265,7 @@
     <record id="action_poultry_weight_record" model="ir.actions.act_window">
         <field name="name">Pesaje de Aves</field>
         <field name="res_model">poultry.weight.record</field>
-        <field name="view_mode">kanban,list,form</field>
+        <field name="view_mode">kanban,list,calendar,form</field>
         <field name="search_view_id" ref="view_poultry_weight_record_search"/>
         <field name="context">{'search_default_pending': 1}</field>
         <field name="help" type="html">

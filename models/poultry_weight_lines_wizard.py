@@ -88,8 +88,8 @@ class PoultryWeightLinesWizard(models.TransientModel):
     def action_confirm(self):
         self.ensure_one()
         record = self.record_id
-        if record.state != 'draft':
-            raise ValidationError('Solo se pueden generar líneas en un parte en Borrador.')
+        if record.state not in ('planned', 'draft'):
+            raise ValidationError('Solo se pueden generar líneas en un parte Planificado o en Borrador.')
         if record.line_ids:
             raise ValidationError('El parte ya tiene líneas.')
         if self.birds_per_cage < 1:

@@ -31,15 +31,36 @@ class PoultryWeightRecord(models.Model):
                                   help='Quien hace la pesada. El usuario que la registra '
                                        'queda en el historial del parte.')
     state = fields.Selection([
+        ('planned', 'Planificada'),
         ('draft', 'Borrador'),
         ('in_progress', 'En Curso'),
         ('registered', 'Registrado'),
         ('done', 'Confirmado'),
         ('cancel', 'Cancelado'),
     ], string='Estado', default='draft', required=True, tracking=True, copy=False,
-        help='Borrador: la oficina prepara el parte (líneas, planilla). En Curso: se envió '
-             'a pesar y aparece en la app del celular. Registrado: la pesada terminó y '
-             'queda a verificar. Confirmado: publica los indicadores.')
+        help='Planificada: la creó el Plan de Pesaje del lote para una semana de vida que '
+             'todavía no empezó (o que espera a la oficina). Borrador: la oficina prepara el '
+             'parte (líneas, planilla). En Curso: se envió a pesar y aparece en la app del '
+             'celular. Registrado: la pesada terminó y queda a verificar. Confirmado: publica '
+             'los indicadores.')
+    # Programación por Plan de Pesaje (pedido del usuario del 2026-11-12). La semana del
+    # plan dice qué pesada del plan es; la semana de vida real del día pesado es
+    # batch_age_weeks (sale de date), y es la que usan los indicadores.
+    plan_week = fields.Integer(string='Semana del plan', readonly=True, copy=False, index=True,
+                               help='Semana de vida que le tocaba según el Plan de Pesaje. '
+                                    'Si se pesa tarde, queda registrada en su semana real.')
+    plan_week_start = fields.Date(string='Su semana desde', readonly=True, copy=False)
+    plan_week_end = fields.Date(string='Su semana hasta', readonly=True, copy=False)
+    plan_needs_office = fields.Boolean(
+        string='Espera a la oficina', readonly=True, copy=False,
+        help='No se pudo enviar sola: no hay una pesada anterior de este galpón para copiar '
+             'las jaulas. La oficina tiene que generar las líneas y enviarla.')
+    is_late = fields.Boolean(string='Atrasada', compute='_compute_is_late', search='_search_is_late',
+                             help='Su semana de vida terminó y todavía no se registró.')
+    calendar_start = fields.Date(string='Inicio en el calendario', compute='_compute_calendar',
+                                 store=True)
+    calendar_stop = fields.Date(string='Fin en el calendario', compute='_compute_calendar',
+                                store=True)
     line_ids = fields.One2many('poultry.weight.record.line', 'record_id', string='Pesos')
     cage_summary_ids = fields.One2many('poultry.weight.record.cage', 'record_id',
                                        string='Por Jaula')
@@ -240,6 +261,43 @@ class PoultryWeightRecord(models.Model):
             return
         raise AccessError('%s es tarea de la oficina (permiso Usuario Avícola).' % action)
 
+    _POULTRY_OPEN_STATES = ('planned', 'draft', 'in_progress')
+
+    @api.depends('state', 'plan_week_end')
+    def _compute_is_late(self):
+        today = fields.Date.context_today(self)
+        for record in self:
+            record.is_late = bool(record.state in self._POULTRY_OPEN_STATES and record.plan_week_end
+                                  and record.plan_week_end < today)
+
+    def _search_is_late(self, operator, value):
+        if operator not in ('=', '!=') or not isinstance(value, bool):
+            raise ValidationError('Búsqueda no soportada sobre Atrasada.')
+        today = fields.Date.context_today(self)
+        late = ['&', ('state', 'in', list(self._POULTRY_OPEN_STATES)), ('plan_week_end', '<', today)]
+        positive = (operator == '=') == value
+        return late if positive else ['!'] + late
+
+    @api.depends('plan_week_start', 'plan_week_end', 'date')
+    def _compute_calendar(self):
+        """En el calendario, una pesada del plan ocupa su semana de vida entera (7 días que
+        arrancan el día en que ese lote cambia de semana); una cargada a mano, su día."""
+        for record in self:
+            record.calendar_start = record.plan_week_start or record.date
+            record.calendar_stop = record.plan_week_end or record.date
+
+    @api.depends('name', 'coop_id', 'plan_week', 'batch_age_weeks', 'state')
+    @api.depends_context('poultry_calendar_label')
+    def _compute_display_name(self):
+        """En el calendario se lee mejor "Galpón 2 · Sem. 38 · En Curso" que el número."""
+        if not self.env.context.get('poultry_calendar_label'):
+            return super()._compute_display_name()
+        labels = dict(self._fields['state']._description_selection(self.env))
+        for record in self:
+            week = record.plan_week or record.batch_age_weeks
+            state = 'Atrasada' if record.is_late else labels.get(record.state, record.state)
+            record.display_name = '%s · Sem. %s · %s' % (record.coop_id.name or '', week, state)
+
     @api.constrains('is_exceptional', 'exceptional_reason')
     def _check_exceptional_reason(self):
         for record in self:
@@ -328,8 +386,8 @@ class PoultryWeightRecord(models.Model):
         """Manda la pesada al galpón: pasa a En Curso y aparece en la app Avícola Campo."""
         self._poultry_check_office('Enviar a pesar')
         for record in self:
-            if record.state != 'draft':
-                raise ValidationError('Solo se puede enviar a pesar un parte en Borrador.')
+            if record.state not in ('planned', 'draft'):
+                raise ValidationError('Solo se puede enviar a pesar un parte Planificado o en Borrador.')
             if not record.line_ids:
                 raise ValidationError('Generá las líneas antes de enviar a pesar.')
         self.write({'state': 'in_progress'})
@@ -351,11 +409,15 @@ class PoultryWeightRecord(models.Model):
                 'target': 'new',
                 'context': {'default_record_id': self.id},
             }
-        self.write({
+        vals = {
             'state': 'registered',
             'registered_date': fields.Datetime.now(),
             'registered_uid': self.env.uid,
-        })
+        }
+        if self.env.context.get('poultry_mobile') and self.plan_week:
+            # Se pesó hoy: queda en la semana de vida real, no en la que le tocaba.
+            vals['date'] = fields.Date.context_today(self)
+        self.write(vals)
         if self.env.context.get('poultry_mobile'):
             self.message_post(body='Pesada registrada desde el celular.')
         return True
@@ -447,6 +509,112 @@ class PoultryWeightRecord(models.Model):
         return [filled[start:start + columns] for start in range(0, len(filled), columns)]
 
     # ------------------------------------------------------------------
+    # Programación por Plan de Pesaje
+    # ------------------------------------------------------------------
+    @api.model
+    def _cron_poultry_plan_weighings(self):
+        """Proceso diario: crea las pesadas planificadas de cada lote en cada galpón donde
+        está alojado y envía solas las que empiezan su semana de vida."""
+        today = fields.Date.context_today(self)
+        Record = self.sudo()
+        for coop_line in Record._poultry_open_coop_lines(today):
+            Record._poultry_plan_coop_line(coop_line, today)
+        Record.search([('state', '=', 'planned'), ('plan_week_start', '<=', today)])._poultry_plan_send()
+
+    @api.model
+    def _poultry_open_coop_lines(self, today, batches=None):
+        domain = [
+            ('active', '=', True), ('date_from', '<=', today),
+            '|', ('date_to', '=', False), ('date_to', '>=', today),
+        ]
+        if batches is not None:
+            domain.append(('batch_id', 'in', batches.ids))
+        return self.env['poultry.batch.coop.line'].sudo().search(domain)
+
+    @api.model
+    def _poultry_plan_coop_line(self, coop_line, today):
+        """Asegura la pesada de la semana de vida que toca hoy (si toca) y la próxima del
+        lote en ese galpón. Una que ya existe en cualquier estado, también cancelada, no se
+        vuelve a crear: cancelar es la forma de saltear una semana. Una pesada cargada a
+        mano en esa semana también la cubre."""
+        batch, coop = coop_line.batch_id, coop_line.coop_id
+        if not (batch.active and batch.birth_date):
+            return
+        plan = batch._poultry_weight_plan()
+        if not plan:
+            return
+        entry_week = batch._poultry_week_of(coop_line.date_from)
+        current = batch._poultry_week_of(today)
+        weeks = [current] if plan._poultry_is_due(current, entry_week) else []
+        upcoming = plan._poultry_next_due_week(current + 1, entry_week)
+        if upcoming:
+            weeks.append(upcoming)
+        for week in weeks:
+            start, end = batch._poultry_week_start(week), batch._poultry_week_end(week)
+            if coop_line.date_to and start > coop_line.date_to:
+                continue
+            same = [('batch_id', '=', batch.id), ('coop_id', '=', coop.id)]
+            if self.search_count(same + [('plan_week', '=', week)]):
+                continue
+            if self.search_count(same + [
+                    '|', ('plan_week', '=', False), ('plan_week', '=', 0),
+                    ('state', '!=', 'cancel'), ('is_exceptional', '=', False),
+                    ('date', '>=', start), ('date', '<=', end)]):
+                continue
+            self.create({
+                'coop_id': coop.id, 'batch_id': batch.id, 'date': start, 'state': 'planned',
+                'plan_week': week, 'plan_week_start': start, 'plan_week_end': end,
+            })
+
+    def _poultry_plan_send(self):
+        """Envía a pesar las planificadas cuya semana empezó, si su plan las envía solas:
+        con las mismas jaulas y aves que la pesada anterior del galpón (las que quedaron con
+        peso). Sin pesada anterior no hay qué copiar: queda esperando a la oficina."""
+        for record in self:
+            plan = record.batch_id._poultry_weight_plan()
+            if record.state != 'planned' or not plan or plan.send_mode != 'auto':
+                continue
+            source = ''
+            if not record.line_ids:
+                previous = record._poultry_previous_record()
+                counts = previous._poultry_weighed_counts() if previous else {}
+                cages = self.env['poultry.cage'].search([
+                    ('coop_id', '=', record.coop_id.id), ('is_sampling', '=', True),
+                ]).filtered(lambda cage: cage in counts)
+                if not cages:
+                    if not record.plan_needs_office:
+                        record.plan_needs_office = True
+                        record.message_post(
+                            body='No se pudo enviar sola: no hay una pesada anterior de este '
+                                 'galpón con pesos para copiar sus jaulas. Generá las líneas '
+                                 'y enviala a pesar.')
+                    continue
+                record.birds_per_cage = previous.birds_per_cage
+                record._poultry_add_cage_lines(cages, previous.birds_per_cage or 1, counts=counts)
+                source = ', con las jaulas y aves de %s' % previous.name
+            record.write({'state': 'in_progress', 'plan_needs_office': False})
+            record.message_post(body='Enviada a pesar sola al empezar la semana %d%s.'
+                                     % (record.plan_week, source))
+
+    @api.model
+    def _poultry_replan_batches(self, batches):
+        """Cambió el plan de estos lotes: se borran sus pesadas planificadas que todavía no
+        se prepararon (sin líneas) y se vuelven a crear con el plan nuevo."""
+        if not batches:
+            return
+        Record = self.sudo()
+        Record.search([
+            ('batch_id', 'in', batches.ids), ('state', '=', 'planned'), ('line_ids', '=', False),
+        ]).unlink()
+        today = fields.Date.context_today(self)
+        for coop_line in Record._poultry_open_coop_lines(today, batches):
+            Record._poultry_plan_coop_line(coop_line, today)
+        Record.search([
+            ('batch_id', 'in', batches.ids), ('state', '=', 'planned'),
+            ('plan_week_start', '<=', today),
+        ])._poultry_plan_send()
+
+    # ------------------------------------------------------------------
     # Pantalla de celular (acción cliente poultry_weighing)
     # ------------------------------------------------------------------
     @api.model
@@ -455,9 +623,14 @@ class PoultryWeightRecord(models.Model):
         registradas en las últimas 24 horas para que el operador vea que quedaron hechas."""
         since = fields.Datetime.now() - timedelta(days=1)
         records = self.search([
-            '|', ('state', '=', 'in_progress'),
+            '|', ('state', 'in', ('in_progress', 'planned')),
             '&', ('state', '=', 'registered'), ('registered_date', '>=', since),
-        ], order='state, date desc, coop_id, id desc')
+        ])
+        # Primero lo que hay que pesar (las atrasadas arriba), después las próximas del
+        # plan por fecha y al final las registradas del día.
+        rank = {'in_progress': 0, 'planned': 1, 'registered': 2}
+        records = records.sorted(key=lambda r: (
+            rank[r.state], not r.is_late, r.plan_week_start or r.date, r.coop_id.id, r.id))
         return [record._poultry_mobile_header() for record in records]
 
     def _poultry_mobile_header(self):
@@ -480,6 +653,13 @@ class PoultryWeightRecord(models.Model):
             'closed_cage_count': len(self.closed_cage_ids & self.line_ids.cage_id),
             'progress_pct': round(self.progress_pct),
             'average_weight_g': round(self.average_weight_g, 1),
+            'plan_week': self.plan_week,
+            'plan_week_start': fields.Date.to_string(self.plan_week_start) if self.plan_week_start else '',
+            'plan_week_end': fields.Date.to_string(self.plan_week_end) if self.plan_week_end else '',
+            'late': self.is_late,
+            # Semana de vida de hoy: una atrasada que se pesa hoy queda en esta.
+            'today_week': self.batch_id._poultry_week_of(fields.Date.context_today(self))
+                          if self.batch_id.birth_date else 0,
             # Referencia del aviso "peso fuera de rango" del celular mientras la pesada
             # todavía tiene pocas aves: el promedio de la pesada anterior del galpón.
             'previous_average_g': round(self._poultry_previous_record().average_weight_g, 1),

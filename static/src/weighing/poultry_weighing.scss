@@ -126,6 +126,8 @@
     }
     .o_pw_badge_draft { background: $pw-primary; color: #fff; }
     .o_pw_badge_done { background: #dcfce7; color: #166534; }
+    .o_pw_badge_late { background: #ffedd5; color: #9a3412; }
+    .o_pw_card_upcoming { background: #f9fafb; border: 1px dashed #9ca3af; }
 
     .o_pw_progress {
         height: 8px;

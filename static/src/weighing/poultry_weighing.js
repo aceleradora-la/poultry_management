@@ -65,12 +65,41 @@ export class PoultryWeighing extends Component {
     }
 
     get pendingLabel() {
-        const pending = this.state.records.filter((rec) => rec.state === "in_progress");
+        const pending = this.currentRecords;
         if (!pending.length) {
-            return "Sin pesadas enviadas a pesar";
+            const next = this.upcomingRecords[0];
+            return next
+                ? `Sin pesadas esta semana · próxima ${this.dayLabel(next.plan_week_start)}, ${next.coop}`
+                : "Sin pesadas enviadas a pesar";
         }
         const coops = [...new Set(pending.map((rec) => rec.coop))].join(", ");
-        return `${pending.length} ${pending.length === 1 ? "pesada en curso" : "pesadas en curso"} · ${coops}`;
+        const late = pending.filter((rec) => rec.late).length;
+        const lateLabel = late ? ` · ${late} ${late === 1 ? "atrasada" : "atrasadas"}` : "";
+        return `${pending.length} ${pending.length === 1 ? "pesada en curso" : "pesadas en curso"}${lateLabel} · ${coops}`;
+    }
+
+    /** Las que hay que pesar (atrasadas primero, ya vienen ordenadas del servidor). */
+    get currentRecords() {
+        return this.state.records.filter((rec) => rec.state === "in_progress");
+    }
+
+    /** Las próximas del Plan de Pesaje: informativas, se habilitan solas al empezar su semana. */
+    get upcomingRecords() {
+        return this.state.records.filter((rec) => rec.state === "planned");
+    }
+
+    get doneRecords() {
+        return this.state.records.filter((rec) => rec.state === "registered");
+    }
+
+    /** "lun 16/11" a partir de una fecha ISO. */
+    dayLabel(iso) {
+        if (!iso) {
+            return "";
+        }
+        const date = new Date(iso + "T12:00:00");
+        const weekday = date.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "");
+        return `${weekday} ${date.getDate()}/${date.getMonth() + 1}`;
     }
 
     /** Se ofrece instalar la app mientras no se esté ya dentro de la app instalada. */

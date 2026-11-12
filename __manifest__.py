@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.118.0',
+    'version': '19.0.1.119.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -38,6 +38,7 @@
         'data/ir_sequence_data.xml',
         'data/genetics_data.xml',
         'data/poultry_config_parameters.xml',
+        'data/poultry_weight_plan_data.xml',
         'views/uom_views.xml',
         'views/product_category_views.xml',
         'views/product_template_views.xml',
@@ -68,6 +69,7 @@
         'report/poultry_weight_sheet_report.xml',
         'views/poultry_weight_record_views.xml',
         'views/poultry_weight_wizard_views.xml',
+        'views/poultry_weight_plan_views.xml',
         'views/poultry_vaccine_views.xml',
         'views/poultry_vaccination_plan_views.xml',
         'views/poultry_vaccination_views.xml',

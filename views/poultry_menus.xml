@@ -15,12 +15,33 @@
               action="action_poultry_egg_collection" 
               sequence="10"/>
 
-    <!-- Menú: Pesaje de Aves -->
-    <menuitem id="menu_poultry_weight_record"
+    <!-- Menú: Pesaje de Aves (pesadas, calendario y planes; pedido del usuario del
+         2026-11-12: la programación de pesajes vive acá, no en Producción). El menú viejo
+         con la acción pasa a ser el hijo "Pesadas". -->
+    <menuitem id="menu_poultry_weight_root"
               name="Pesaje de Aves"
               parent="menu_poultry_management_root"
-              action="action_poultry_weight_record"
               sequence="15"/>
+    <menuitem id="menu_poultry_weight_record"
+              name="Pesadas"
+              parent="menu_poultry_weight_root"
+              action="action_poultry_weight_record"
+              sequence="10"/>
+    <menuitem id="menu_poultry_weight_calendar"
+              name="Calendario"
+              parent="menu_poultry_weight_root"
+              action="action_poultry_weight_record_calendar"
+              sequence="20"/>
+    <menuitem id="menu_poultry_weight_plan"
+              name="Planes de Pesaje"
+              parent="menu_poultry_weight_root"
+              action="action_poultry_weight_plan"
+              sequence="30"/>
+    <menuitem id="menu_poultry_weight_plan_batch"
+              name="Plan por Lote"
+              parent="menu_poultry_weight_root"
+              action="action_poultry_weight_plan_batch"
+              sequence="40"/>
 
     <!-- App Avícola Campo: app aparte en el inicio de Odoo para lo que se carga desde el
          celular en el galpón. Solo la ven los Operadores de Campo (privilegio propio). -->

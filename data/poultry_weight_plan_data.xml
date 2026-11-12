@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Plan de Pesaje de ejemplo con la regla de jeica (2026-11-12): hasta la semana 30 una
+         pesada por semana, de 30 a 40 cada 2 semanas, desde la 40 cada 4. NO se marca por
+         defecto: el módulo lo usa más de una granja y el proceso diario empezaría a crear
+         pesadas solo. Se activa tildando "Plan por defecto de la granja". -->
+    <data noupdate="1">
+        <record id="weight_plan_layers" model="poultry.weight.plan">
+            <field name="name">Ponedoras estándar</field>
+            <field name="send_mode">auto</field>
+        </record>
+        <record id="weight_plan_layers_line_weekly" model="poultry.weight.plan.line">
+            <field name="plan_id" ref="weight_plan_layers"/>
+            <field name="week_from">0</field>
+            <field name="week_to">30</field>
+            <field name="interval">1</field>
+        </record>
+        <record id="weight_plan_layers_line_biweekly" model="poultry.weight.plan.line">
+            <field name="plan_id" ref="weight_plan_layers"/>
+            <field name="week_from">30</field>
+            <field name="week_to">40</field>
+            <field name="interval">2</field>
+        </record>
+        <record id="weight_plan_layers_line_monthly" model="poultry.weight.plan.line">
+            <field name="plan_id" ref="weight_plan_layers"/>
+            <field name="week_from">40</field>
+            <field name="week_to">0</field>
+            <field name="interval">4</field>
+        </record>
+
+        <!-- Proceso diario: crea las pesadas planificadas y envía solas las que empiezan su
+             semana de vida. Corre a la madrugada (09:00 UTC = 06:00 de Argentina). -->
+        <record id="ir_cron_poultry_plan_weighings" model="ir.cron">
+            <field name="name">Avícola: programar pesajes por semana de vida</field>
+            <field name="model_id" ref="model_poultry_weight_record"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_poultry_plan_weighings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 09:00:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

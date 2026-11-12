@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Planes de Pesaje (pedido del usuario del 2026-11-12) -->
+    <record id="view_poultry_weight_plan_list" model="ir.ui.view">
+        <field name="name">poultry.weight.plan.list</field>
+        <field name="model">poultry.weight.plan</field>
+        <field name="arch" type="xml">
+            <list string="Planes de Pesaje">
+                <field name="name"/>
+                <field name="is_default" widget="boolean_toggle"/>
+                <field name="send_mode"/>
+                <field name="preview"/>
+                <field name="batch_count"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_poultry_weight_plan_form" model="ir.ui.view">
+        <field name="name">poultry.weight.plan.form</field>
+        <field name="model">poultry.weight.plan</field>
+        <field name="arch" type="xml">
+            <form string="Plan de Pesaje">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_batches" type="object" class="oe_stat_button" icon="fa-list">
+                            <field name="batch_count" widget="statinfo" string="Lotes"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Archivado" bg_color="text-bg-danger" invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Ej. Ponedoras estándar"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="is_default"/>
+                            <div class="text-muted" colspan="2">
+                                Se empieza a pesar desde el ingreso del lote al galpón. Cada pesada
+                                aparece en el celular durante toda su semana de vida, cualquier día.
+                            </div>
+                        </group>
+                        <group>
+                            <field name="send_mode" widget="radio"/>
+                        </group>
+                    </group>
+                    <separator string="Tramos"/>
+                    <field name="line_ids" nolabel="1">
+                        <list editable="bottom">
+                            <field name="week_from"/>
+                            <field name="week_to"/>
+                            <field name="interval"/>
+                        </list>
+                    </field>
+                    <div class="text-muted">
+                        Desde semana 0 = desde el ingreso al galpón. Hasta semana 0 = hasta el fin del lote.
+                    </div>
+                    <group>
+                        <field name="preview"/>
+                    </group>
+                    <div class="text-muted">
+                        Si una pesada se hace tarde, queda registrada en la semana de vida en que
+                        se pesó (la de la semana 36 pesada en la 37 queda como semana 37). La
+                        próxima sigue en la grilla del plan, la 38. Cancelar una pesada planificada
+                        saltea esa semana: no se vuelve a crear.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_poultry_weight_plan" model="ir.actions.act_window">
+        <field name="name">Planes de Pesaje</field>
+        <field name="res_model">poultry.weight.plan</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Creá un Plan de Pesaje</p>
+            <p>
+                Cada cuántas semanas de vida se pesa un lote. El plan por defecto lo usan
+                todos los lotes; un lote puede usar otro desde Plan por Lote.
+            </p>
+        </field>
+    </record>
+
+    <!-- Plan por lote: qué plan usa cada lote (vacío = el de la granja) -->
+    <record id="view_poultry_batch_weight_plan_list" model="ir.ui.view">
+        <field name="name">poultry.batch.weight.plan.list</field>
+        <field name="model">poultry.batch</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <list string="Plan de Pesaje por Lote" editable="bottom" create="0" delete="0">
+                <field name="name" readonly="1"/>
+                <field name="current_coop_ids" widget="many2many_tags" readonly="1"/>
+                <field name="age_weeks" readonly="1"/>
+                <field name="weight_plan_id" placeholder="Plan por defecto de la granja"
+                       options="{'no_create': True, 'no_create_edit': True}"/>
+                <field name="weight_plan_effective_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_poultry_weight_plan_batch" model="ir.actions.act_window">
+        <field name="name">Plan de Pesaje por Lote</field>
+        <field name="res_model">poultry.batch</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_poultry_batch_weight_plan_list"/>
+        <field name="domain">[('active', '=', True)]</field>
+    </record>
+
+    <!-- Calendario: cada pesada del plan ocupa su semana de vida (no la del calendario) -->
+    <record id="view_poultry_weight_record_calendar" model="ir.ui.view">
+        <field name="name">poultry.weight.record.calendar</field>
+        <field name="model">poultry.weight.record</field>
+        <field name="arch" type="xml">
+            <calendar string="Pesadas" date_start="calendar_start" date_stop="calendar_stop"
+                      mode="month" color="coop_id" quick_create="0" event_open_popup="0">
+                <field name="coop_id" filters="1"/>
+                <field name="batch_id" filters="1"/>
+                <field name="state"/>
+                <field name="plan_week"/>
+                <field name="batch_age_weeks"/>
+                <field name="is_late"/>
+            </calendar>
+        </field>
+    </record>
+
+    <record id="action_poultry_weight_record_calendar" model="ir.actions.act_window">
+        <field name="name">Calendario de Pesadas</field>
+        <field name="res_model">poultry.weight.record</field>
+        <field name="view_mode">calendar,kanban,list,form</field>
+        <field name="view_id" ref="view_poultry_weight_record_calendar"/>
+        <field name="context">{'poultry_calendar_label': True}</field>
+        <field name="domain">[('state', '!=', 'cancel')]</field>
+    </record>
+</odoo>
