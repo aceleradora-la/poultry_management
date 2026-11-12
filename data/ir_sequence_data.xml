@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
+<!-- noupdate: number_next solo vale para la instalación. Recargado en cada
+     actualización, el write de ir.sequence reinicia la numeración en 1 y los
+     registros nuevos repiten nombres ya usados. -->
+<odoo noupdate="1">
     <record id="sequence_poultry_coop" model="ir.sequence">
         <field name="name">Secuencia de Código de Galpón</field>
         <field name="code">poultry.coop</field>
