@@ -25,13 +25,13 @@ class PoultryCoopClose(models.Model):
     # ------------------------------------------------------------------
     @api.model
     def _poultry_mobile_check_user(self):
-        user = self.env.user
+        """La OF se toca con sudo, así que el permiso se controla acá: función "OF Huevo sin
+        Clasificar" de Avícola Campo (la trae el Gestor)."""
         if self.env.su:
             return
-        if not (user.has_group('poultry_management.poultry_field_user')
-                or user.has_group('poultry_management.poultry_user')):
-            raise AccessError('Solo los operadores de campo y los usuarios avícolas cargan la '
-                              'mortandad y los consumos desde el celular.')
+        if not self.env.user.has_group('poultry_management.poultry_field_unclassified'):
+            raise AccessError('Cargar aves muertas y consumos de la OF de Huevo sin Clasificar '
+                              'necesita el permiso "OF Huevo sin Clasificar" de Avícola Campo.')
 
     def _poultry_mobile_order(self):
         """La OF de Huevo sin Clasificar del cierre, con sudo (sus campos de mortandad tienen

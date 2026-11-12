@@ -1,6 +1,7 @@
 import { Component, useState, onWillStart, onPatched } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { user } from "@web/core/user";
 import { scanBarcode } from "@web/core/barcode/barcode_dialog";
 import { isBarcodeScannerSupported } from "@web/core/barcode/barcode_video_scanner";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
@@ -38,10 +39,16 @@ export class PoultryWeighing extends Component {
             manualCode: "",
             showManual: false,
             busy: false,
+            // Funciones de Avícola Campo que tiene el usuario: cada una es un permiso propio
+            // y combinable; el inicio muestra solo esas tarjetas.
+            access: { weighing: false, collection: false, unclassified: false },
         });
         this.scannerSupported = isBarcodeScannerSupported();
         this.focusPending = false;
-        onWillStart(() => this.loadHome());
+        onWillStart(async () => {
+            await this.loadAccess();
+            await this.loadHome();
+        });
         onPatched(() => this.focusFirstEmpty());
     }
 
@@ -84,8 +91,35 @@ export class PoultryWeighing extends Component {
         this.state.cageId = null;
     }
 
+    async loadAccess() {
+        const [weighing, collection, unclassified] = await Promise.all([
+            user.hasGroup("poultry_management.poultry_field_weighing"),
+            user.hasGroup("poultry_management.poultry_field_collection"),
+            user.hasGroup("poultry_management.poultry_field_unclassified"),
+        ]);
+        Object.assign(this.state.access, { weighing, collection, unclassified });
+    }
+
+    get hasAnyAccess() {
+        const access = this.state.access;
+        return access.weighing || access.collection || access.unclassified;
+    }
+
+    /** Solo se piden los resúmenes de las funciones que tiene el usuario: las demás
+     * darían error de permisos. */
     async loadHome() {
-        await Promise.all([this.loadRecords(), this.loadEggSummary(), this.loadFarmSummary()]);
+        const access = this.state.access;
+        const jobs = [];
+        if (access.weighing) {
+            jobs.push(this.loadRecords());
+        }
+        if (access.collection) {
+            jobs.push(this.loadEggSummary());
+        }
+        if (access.unclassified) {
+            jobs.push(this.loadFarmSummary());
+        }
+        await Promise.all(jobs);
     }
 
     /** Resumen de las OF de Huevo sin Clasificar pendientes para la tarjeta del inicio. */

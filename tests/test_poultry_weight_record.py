@@ -256,7 +256,7 @@ class TestPoultryWeightRecord(TransactionCase):
         operator = self.env['res.users'].create({
             'name': 'Operador Test', 'login': 'operador_test',
             'group_ids': [(6, 0, [self.env.ref('base.group_user').id,
-                                  self.env.ref('poultry_management.poultry_field_user').id])],
+                                  self.env.ref('poultry_management.poultry_field_weighing').id])],
         })
         record = self._record()
         self._generate(record)
@@ -273,9 +273,18 @@ class TestPoultryWeightRecord(TransactionCase):
         with self.assertRaises(AccessError, msg='No crea partes ni entra a Gestión Avícola'):
             Record.create({'coop_id': self.coop.id, 'batch_id': self.batch.id})
         self.assertFalse(operator.has_group('poultry_management.poultry_user'))
-        self.assertIn(self.env.ref('poultry_management.poultry_field_user'),
+        # Lo demás es de la oficina aunque abra la ficha por su dirección web.
+        mine = Record.browse(record.id)
+        for method in ('action_done', 'action_cancel', 'action_reopen', 'action_send',
+                       'action_open_lines_wizard'):
+            with self.assertRaises(AccessError, msg='%s es de la oficina' % method):
+                getattr(mine, method)()
+        with self.assertRaises(AccessError, msg='Marcar excepcional es de la oficina'):
+            mine.write({'is_exceptional': True, 'exceptional_reason': 'Prueba'})
+        self.assertEqual(record.state, 'registered')
+        self.assertIn(self.env.ref('poultry_management.poultry_field_weighing'),
                       self.env.ref('poultry_management.poultry_manager').all_implied_ids,
-                      'El Gestor Avícola hereda la app del celular')
+                      'El Gestor Avícola hereda el pesaje del celular')
 
     def test_mobile_flow(self):
         record = self._record()
@@ -339,12 +348,15 @@ class TestPoultryWeightRecord(TransactionCase):
     # Planilla
     # ------------------------------------------------------------------
     def test_sheet_pages_keep_cages_whole(self):
-        """Una jaula no se corta si entra entera en una sección, aunque las secciones
-        queden desparejas."""
+        """Una jaula no se corta si entra entera en una columna: si no entra en lo que
+        queda, pasa entera a la siguiente."""
         record = self._record()
         self._generate(record, birds_per_cage=4)
         record._poultry_add_cage_lines(self.cage_b, 7)  # B queda con 11 aves
-        pages = record._poultry_sheet_pages(rows_per_column=38)
+        # 14 filas por columna (el título cuenta 2): A ocupa 6; B (13) no entra en las 8
+        # que quedan y pasa entera a la segunda; C (6) tampoco entra junto a B y va a la
+        # tercera.
+        pages = record._poultry_sheet_pages(rows_per_column=14)
         self.assertEqual(len(pages), 1)
         self.assertEqual([[(g['cage'], g['continued'], len(g['rows'])) for g in column]
                           for column in pages[0]],
@@ -355,19 +367,20 @@ class TestPoultryWeightRecord(TransactionCase):
         record = self._record()
         self._generate(record)  # 3 jaulas × 3 aves
         pages = record._poultry_sheet_pages()
-        self.assertEqual([len(column) for column in pages[0]], [1, 1, 1],
-                         'Con pocas aves las secciones se reparten parejas')
-        pages = record._poultry_sheet_pages(rows_per_column=4)
+        self.assertEqual([len(column) for column in pages[0]], [3],
+                         'Se llena la primera columna antes de pasar a la siguiente')
+        pages = record._poultry_sheet_pages(rows_per_column=5)
         self.assertEqual(len(pages), 1)
         self.assertEqual([len(column) for column in pages[0]], [1, 1, 1],
-                         'Cada jaula (título + 3 aves) llena una sección')
+                         'Cada jaula (título de 2 filas + 3 aves) llena una sección')
         self.assertEqual([column[0]['cage'] for column in pages[0]],
                          [self.cage_a, self.cage_b, self.cage_c])
         self.assertFalse(any(group['continued'] for column in pages[0] for group in column))
 
-        pages = record._poultry_sheet_pages(rows_per_column=3, columns=2)
-        # Columna: título + 2 aves; la tercera ave sigue en la columna siguiente, y la
-        # jaula siguiente (título + ave = 2 filas) ya no entra ahí: arranca columna nueva.
+        pages = record._poultry_sheet_pages(rows_per_column=4, columns=2)
+        # Columna: título (2 filas) + 2 aves; la tercera ave sigue en la columna
+        # siguiente, y la jaula siguiente (título + 2 aves = 4 filas) ya no entra ahí:
+        # arranca columna nueva.
         self.assertEqual(len(pages), 3)
         first, second = pages[0]
         self.assertEqual([(g['cage'], g['continued'], len(g['rows'])) for g in first],
@@ -384,3 +397,20 @@ class TestPoultryWeightRecord(TransactionCase):
         self.assertNotIn('class="pw-break"', html, 'Entra en una sola hoja')
         self.assertIn(self.env.company.name, html, 'Lleva los datos de la empresa')
         self.assertIn('Hoja 1 de 1', html)
+
+    def test_sheet_fills_columns_like_a_form(self):
+        """El caso de la planilla G3-2026-005 (10 jaulas de 10 aves): las columnas se
+        llenan completas en orden, no repartidas entre las hojas (antes salía 1, 1 y 2
+        jaulas en la primera hoja y 2, 2 y 2 en la segunda)."""
+        self.coop.cage_ids.is_sampling = True  # las 8 jaulas del galpón
+        record = self._record()
+        self._generate(record, birds_per_cage=10)
+        # 25 filas por columna = 2 jaulas de 10 aves (título de 2 filas + 10 aves cada una).
+        pages = record._poultry_sheet_pages(rows_per_column=25)
+        self.assertEqual([[len(column) for column in page] for page in pages], [[2, 2, 2], [2]])
+        cages = [group['cage'] for page in pages for column in page for group in column]
+        physical = list(self.coop.cage_ids.sorted(key=lambda cage: cage._poultry_sort_key()))
+        self.assertEqual(cages, physical, 'En el orden físico de las jaulas')
+        # Con las 38 filas reales entran 3 jaulas por columna: 8 jaulas en una sola hoja.
+        pages = record._poultry_sheet_pages(rows_per_column=38)
+        self.assertEqual([[len(column) for column in page] for page in pages], [[3, 3, 2]])

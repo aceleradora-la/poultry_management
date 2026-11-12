@@ -215,7 +215,7 @@ class TestPoultryWeightIndicators(TransactionCase):
         operator = self.env['res.users'].create({
             'name': 'Operador Peso', 'login': 'operador_peso_test',
             'group_ids': [(6, 0, [self.env.ref('base.group_user').id,
-                                  self.env.ref('poultry_management.poultry_field_user').id])],
+                                  self.env.ref('poultry_management.poultry_field_weighing').id])],
         })
         record = self.env['poultry.weight.record'].create({
             'coop_id': self.coop.id, 'batch_id': self.batch.id, 'date': self.today})

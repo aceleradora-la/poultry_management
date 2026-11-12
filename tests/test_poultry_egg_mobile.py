@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, tagged
 
 
@@ -42,10 +42,12 @@ class TestPoultryEggMobile(TransactionCase):
             'batch_id': cls.batch.id, 'coop_id': cls.coop.id, 'bird_count': 500,
             'date_from': cls.today - timedelta(days=150),
         })
+        # Dos funciones de Avícola Campo combinadas: partes y OF de Huevo sin Clasificar.
         cls.operator = cls.env['res.users'].create({
             'name': 'Operador Huevos', 'login': 'operador_huevos',
             'group_ids': [(6, 0, [cls.env.ref('base.group_user').id,
-                                  cls.env.ref('poultry_management.poultry_field_user').id])],
+                                  cls.env.ref('poultry_management.poultry_field_collection').id,
+                                  cls.env.ref('poultry_management.poultry_field_unclassified').id])],
         })
         cls.Collection = cls.env['poultry.egg.collection']
 
@@ -345,3 +347,36 @@ class TestPoultryEggMobile(TransactionCase):
         with self.assertRaises(UserError, msg='Una OF cerrada la corrige la oficina'):
             Close.browse(close.id).poultry_mobile_save(1, [], '')
         self.assertEqual(Close.poultry_mobile_pending()['orders'], [])
+
+    def _user(self, login, *groups):
+        return self.env['res.users'].create({
+            'name': login, 'login': login,
+            'group_ids': [(6, 0, [self.env.ref('base.group_user').id]
+                           + [self.env.ref('poultry_management.%s' % group).id for group in groups])],
+        })
+
+    def test_functions_are_separate_permissions(self):
+        """Pesaje, Partes de Producción y OF de Huevo sin Clasificar son permisos propios y
+        combinables (pedido del usuario del 2026-11-12)."""
+        Close = self.env['poultry.coop.close']
+        weigher = self._user('solo_pesaje', 'poultry_field_weighing')
+        self.assertTrue(weigher.has_group('poultry_management.poultry_field_user'),
+                        'Cualquier función da acceso a la app')
+        with self.assertRaises(AccessError, msg='Solo Pesaje no carga partes'):
+            self.Collection.with_user(weigher).poultry_mobile_coops()
+        with self.assertRaises(AccessError, msg='Solo Pesaje no carga la OF'):
+            Close.with_user(weigher).poultry_mobile_pending()
+
+        of_only = self._user('solo_of', 'poultry_field_unclassified')
+        self.assertIn('orders', Close.with_user(of_only).poultry_mobile_pending())
+        with self.assertRaises(AccessError, msg='Solo OF no carga partes'):
+            self.Collection.with_user(of_only).poultry_mobile_coops()
+
+        office = self._user('oficina', 'poultry_user')
+        with self.assertRaises(AccessError, msg='El rol de oficina no trae la OF de la app'):
+            Close.with_user(office).poultry_mobile_pending()
+
+        manager = self.env.ref('poultry_management.poultry_manager')
+        for group in ('poultry_field_weighing', 'poultry_field_collection', 'poultry_field_unclassified'):
+            self.assertIn(self.env.ref('poultry_management.%s' % group), manager.all_implied_ids,
+                          'El Gestor trae las tres funciones')

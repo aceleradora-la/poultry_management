@@ -75,31 +75,33 @@
         <field name="arch" type="xml">
             <form string="Parte de Registro de Peso">
                 <header>
-                    <button name="action_open_lines_wizard" string="Generar Líneas" type="object"
+                    <button name="action_open_lines_wizard" string="Generar Líneas" type="object" groups="poultry_management.poultry_user"
                             class="oe_highlight" invisible="state != 'draft' or line_ids"
                             help="Crea una línea por ave prevista en cada jaula de muestreo del galpón, en el orden físico de las jaulas."/>
-                    <button name="action_send" string="Enviar a Pesar" type="object"
+                    <button name="action_send" string="Enviar a Pesar" type="object" groups="poultry_management.poultry_user"
                             class="oe_highlight" invisible="state != 'draft' or not line_ids"
                             help="Pasa el parte a En Curso: aparece en la app Avícola Campo del celular."/>
                     <!-- La planilla se imprime una vez enviada a pesar; Registrar y Confirmar
-                         recién cuando hay algún peso cargado. -->
+                         recién cuando hay algún peso cargado. Generar, Enviar, Confirmar,
+                         Cancelar y Volver a Borrador son de la oficina (también se controla en
+                         el servidor): el operador de campo solo pesa y registra. -->
                     <button name="%(poultry_management.action_report_weight_sheet)d" string="Imprimir Planilla"
                             type="action" invisible="state not in ('in_progress', 'registered', 'done')"/>
                     <button name="action_register" string="Registrar" type="object"
                             invisible="state not in ('draft', 'in_progress') or not bird_count"
                             help="Da por terminada la pesada. Si quedan jaulas sin pesar, avisa antes."/>
-                    <button name="action_done" string="Confirmar" type="object"
+                    <button name="action_done" string="Confirmar" type="object" groups="poultry_management.poultry_user"
                             invisible="state not in ('draft', 'in_progress') or not bird_count"
                             help="Publica Peso Corporal y Uniformidad del lote. Las líneas sin peso quedan como previstas y no pesadas."/>
-                    <button name="action_done" string="Confirmar" type="object"
+                    <button name="action_done" string="Confirmar" type="object" groups="poultry_management.poultry_user"
                             class="oe_highlight" invisible="state != 'registered'"
                             help="Publica Peso Corporal y Uniformidad del lote. Las líneas sin peso quedan como previstas y no pesadas."/>
-                    <button name="action_reopen" string="Volver a Borrador" type="object"
+                    <button name="action_reopen" string="Volver a Borrador" type="object" groups="poultry_management.poultry_user"
                             invisible="state not in ('in_progress', 'registered')"/>
-                    <button name="action_cancel" string="Cancelar" type="object"
+                    <button name="action_cancel" string="Cancelar" type="object" groups="poultry_management.poultry_user"
                             invisible="state == 'cancel'"
                             confirm="Al cancelar un parte confirmado se recalculan los indicadores de Peso Corporal y Uniformidad del lote. ¿Continuar?"/>
-                    <button name="action_draft" string="Volver a Borrador" type="object"
+                    <button name="action_draft" string="Volver a Borrador" type="object" groups="poultry_management.poultry_user"
                             invisible="state != 'cancel'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,registered,done"/>
                 </header>

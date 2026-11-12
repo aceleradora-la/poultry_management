@@ -33,12 +33,31 @@
         <field name="category_id" ref="module_category_poultry"/>
     </record>
 
-    <!-- App Avícola Campo: lo que se carga desde el celular en el galpón (hoy el pesaje).
-         Es un privilegio propio para dárselo al operador sin abrirle Gestión Avícola. -->
-    <record id="res_groups_privilege_poultry_field" model="res.groups.privilege">
-        <field name="name">App Avícola Campo</field>
-        <field name="sequence">15</field>
-        <field name="category_id" ref="module_category_poultry"/>
+    <!-- App Avícola Campo: una función por privilegio, para que se puedan combinar (por
+         ejemplo Pesaje + OF de Huevo, pedido del usuario del 2026-11-12). Categoría propia:
+         en la ficha del usuario queda la sección "Avícola Campo" con un desplegable por
+         función. -->
+    <record id="module_category_poultry_field" model="ir.module.category">
+        <field name="name">Avícola Campo</field>
+        <field name="sequence">27</field>
+    </record>
+
+    <record id="res_groups_privilege_poultry_field_weighing" model="res.groups.privilege">
+        <field name="name">Pesaje de Aves</field>
+        <field name="sequence">10</field>
+        <field name="category_id" ref="module_category_poultry_field"/>
+    </record>
+
+    <record id="res_groups_privilege_poultry_field_collection" model="res.groups.privilege">
+        <field name="name">Partes de Producción</field>
+        <field name="sequence">20</field>
+        <field name="category_id" ref="module_category_poultry_field"/>
+    </record>
+
+    <record id="res_groups_privilege_poultry_field_unclassified" model="res.groups.privilege">
+        <field name="name">OF Huevo sin Clasificar</field>
+        <field name="sequence">30</field>
+        <field name="category_id" ref="module_category_poultry_field"/>
     </record>
 
     <record id="poultry_user" model="res.groups">
@@ -47,21 +66,53 @@
         <field name="privilege_id" ref="res_groups_privilege_poultry_role"/>
     </record>
 
+    <!-- Acceso a la app (menú y datos comunes: galpones y lotes). No se asigna a mano: lo
+         trae cualquiera de las funciones de abajo. Sin privilegio, en la ficha del usuario
+         queda en Permisos Extra (modo desarrollador). -->
     <record id="poultry_field_user" model="res.groups">
-        <field name="name">Operador de Campo</field>
+        <field name="name">Avícola Campo: acceso a la app</field>
         <field name="sequence">10</field>
-        <field name="privilege_id" ref="res_groups_privilege_poultry_field"/>
-        <field name="comment">Usa la app Avícola Campo desde el celular: pesa las aves de las
-            pesadas que la oficina envió a pesar y las registra. No ve Gestión Avícola.</field>
+        <field name="privilege_id" eval="False"/>
+        <field name="comment">Lo trae cualquier función de Avícola Campo. No ve Gestión
+            Avícola.</field>
     </record>
 
-    <!-- El Gestor también usa la app del celular; el Usuario Avícola (oficina) la recibe
-         solo si se le da el permiso. -->
+    <record id="poultry_field_weighing" model="res.groups">
+        <field name="name">Pesar en el galpón</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_field_weighing"/>
+        <field name="implied_ids" eval="[(4, ref('poultry_field_user'))]"/>
+        <field name="comment">Pesa desde el celular las pesadas que la oficina envió a pesar
+            y las registra. Enviar, confirmar y cancelar siguen siendo de la oficina.</field>
+    </record>
+
+    <record id="poultry_field_collection" model="res.groups">
+        <field name="name">Cargar partes en el galpón</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_field_collection"/>
+        <field name="implied_ids" eval="[(4, ref('poultry_field_user'))]"/>
+        <field name="comment">Carga desde el celular el parte de producción de huevos del
+            día (inicial y bruto) y lo completa. Procesar sigue siendo de la oficina.</field>
+    </record>
+
+    <record id="poultry_field_unclassified" model="res.groups">
+        <field name="name">Cargar aves muertas y consumos</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_poultry_field_unclassified"/>
+        <field name="implied_ids" eval="[(4, ref('poultry_field_user'))]"/>
+        <field name="comment">Carga desde el celular las aves muertas y los consumos de las
+            OF de Huevo sin Clasificar pendientes. Marcarlas hechas sigue siendo de la oficina.</field>
+    </record>
+
+    <!-- El Gestor trae las tres funciones de la app; el Usuario Avícola (oficina) recibe
+         solo las que se le den. -->
     <record id="poultry_manager" model="res.groups">
         <field name="name">Gestor Avícola</field>
         <field name="sequence">20</field>
         <field name="privilege_id" ref="res_groups_privilege_poultry_role"/>
-        <field name="implied_ids" eval="[(4, ref('poultry_user')), (4, ref('poultry_field_user'))]"/>
+        <field name="implied_ids" eval="[(6, 0, [ref('poultry_user'), ref('poultry_field_weighing'),
+                                              ref('poultry_field_collection'),
+                                              ref('poultry_field_unclassified')])]"/>
     </record>
 
     <record id="poultry_cancel_processed_collection" model="res.groups">

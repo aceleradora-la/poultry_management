@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 from odoo import models, fields, api
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 
 class PoultryWeightRecord(models.Model):
@@ -212,6 +212,8 @@ class PoultryWeightRecord(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if {'is_exceptional', 'exceptional_reason'} & set(vals):
+            self._poultry_check_office('Marcar una pesada como excepcional')
         before = {record.id: (record.coop_id, record.date.year) for record in self}
         # Marcar o desmarcar como excepcional un parte ya confirmado cambia lo que
         # publica: se recalculan los indicadores de su lote y fecha.
@@ -228,6 +230,15 @@ class PoultryWeightRecord(models.Model):
                 if before[record.id] != (record.coop_id, record.date.year):
                     record.name = self._poultry_next_name(record.coop_id, record.date)
         return res
+
+    def _poultry_check_office(self, action):
+        """Generar líneas, enviar a pesar, confirmar, cancelar, volver a Borrador y marcar
+        excepcional son de la oficina (Usuario Avícola). El operador de campo tiene
+        escritura sobre los partes para pesar y registrar desde la app; sin este control
+        podría hacer todo lo demás abriendo la ficha por su dirección web."""
+        if self.env.su or self.env.user.has_group('poultry_management.poultry_user'):
+            return
+        raise AccessError('%s es tarea de la oficina (permiso Usuario Avícola).' % action)
 
     @api.constrains('is_exceptional', 'exceptional_reason')
     def _check_exceptional_reason(self):
@@ -303,6 +314,7 @@ class PoultryWeightRecord(models.Model):
 
     def action_open_lines_wizard(self):
         self.ensure_one()
+        self._poultry_check_office('Generar las líneas')
         return {
             'name': 'Generar Líneas de Pesaje',
             'type': 'ir.actions.act_window',
@@ -314,6 +326,7 @@ class PoultryWeightRecord(models.Model):
 
     def action_send(self):
         """Manda la pesada al galpón: pasa a En Curso y aparece en la app Avícola Campo."""
+        self._poultry_check_office('Enviar a pesar')
         for record in self:
             if record.state != 'draft':
                 raise ValidationError('Solo se puede enviar a pesar un parte en Borrador.')
@@ -350,6 +363,7 @@ class PoultryWeightRecord(models.Model):
     def action_reopen(self):
         """Vuelve un parte En Curso o Registrado a Borrador: se puede corregir, enviar a
         pesar y registrar de nuevo."""
+        self._poultry_check_office('Volver una pesada a Borrador')
         for record in self:
             if record.state not in ('in_progress', 'registered'):
                 raise ValidationError(
@@ -358,6 +372,7 @@ class PoultryWeightRecord(models.Model):
 
     def action_done(self):
         """Confirma el parte y publica los indicadores Peso Corporal y Uniformidad."""
+        self._poultry_check_office('Confirmar una pesada')
         for record in self:
             if record.state not in ('draft', 'in_progress', 'registered'):
                 raise ValidationError(
@@ -378,6 +393,7 @@ class PoultryWeightRecord(models.Model):
         self._poultry_apply_indicator_values()
 
     def action_cancel(self):
+        self._poultry_check_office('Cancelar una pesada')
         for record in self:
             if record.state == 'cancel':
                 raise ValidationError('El parte ya está cancelado.')
@@ -390,72 +406,45 @@ class PoultryWeightRecord(models.Model):
     # ------------------------------------------------------------------
     # Planilla en papel
     # ------------------------------------------------------------------
-    def _poultry_sheet_pages(self, rows_per_column=36, columns=3):
-        """Secciones de la planilla: se llenan de arriba abajo, cada jaula con su título
-        y sus aves. Las jaulas no se cortan: si una no entra en lo que queda de la
-        sección, pasa entera a la siguiente. Solo se parte (marcada "continúa") una
-        jaula con más aves de las que entran en una sección. Entre secciones se
-        reparten lo más parejo posible. Devuelve páginas → columnas → grupos
-        {cage, continued, rows}."""
+    def _poultry_sheet_pages(self, rows_per_column=36, columns=3, title_rows=2):
+        """Secciones de la planilla, como un formulario de papel (pedido del usuario del
+        2026-11-12: siempre 3 columnas de X filas, no repartidas): cada columna se llena de
+        arriba abajo hasta rows_per_column filas (título de cada jaula + sus aves), después
+        la columna siguiente y, completas las columnas de la hoja, la hoja siguiente. Las
+        jaulas no se cortan: si una no entra en lo que queda de la columna, pasa entera a
+        la siguiente. Solo se parte (marcada "continúa") una jaula con más aves de las que
+        entran en una columna. Devuelve páginas → columnas → grupos {cage, continued,
+        rows}; la última hoja puede tener menos columnas.
+
+        El título de cada jaula, con su línea y el espacio hasta la jaula siguiente, ocupa
+        en el PDF lo que dos renglones (41 px contra 21 px por ave, medido en la planilla
+        G3-2026-005): por eso cuenta title_rows filas. Con 38 filas por columna entran 3
+        jaulas de 10 aves."""
         self.ensure_one()
-        capacity = max(rows_per_column, 2)
+        capacity = max(rows_per_column, title_rows + 1)
         # Bloques: una jaula entera (título + aves), o los pedazos de una jaula más
-        # grande que una sección.
+        # grande que una columna.
         chunks = []
         for cage, cage_lines in self._poultry_sorted_lines().grouped('cage_id').items():
             rows = list(cage_lines)
             first = True
             while rows:
                 chunks.append({'cage': cage, 'continued': not first,
-                               'rows': rows[:capacity - 1]})
-                rows = rows[capacity - 1:]
+                               'rows': rows[:capacity - title_rows]})
+                rows = rows[capacity - title_rows:]
                 first = False
         if not chunks:
             return []
-        units = [1 + len(chunk['rows']) for chunk in chunks]
-        sheets = max(1, -(-sum(units) // (capacity * columns)))
-        while True:
-            parts = self._poultry_partition(units, columns * sheets)
-            if all(sum(units[start:end]) <= capacity for start, end in parts):
-                break
-            sheets += 1
-        pages = []
-        for index, (start, end) in enumerate(parts):
-            if index % columns == 0:
-                pages.append([])
-            pages[-1].append(chunks[start:end])
-        return pages
-
-    @staticmethod
-    def _poultry_partition(units, parts):
-        """Corta la secuencia de bloques en `parts` tramos seguidos (algunos pueden
-        quedar vacíos) de modo que el tramo más cargado sea lo más chico posible.
-        Programación dinámica clásica. Devuelve [(inicio, fin), ...]."""
-        count = len(units)
-        prefix = [0]
-        for unit in units:
-            prefix.append(prefix[-1] + unit)
-        infinity = float('inf')
-        # best[k][i]: menor carga máxima repartiendo los primeros i bloques en k tramos
-        best = [[infinity] * (count + 1) for _ in range(parts + 1)]
-        cut = [[0] * (count + 1) for _ in range(parts + 1)]
-        best[0][0] = 0
-        for k in range(1, parts + 1):
-            for i in range(count + 1):
-                for j in range(i + 1):
-                    if best[k - 1][j] == infinity:
-                        continue
-                    load = max(best[k - 1][j], prefix[i] - prefix[j])
-                    if load < best[k][i]:
-                        best[k][i] = load
-                        cut[k][i] = j
-        bounds = []
-        end = count
-        for k in range(parts, 0, -1):
-            start = cut[k][end]
-            bounds.append((start, end))
-            end = start
-        return list(reversed(bounds))
+        filled = [[]]
+        load = 0
+        for chunk in chunks:
+            unit = title_rows + len(chunk['rows'])
+            if filled[-1] and load + unit > capacity:
+                filled.append([])
+                load = 0
+            filled[-1].append(chunk)
+            load += unit
+        return [filled[start:start + columns] for start in range(0, len(filled), columns)]
 
     # ------------------------------------------------------------------
     # Pantalla de celular (acción cliente poultry_weighing)
@@ -606,6 +595,7 @@ class PoultryWeightRecord(models.Model):
         return self._poultry_pending_cages().mapped('code')
 
     def action_draft(self):
+        self._poultry_check_office('Volver una pesada a Borrador')
         for record in self:
             if record.state != 'cancel':
                 raise ValidationError('Solo se puede volver a Borrador un parte Cancelado.')
