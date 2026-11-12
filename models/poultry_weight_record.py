@@ -38,6 +38,7 @@ class PoultryWeightRecord(models.Model):
         ('done', 'Confirmado'),
         ('cancel', 'Cancelado'),
     ], string='Estado', default='draft', required=True, tracking=True, copy=False,
+        group_expand='_read_group_state',
         help='Planificada: la creó el Plan de Pesaje del lote para una semana de vida que '
              'todavía no empezó (o que espera a la oficina). Borrador: la oficina prepara el '
              'parte (líneas, planilla). En Curso: se envió a pesar y aparece en la app del '
@@ -262,6 +263,12 @@ class PoultryWeightRecord(models.Model):
         raise AccessError('%s es tarea de la oficina (permiso Usuario Avícola).' % action)
 
     _POULTRY_OPEN_STATES = ('planned', 'draft', 'in_progress')
+
+    def _read_group_state(self, values, domain):
+        """Columnas de las tarjetas en el orden del proceso (Planificada, Borrador, En Curso,
+        Registrado...) y no en el alfabético del código interno, que ponía En Curso antes
+        que Planificada. Solo las que tienen pesadas: no agrega columnas vacías."""
+        return [key for key, _label in self._fields['state'].selection if key in values]
 
     @api.depends('state', 'plan_week_end')
     def _compute_is_late(self):

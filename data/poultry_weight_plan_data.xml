@@ -6,7 +6,7 @@
          pesadas solo. Se activa tildando "Plan por defecto de la granja". -->
     <data noupdate="1">
         <record id="weight_plan_layers" model="poultry.weight.plan">
-            <field name="name">Ponedoras estándar</field>
+            <field name="name">Plan Estándar</field>
             <field name="send_mode">auto</field>
         </record>
         <record id="weight_plan_layers_line_weekly" model="poultry.weight.plan.line">

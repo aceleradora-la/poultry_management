@@ -30,7 +30,7 @@
                     <field name="active" invisible="1"/>
                     <div class="oe_title">
                         <label for="name"/>
-                        <h1><field name="name" placeholder="Ej. Ponedoras estándar"/></h1>
+                        <h1><field name="name" placeholder="Ej. Plan Estándar"/></h1>
                     </div>
                     <group>
                         <group>

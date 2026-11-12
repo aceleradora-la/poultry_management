@@ -177,3 +177,14 @@ class TestPoultryWeightPlan(TransactionCase):
         self.assertEqual((manual.calendar_start, manual.calendar_stop), (self.today, self.today))
         label = planned.with_context(poultry_calendar_label=True).display_name
         self.assertEqual(label, 'Galpón Plan · Sem. 34 · Planificada')
+
+    def test_kanban_columns_follow_the_process(self):
+        batch = self._batch(20)
+        self.Record._cron_poultry_plan_weighings()
+        self.Record.create({'coop_id': self.coop.id, 'batch_id': batch.id, 'date': self.today,
+                            'state': 'in_progress'})
+        # Las tarjetas piden los grupos con read_group_expand (lo hace el cliente web).
+        kanban = self.Record.with_context(read_group_expand=True)
+        groups = kanban.web_read_group([('batch_id', '=', batch.id)], ['state'])['groups']
+        self.assertEqual([group['state'] for group in groups], ['planned', 'in_progress'],
+                         'Planificada antes que En Curso, sin columnas vacías')
