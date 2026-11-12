@@ -370,9 +370,10 @@ class PoultryWeightRecord(models.Model):
                 raise ValidationError(
                     'El lote %s no tiene una asignación vigente en el galpón %s a la '
                     'fecha %s.' % (record.batch_id.name, record.coop_id.name, record.date))
-        # Las líneas sin peso son aves que no estaban: se borran al confirmar, así el
-        # parte queda solo con las aves pesadas.
-        self.line_ids.filtered(lambda line: line.weight_g <= 0).unlink()
+        # Las líneas sin peso se conservan (pedido del usuario del 2026-11-12): son lo que
+        # se mandó a pesar y quedan como estadística (Aves Previstas vs. Pesadas). Todos
+        # los cálculos toman solo las líneas con peso, y Generar Líneas desde la pesada
+        # anterior repite solo las aves que quedaron con peso.
         self.write({'state': 'done'})
         self._poultry_apply_indicator_values()
 
@@ -571,20 +572,6 @@ class PoultryWeightRecord(models.Model):
         })
         return self.poultry_mobile_data()
 
-    def poultry_mobile_remove_line(self, cage_id):
-        """Una ave menos: saca la última línea de la jaula. Si todas tienen peso, el
-        celular pide confirmar antes porque se pierde un peso cargado."""
-        self.ensure_one()
-        self._poultry_mobile_check_editable()
-        cage = self.env['poultry.cage'].browse(cage_id)
-        lines = self.line_ids.filtered(lambda line: line.cage_id == cage).sorted(
-            key=lambda line: (line.bird_no, line.id))
-        if len(lines) <= 1:
-            raise ValidationError('La jaula %s tiene que quedar con al menos una ave.' % cage.code)
-        empty = lines.filtered(lambda line: line.weight_g <= 0)
-        (empty[-1] if empty else lines[-1]).unlink()
-        return self.poultry_mobile_data()
-
     def poultry_mobile_close_cage(self, cage_id):
         self.ensure_one()
         self._poultry_mobile_check_editable()
@@ -682,7 +669,9 @@ class PoultryWeightRecord(models.Model):
                 ('state', '=', 'done'),
                 ('is_exceptional', '=', False),
             ])
-            lines = siblings.mapped('line_ids')
+            # Solo las aves con peso: las líneas en cero quedan como lo previsto y no
+            # pesado, no son aves de 0 g.
+            lines = siblings._poultry_weighed_lines()
             if lines:
                 weights = lines.mapped('weight_g')
                 birds = len(weights)

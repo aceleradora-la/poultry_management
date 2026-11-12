@@ -90,10 +90,10 @@
                             help="Da por terminada la pesada. Si quedan jaulas sin pesar, avisa antes."/>
                     <button name="action_done" string="Confirmar" type="object"
                             invisible="state not in ('draft', 'in_progress') or not bird_count"
-                            confirm="Las líneas sin peso se borran al confirmar. ¿Continuar?"/>
+                            help="Publica Peso Corporal y Uniformidad del lote. Las líneas sin peso quedan como previstas y no pesadas."/>
                     <button name="action_done" string="Confirmar" type="object"
                             class="oe_highlight" invisible="state != 'registered'"
-                            confirm="Las líneas sin peso se borran al confirmar. ¿Continuar?"/>
+                            help="Publica Peso Corporal y Uniformidad del lote. Las líneas sin peso quedan como previstas y no pesadas."/>
                     <button name="action_reopen" string="Volver a Borrador" type="object"
                             invisible="state not in ('in_progress', 'registered')"/>
                     <button name="action_cancel" string="Cancelar" type="object"
@@ -159,7 +159,7 @@
                             <div class="text-muted mb-2" invisible="state not in ('draft', 'in_progress') or not line_ids">
                                 Mismo orden que la planilla. Solo se escribe el <strong>Peso</strong>:
                                 <kbd>Enter</kbd> pasa al peso de abajo. Las líneas que queden sin peso
-                                se borran al confirmar.
+                                quedan como previstas y no pesadas: no cuentan en los resultados.
                             </div>
                             <field name="line_ids" nolabel="1" readonly="state not in ('draft', 'in_progress')">
                                 <!-- Sin agrupar: la lista de un one2many no agrupa, y así Enter

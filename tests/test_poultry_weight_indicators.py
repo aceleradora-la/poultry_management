@@ -194,3 +194,39 @@ class TestPoultryWeightIndicators(TransactionCase):
         # De ahí en más se publica sola al confirmar y se borra al cancelar.
         record.action_cancel()
         self.assertFalse(self.Value.search([('indicator_id', '=', uniformity.id)]))
+
+    def test_empty_lines_do_not_count(self):
+        """Las líneas sin peso se conservan al confirmar y no entran en los indicadores."""
+        record = self.env['poultry.weight.record'].create({
+            'coop_id': self.coop.id, 'batch_id': self.batch.id, 'date': self.today})
+        wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': record.id})
+        wizard.mode = 'fixed'
+        wizard.birds_per_cage = 5
+        wizard.action_confirm()
+        for line, weight in zip(record.line_ids.sorted('bird_no'), [1900, 2100, 2000]):
+            line.weight_g = weight
+        record.action_done()
+        self.assertEqual((len(record.line_ids), record.planned_bird_count, record.bird_count), (5, 5, 3))
+        self.assertEqual(self._daily(), [(2000, 6000, 3)], 'Dos aves sin peso no son aves de 0 g')
+
+    def test_uniformity_from_the_phone(self):
+        """Pesar desde el celular (operador de campo, poultry_mobile_set_weight) calcula la
+        uniformidad igual que cargarla en la ficha."""
+        operator = self.env['res.users'].create({
+            'name': 'Operador Peso', 'login': 'operador_peso_test',
+            'group_ids': [(6, 0, [self.env.ref('base.group_user').id,
+                                  self.env.ref('poultry_management.poultry_field_user').id])],
+        })
+        record = self.env['poultry.weight.record'].create({
+            'coop_id': self.coop.id, 'batch_id': self.batch.id, 'date': self.today})
+        wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': record.id})
+        wizard.mode = 'fixed'
+        wizard.birds_per_cage = 4
+        wizard.action_confirm()
+        record.action_send()
+        phone = record.with_user(operator)
+        for line, weight in zip(record.line_ids.sorted('bird_no'), [1900, 2100, 2000, 2500]):
+            phone.poultry_mobile_set_weight(line.id, weight)
+        record.invalidate_recordset()
+        self.assertEqual((record.bird_count, record.average_weight_g), (4, 2125))
+        self.assertEqual(record.uniformity_pct, 50, 'Promedio 2125 g, banda ±10 %: entran 2100 y 2000')

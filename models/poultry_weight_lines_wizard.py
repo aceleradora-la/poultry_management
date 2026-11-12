@@ -41,8 +41,9 @@ class PoultryWeightLinesWizard(models.TransientModel):
         """{jaula: cantidad de líneas} según el modo. Con la pesada anterior entran solo
         las jaulas que quedaron con peso, con esas mismas aves (decisión del usuario).
         Las demás jaulas de muestreo se agregan escaneándolas desde el celular o con la
-        cantidad fija. No se distingue "estaba sin pesar" de "marcada después": al
-        confirmar se borran las líneas sin peso."""
+        cantidad fija. No se distingue "estaba sin pesar" de "marcada después". Las
+        líneas que quedan sin peso se conservan en el parte (lo que se mandó a pesar),
+        pero no se repiten acá."""
         self.ensure_one()
         cages = self._poultry_cages()
         if self.mode == 'previous' and self.previous_id:

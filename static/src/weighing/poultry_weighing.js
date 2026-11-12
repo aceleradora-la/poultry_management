@@ -364,32 +364,6 @@ export class PoultryWeighing extends Component {
         this.focusPending = true;
     }
 
-    async removeLine() {
-        const cage = this.currentCage;
-        const last = cage.lines[cage.lines.length - 1];
-        if (cage.lines.length <= 1) {
-            this.notification.add("La jaula tiene que quedar con al menos una ave.", { type: "warning" });
-            return;
-        }
-        const allWeighed = cage.lines.every((line) => line.weight_g > 0);
-        if (allWeighed) {
-            this.dialog.add(ConfirmationDialog, {
-                title: "Sacar una ave",
-                body: `Todas las aves tienen peso. Se borra la ave ${last.bird_no} (${this.fmt(last.weight_g)} g). ¿Continuar?`,
-                confirmLabel: "Sacar",
-                cancelLabel: "Cancelar",
-                confirm: () => this.doRemoveLine(),
-                cancel: () => {},
-            });
-        } else {
-            await this.doRemoveLine();
-        }
-    }
-
-    async doRemoveLine() {
-        this.state.record = await this.call("poultry_mobile_remove_line", [[this.state.record.id], this.state.cageId]);
-    }
-
     async closeCage() {
         const result = await this.call("poultry_mobile_close_cage", [[this.state.record.id], this.state.cageId]);
         this.applyCageState(result);

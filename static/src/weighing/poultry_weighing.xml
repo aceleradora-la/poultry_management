@@ -179,7 +179,6 @@
                     </div>
                 </t>
                 <div class="o_pw_actions">
-                    <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-on-click="removeLine" t-att-disabled="state.busy">− Ave</button>
                     <button type="button" class="o_pw_btn o_pw_btn_secondary o_pw_btn_small" t-on-click="addLine" t-att-disabled="state.busy">+ Ave</button>
                     <button type="button" class="o_pw_btn o_pw_btn_primary o_pw_btn_small" t-on-click="closeCage" t-att-disabled="state.busy">Cerrar jaula</button>
                 </div>

@@ -191,9 +191,16 @@ class TestPoultryWeightRecord(TransactionCase):
 
         record.action_done()
         self.assertEqual(record.state, 'done')
-        self.assertEqual(len(record.line_ids), 5, 'Las líneas sin peso se borran al confirmar')
-        self.assertFalse(record.line_ids.filtered(lambda l: l.weight_g <= 0))
-        self.assertEqual(record.bird_count, 5)
+        self.assertEqual(len(record.line_ids), 9,
+                         'Las líneas sin peso se conservan: son lo que se mandó a pesar')
+        self.assertEqual((record.planned_bird_count, record.bird_count), (9, 5))
+        self.assertAlmostEqual(record.progress_pct, 5 / 9 * 100)
+        self.assertAlmostEqual(record.average_weight_g, (1900 + 2100 + 2000 + 1950 + 2050) / 5,
+                               msg='Los resultados toman solo las aves con peso')
+        wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': self._record().id})
+        self.assertEqual(wizard.previous_id, record)
+        self.assertEqual(wizard._poultry_plan(), {self.cage_a: 3, self.cage_b: 1, self.cage_c: 1},
+                         'La pesada siguiente repite solo las aves que quedaron con peso')
 
     # ------------------------------------------------------------------
     # Resumen por jaula
@@ -310,9 +317,8 @@ class TestPoultryWeightRecord(TransactionCase):
 
         data = record.poultry_mobile_add_line(self.cage_a.id)
         self.assertEqual([l['bird_no'] for l in data['cages'][0]['lines']], [1, 2, 3, 4])
-        data = record.poultry_mobile_remove_line(self.cage_a.id)
-        self.assertEqual([l['bird_no'] for l in data['cages'][0]['lines']], [1, 2, 3],
-                         'Saca la última línea vacía, no la pesada')
+        self.assertFalse(hasattr(record, 'poultry_mobile_remove_line'),
+                         'Sin "− Ave" en el celular: las aves previstas no se achican')
 
         result = record.poultry_mobile_close_cage(self.cage_a.id)
         self.assertEqual(result['cage']['status'], 'closed')
