@@ -1,0 +1,139 @@
+# -*- coding: utf-8 -*-
+"""Cómo viaja el Parte de Registro de Peso a los indicadores: se publica al confirmar,
+se recalcula o se borra al cancelar, y el botón "Recalcular este indicador" lo rehace
+desde los partes confirmados."""
+from datetime import timedelta
+
+from odoo import fields
+from odoo.tests import TransactionCase, tagged
+
+
+@tagged('post_install', '-at_install')
+class TestPoultryWeightIndicators(TransactionCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.today = fields.Date.context_today(cls.env.user)
+        Coop = cls.env['poultry.coop']
+        cls.coop = Coop.create({'name': 'Galpón Peso A', 'code': 'G911', 'size': 100, 'capacity': 100})
+        cls.coop2 = Coop.create({'name': 'Galpón Peso B', 'code': 'G912', 'size': 100, 'capacity': 100})
+        for coop in (cls.coop, cls.coop2):
+            cls.env['poultry.cage.generate.wizard'].create({
+                'coop_id': coop.id, 'row_to': 1, 'side_to': 1, 'bay_to': 1, 'floor_to': 1, 'cage_to': 2,
+            }).action_generate()
+            coop.cage_ids[0].is_sampling = True
+        genetics = cls.env['poultry.genetics'].create({'name': 'Genética Peso'})
+        cls.batch = cls.env['poultry.batch'].create({
+            'name': 'Lote Peso', 'code': 'LP', 'genetics_id': genetics.id,
+            'birth_date': cls.today - timedelta(days=100),
+        })
+        # El mismo lote en dos galpones: sus pesadas del mismo día se combinan.
+        for coop in (cls.coop, cls.coop2):
+            cls.env['poultry.batch.coop.line'].create({
+                'batch_id': cls.batch.id, 'coop_id': coop.id, 'bird_count': 100,
+                'date_from': cls.today - timedelta(days=90),
+            })
+        Indicator = cls.env['poultry.indicator']
+        Indicator.search(['|', ('category', 'in', ('weight', 'uniformity')),
+                          ('formula_numerator', 'in', ('weighed_g', 'uniform_birds'))]).write({'active': False})
+        # Como PESO CORPORAL (g) en jeica: fórmula gramos pesados / aves pesadas, del día.
+        cls.indicator = Indicator.create({
+            'name': 'Peso Corporal Test', 'uom_id': cls.env.ref('uom.product_uom_gram').id,
+            'category': 'weight', 'accumulation_type': 'none', 'calculation_source': 'formula',
+            'formula_numerator': 'weighed_g', 'formula_denominator': 'weighed_birds',
+            'formula_mode': 'daily',
+        })
+        cls.Value = cls.env['poultry.batch.indicator.value']
+        cls.Weekly = cls.env['poultry.batch.indicator.weekly.value']
+
+    def _confirmed(self, coop, weights, date=None):
+        record = self.env['poultry.weight.record'].create({
+            'coop_id': coop.id, 'batch_id': self.batch.id, 'date': date or self.today})
+        wizard = self.env['poultry.weight.lines.wizard'].create({'record_id': record.id})
+        wizard.mode = 'fixed'
+        wizard.birds_per_cage = len(weights)
+        wizard.action_confirm()
+        for line, weight in zip(record.line_ids.sorted('bird_no'), weights):
+            line.weight_g = weight
+        record.action_done()
+        return record
+
+    def _daily(self, date=None):
+        values = self.Value.search([
+            ('batch_id', '=', self.batch.id), ('indicator_id', '=', self.indicator.id),
+            ('date', '=', date or self.today)])
+        return [(v.value, v.numerator, v.denominator) for v in values]
+
+    def _weekly(self, date=None):
+        week = self.batch._poultry_week_of(date or self.today)
+        return self.Weekly.search([
+            ('batch_id', '=', self.batch.id), ('indicator_id', '=', self.indicator.id),
+            ('week', '=', week)]).mapped('real_value')
+
+    def test_confirm_cancel_and_draft(self):
+        first = self._confirmed(self.coop, [1900, 2100, 2000])
+        self.assertEqual(self._daily(), [(2000, 6000, 3)], 'Se publica al confirmar')
+        self.assertEqual(self._weekly(), [2000])
+
+        second = self._confirmed(self.coop2, [1600])
+        self.assertEqual(self._daily(), [(1900, 7600, 4)],
+                         'Mismo lote y día: un solo valor, ponderado por ave')
+        self.assertEqual(self._weekly(), [1900])
+
+        second.action_cancel()
+        self.assertEqual(self._daily(), [(2000, 6000, 3)], 'Cancelar recalcula con lo que queda')
+        self.assertEqual(self._weekly(), [2000])
+        second.action_draft()
+        self.assertEqual(self._daily(), [(2000, 6000, 3)], 'Volver a Borrador no toca nada')
+
+        first.action_cancel()
+        self.assertEqual(self._daily(), [], 'Cancelado el último del día, el valor se borra')
+        self.assertEqual(self._weekly(), [], 'y el semanal de origen Sistema también')
+
+        first.action_draft()
+        self.assertEqual(self._daily(), [])
+        first.action_done()
+        self.assertEqual(self._daily(), [(2000, 6000, 3)], 'Confirmar de nuevo vuelve a publicar')
+
+    def test_cancel_keeps_manual_weekly(self):
+        week = self.batch._poultry_week_of(self.today)
+        record = self._confirmed(self.coop, [2000])
+        self.Weekly.search([('batch_id', '=', self.batch.id), ('indicator_id', '=', self.indicator.id),
+                            ('week', '=', week)]).write({'source': 'manual', 'real_value': 1850})
+        record.action_cancel()
+        self.assertEqual(self._weekly(), [1850], 'Un semanal cargado a mano no se borra')
+
+    def test_recompute_button_rebuilds_from_weighings(self):
+        """El botón de la ficha rehace el indicador desde los partes confirmados (antes
+        avisaba que había recalculado sin tocar nada)."""
+        self._confirmed(self.coop, [1900, 2100, 2000])
+        last_week = self.today - timedelta(days=7)
+        self._confirmed(self.coop, [1800], date=last_week)
+        # Un valor viejo de cuando el indicador salía de una OF, en una semana sin pesadas.
+        product = self.env['product.product'].create({'name': 'Huevo Peso Test', 'type': 'consu'})
+        production = self.env['mrp.production'].create({
+            'product_id': product.id, 'product_qty': 1, 'product_uom_id': product.uom_id.id})
+        old_date = self.today - timedelta(days=30)
+        self.Value._set_value(self.batch, self.coop, old_date, self.indicator, 55.0,
+                              numerator=55.0, denominator=1.0, production=production)
+        # Un valor diario cargado a mano por el Gestor, sin pesada ese día.
+        manual_date = self.today - timedelta(days=50)
+        self.Value._set_value(self.batch, self.coop, manual_date, self.indicator, 1700.0,
+                              numerator=1700.0, denominator=1.0)
+        self.assertEqual(self._weekly(old_date), [55.0])
+
+        # Valores que ya no coinciden con los partes (p. ej. tras cambiar la fórmula).
+        self.Value.search([('indicator_id', '=', self.indicator.id),
+                           ('production_id', '=', False)]).write({'value': 999})
+        self.indicator.write({'values_outdated': True})
+
+        action = self.indicator.action_recompute_indicator()
+        self.assertIn('2 días con Partes de Peso confirmados', action['params']['message'])
+        self.assertFalse(self.indicator.values_outdated)
+        self.assertEqual(self._daily(), [(2000, 6000, 3)])
+        self.assertEqual(self._daily(last_week), [(1800, 1800, 1)])
+        self.assertEqual(self._daily(old_date), [], 'El valor que venía de una OF se borra')
+        self.assertEqual(self._weekly(old_date), [], 'y su semanal de origen Sistema también')
+        self.assertEqual([v for v, _n, _d in self._daily(manual_date)], [999],
+                         'Un valor sin pesada ni OF (carga manual) no se toca')

@@ -606,9 +606,12 @@ class PoultryWeightRecord(models.Model):
                 raise ValidationError(
                     'No se puede eliminar un parte Registrado o Confirmado. Cancelalo primero.')
 
-    def _poultry_apply_indicator_values(self):
+    def _poultry_apply_indicator_values(self, only_indicators=None):
         """Publica (o limpia) los Valores Reales de los indicadores Peso Corporal y
         Uniformidad para cada (lote, fecha) tocado por estos partes.
+
+        only_indicators (opcional): recordset de poultry.indicator para publicar SOLO
+        esos (botón "Recalcular este indicador"), sin tocar los valores de los demás.
 
         Como el valor real es único por (lote, indicador, fecha) y un lote puede pesarse
         el mismo día en más de un galpón, siempre se agregan TODOS los partes confirmados
@@ -628,12 +631,15 @@ class PoultryWeightRecord(models.Model):
         (solo lectura sobre indicadores) pueda confirmar sus propios partes."""
         Indicator = self.env['poultry.indicator'].sudo()
         Value = self.env['poultry.batch.indicator.value'].sudo()
-        Weekly = self.env['poultry.batch.indicator.weekly.value'].sudo()
         weight_indicator = Indicator._poultry_legacy_indicator('weight', 'none')
         uniformity_indicator = Indicator._poultry_legacy_indicator('uniformity', 'none')
         # Indicadores con fórmula cuya fuente es el Parte de Peso: los calcula el
         # motor. Los que no tienen fórmula siguen con el cálculo cableado de abajo.
         formula_indicators = Indicator._poultry_formula_indicators('weight_record')
+        if only_indicators is not None:
+            weight_indicator &= only_indicators
+            uniformity_indicator &= only_indicators
+            formula_indicators &= only_indicators
         indicators = weight_indicator | uniformity_indicator | formula_indicators
         if not indicators:
             # Sin indicadores configurados no hay dónde publicar: se omite en silencio
@@ -670,7 +676,8 @@ class PoultryWeightRecord(models.Model):
                             'weighed_birds': float(birds),
                             'one': 1.0,
                         }},
-                        coop, target_date, source='weight_record')
+                        coop, target_date, source='weight_record',
+                        only_indicators=formula_indicators)
                 if weight_indicator:
                     Value._set_value(batch, coop, target_date, weight_indicator, avg_g,
                                      numerator=total_g, denominator=birds)
@@ -688,32 +695,59 @@ class PoultryWeightRecord(models.Model):
                     ('indicator_id', 'in', indicators.ids),
                     ('date', '=', target_date),
                 ]).unlink()
-                birth_date = batch.birth_date
-                if not birth_date or target_date < birth_date:
-                    continue
-                week = batch._poultry_week_of(target_date)
-                week_date_from = batch._poultry_week_start(week)
-                week_date_to = batch._poultry_week_end(week)
                 for indicator in indicators:
-                    remaining = Value.search([
-                        ('batch_id', '=', batch_id),
-                        ('indicator_id', '=', indicator.id),
-                        ('date', '>=', week_date_from),
-                        ('date', '<=', week_date_to),
-                    ], limit=1)
-                    if remaining:
-                        Value._recompute_weekly_value(batch, indicator, target_date)
-                    else:
-                        weekly_domain = [
-                            ('batch_id', '=', batch_id),
-                            ('indicator_id', '=', indicator.id),
-                            ('week', '=', week),
-                        ]
-                        # Solo se borra el semanal de Origen=Sistema: uno Manual es un
-                        # dato histórico cargado a mano y no depende de estos partes.
-                        # El campo source llega con el port de "carga manual de valores
-                        # semanales históricos"; el guard permite que ambos ports
-                        # aterricen en 19.0 en cualquier orden.
-                        if 'source' in Weekly._fields:
-                            weekly_domain.append(('source', '=', 'system'))
-                        Weekly.search(weekly_domain).unlink()
+                    self._poultry_refresh_week(batch, indicator, target_date)
+
+    @api.model
+    def _poultry_refresh_week(self, batch, indicator, target_date):
+        """Rehace el valor semanal de la semana de target_date después de borrar valores
+        diarios: _recompute_weekly_value no hace nada cuando la semana queda sin valores
+        diarios, así que en ese caso el semanal se borra a mano."""
+        Value = self.env['poultry.batch.indicator.value'].sudo()
+        Weekly = self.env['poultry.batch.indicator.weekly.value'].sudo()
+        if not batch.birth_date or target_date < batch.birth_date:
+            return
+        week = batch._poultry_week_of(target_date)
+        remaining = Value.search([
+            ('batch_id', '=', batch.id),
+            ('indicator_id', '=', indicator.id),
+            ('date', '>=', batch._poultry_week_start(week)),
+            ('date', '<=', batch._poultry_week_end(week)),
+        ], limit=1)
+        if remaining:
+            Value._recompute_weekly_value(batch, indicator, target_date)
+            return
+        weekly_domain = [
+            ('batch_id', '=', batch.id),
+            ('indicator_id', '=', indicator.id),
+            ('week', '=', week),
+        ]
+        # Solo se borra el semanal de Origen=Sistema: uno Manual es un dato histórico
+        # cargado a mano y no depende de estos partes.
+        if 'source' in Weekly._fields:
+            weekly_domain.append(('source', '=', 'system'))
+        Weekly.search(weekly_domain).unlink()
+
+    @api.model
+    def _poultry_rebuild_indicator(self, indicator):
+        """Rehace los Valores Reales de UN indicador que sale del Parte de Peso, desde
+        todos los partes confirmados (botón "Recalcular este indicador"). El recálculo de
+        los Cierres de Galpón no lo toca: los partes de peso son su única fuente.
+
+        - Cada día con partes confirmados se vuelve a publicar, en orden cronológico
+          (los modos acumulados dependen del día anterior).
+        - Se borran los valores que vienen de una OF (production_id): son de cuando el
+          indicador tenía otra fórmula y ya no corresponden.
+        - Los demás valores diarios sin parte confirmado ese día se dejan: pueden ser
+          carga manual del Gestor (un parte cancelado ya limpió los suyos).
+        Devuelve la cantidad de días (lote, fecha) publicados."""
+        Value = self.env['poultry.batch.indicator.value'].sudo()
+        stale = Value.search([('indicator_id', '=', indicator.id), ('production_id', '!=', False)])
+        touched = {(value.batch_id, value.date) for value in stale}
+        stale.unlink()
+        records = self.sudo().search([('state', '=', 'done')], order='date, id')
+        records._poultry_apply_indicator_values(only_indicators=indicator)
+        published = {(record.batch_id, record.date) for record in records}
+        for batch, target_date in touched - published:
+            self._poultry_refresh_week(batch, indicator, target_date)
+        return len(published)

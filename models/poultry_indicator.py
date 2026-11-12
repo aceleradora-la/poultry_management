@@ -372,8 +372,15 @@ class PoultryIndicator(models.Model):
                 'Configuración → Configuración General → Recalcular Indicadores de '
                 'Producción.'
             )
-        count = self.env['poultry.coop.close'].sudo()._poultry_rebuild_all_indicator_values(
-            only_indicators=self)
+        if self.formula_numerator in self._POULTRY_WEIGHT_SOURCE_NUMERATORS:
+            # Sale del Parte de Registro de Peso: el recálculo de los Cierres de Galpón no
+            # lo toca (no tiene de dónde sacarlo), se rehace desde los partes confirmados.
+            count = self.env['poultry.weight.record'].sudo()._poultry_rebuild_indicator(self)
+            source_label = 'días con Partes de Peso confirmados'
+        else:
+            count = self.env['poultry.coop.close'].sudo()._poultry_rebuild_all_indicator_values(
+                only_indicators=self)
+            source_label = 'Cierres de Galpón'
         self.values_outdated = False
         return {
             'type': 'ir.actions.client',
@@ -381,7 +388,7 @@ class PoultryIndicator(models.Model):
             'params': {
                 'title': 'Indicador recalculado',
                 'message': (f'Se recalcularon los valores de "{self.name}" en '
-                            f'{count} Cierres de Galpón. El resto de los indicadores '
+                            f'{count} {source_label}. El resto de los indicadores '
                             f'no se tocó.'),
                 'type': 'success',
                 'sticky': False,
