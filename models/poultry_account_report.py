@@ -64,15 +64,14 @@ class PoultryAccountReport(models.Model):
 
     2) _report_custom_engine_poultry_ratio
        Cálculo libre escrito en la SUBFÓRMULA de la expresión, que admite agrupar por
-       (desplegar por cuenta). Nombres disponibles:
-         - la etiqueta de otra expresión de la MISMA línea (ej. balance): su valor, por
-           grupo cuando la línea se despliega;
-         - el código de cualquier línea del reporte (ej. sales_COPY, cajones_vend): el total
-           de su expresión 'balance' en el mismo período/columna.
-       Dividir por cero da 0. Ejemplos:
-         balance / sales_COPY * 100                    % sobre ventas
-         -balance / cajones_vend                       costo por cajón
-         balance / (cogs_COPY + adm_exp_COPY) * 100    % sobre costo total
+       (desplegar por cuenta). Nombres disponibles (expresión 'balance' de cada línea):
+         - <código>: valor de esa línea en la fila; si es la línea que se está
+           desplegando, el valor de cada cuenta;
+         - total_<código>: total de esa línea (no cambia al desplegar).
+       Usar total_ en los divisores. Dividir por cero da 0. Ejemplos (línea de costo cogs_COPY):
+         cogs_COPY / total_sales_COPY * 100                          % sobre ventas
+         -cogs_COPY / total_cajones_vend                             costo por cajón
+         cogs_COPY / (total_cogs_COPY + total_adm_exp_COPY) * 100    % sobre costo total
 
     Ambas respetan los filtros del reporte (empresas, libro/diarios, fechas, borradores,
     comparación de períodos).
@@ -119,59 +118,69 @@ class PoultryAccountReport(models.Model):
     def _report_custom_engine_poultry_ratio(self, expressions, options, date_scope,
                                            current_groupby, next_groupby, offset=0,
                                            limit=None, warnings=None):
-        expression = expressions[:1]
-        line = expression.report_line_id
-        formula = (expression.subformula or '').strip()
-        if not formula:
-            raise UserError(_(
-                "La línea '%(line)s' usa _report_custom_engine_poultry_ratio sin cálculo: escribilo "
-                "en la subfórmula, ej. balance / sales_COPY * 100.", line=line.name))
-
-        names = {n for n in _NAME_RE.findall(formula)
-                 if not keyword.iskeyword(n) and n not in _FORMULA_FUNCTIONS}
-        siblings = {e.label: e for e in line.expression_ids if e != expression}
+        # Odoo llama UNA vez por fórmula con todas las expresiones que la usan y evalúa la
+        # subfórmula de cada una sobre el mismo resultado. Por eso los nombres son códigos de
+        # línea (distintos en cada línea) y se devuelven todos juntos.
         codes = {l.code: l for l in self.line_ids if l.code}
-        unknown = sorted(n for n in names if n not in siblings and n not in codes)
-        if unknown:
-            raise UserError(_(
-                "En la línea '%(line)s', '%(name)s' no es una etiqueta de la línea ni el código de "
-                "una línea del reporte.", line=line.name, name=', '.join(unknown)))
+        names = set()
+        for expression in expressions:
+            formula = (expression.subformula or '').strip()
+            if not formula:
+                raise UserError(_(
+                    "La línea '%(line)s' usa _report_custom_engine_poultry_ratio sin cálculo: "
+                    "escribilo en la subfórmula, ej. cogs_COPY / total_sales_COPY * 100.",
+                    line=expression.report_line_id.name))
+            found = {n for n in _NAME_RE.findall(formula)
+                     if not keyword.iskeyword(n) and n not in _FORMULA_FUNCTIONS}
+            unknown = sorted(n for n in found if self._poultry_ratio_code(n) not in codes)
+            if unknown:
+                raise UserError(_(
+                    "En la línea '%(line)s', '%(name)s' no es el código de una línea del reporte "
+                    "(ni total_<código>).", line=expression.report_line_id.name,
+                    name=', '.join(unknown)))
+            names |= found
 
-        # Totales de otras líneas (no dependen del grupo)
-        totals = {}
-        grouped_names = []
-        for name in sorted(names):
-            if name in siblings:
-                grouped_names.append(name)
-                continue
-            ref_expr = codes[name].expression_ids.filtered(lambda e: e.label == 'balance')[:1]
-            if not ref_expr:
+        def balance_expr(code):
+            expr = codes[code].expression_ids.filtered(lambda e: e.label == 'balance')[:1]
+            if not expr:
                 raise UserError(_("La línea con código '%(code)s' no tiene expresión 'balance'.",
-                                  code=name))
-            totals[name] = self._poultry_expression_total(ref_expr, options)
+                                  code=code))
+            return expr
+
+        # Líneas que se están desplegando en esta llamada: su código vale por grupo.
+        batch_codes = set(expressions.report_line_id.mapped('code')) if current_groupby else set()
+        totals, grouped = {}, []
+        for name in sorted(names):
+            code = self._poultry_ratio_code(name)
+            if name == code and code in batch_codes:
+                grouped.append(code)
+            else:
+                totals[name] = self._poultry_expression_total(balance_expr(code), options)
 
         def build(values, has_sublines=False):
             rslt = {k: PoultryRatioNumber(v or 0.0) for k, v in totals.items()}
-            rslt.update({k: PoultryRatioNumber(v or 0.0) for k, v in values.items()})
+            rslt.update({k: PoultryRatioNumber(values.get(k) or 0.0) for k in grouped})
             rslt['has_sublines'] = has_sublines
             return rslt
 
         if not current_groupby:
-            return build({n: self._poultry_expression_total(siblings[n], options) for n in grouped_names})
+            return build({})
 
-        # Desplegado por grupo (ej. por cuenta): valores de la línea por cada grupo
-        per_group = {}
-        sublines = {}
-        order = []
-        for name in grouped_names:
+        # Desplegado por grupo (ej. por cuenta): valor de cada línea en cada grupo
+        per_group, sublines, order = {}, {}, []
+        for code in grouped:
             for key, value, has_sub in self._poultry_expression_grouped(
-                    siblings[name], options, current_groupby, next_groupby, offset, limit, warnings):
+                    balance_expr(code), options, current_groupby, next_groupby, offset, limit, warnings):
                 if key not in per_group:
                     per_group[key] = {}
                     order.append(key)
-                per_group[key][name] = value
+                per_group[key][code] = value
                 sublines[key] = sublines.get(key) or has_sub
         return [(key, build(per_group[key], sublines.get(key, False))) for key in order]
+
+    @staticmethod
+    def _poultry_ratio_code(name):
+        return name[len('total_'):] if name.startswith('total_') else name
 
     def _poultry_expression_total(self, expression, options):
         """Total de una expresión (cualquier motor) para la columna de 'options'."""

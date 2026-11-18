@@ -72,7 +72,7 @@ class TestPoultryAccountReport(TransactionCase):
                         'subformula': 'sum'}),
                 (0, 0, {'label': 'pct', 'engine': 'custom',
                         'formula': '_report_custom_engine_poultry_ratio',
-                        'subformula': 'balance / no_existe * 100'}),
+                        'subformula': 'gastos_test / total_no_existe * 100'}),
             ],
         })
         pct = line.expression_ids.filtered(lambda e: e.label == 'pct')
