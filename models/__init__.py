@@ -55,3 +55,4 @@ from . import poultry_recompute_indicators_wizard
 from . import poultry_zero_mortality_wizard
 from . import poultry_formula_check_wizard
 
+from . import poultry_account_report
