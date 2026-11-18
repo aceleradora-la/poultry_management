@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Fórmula de cajones vendidos para el Estado de Resultados (motor personalizado)."""
+"""Fórmulas del Estado de Resultados (motor personalizado): cajones vendidos y cociente libre."""
+from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, tagged
+from odoo.tools.safe_eval import safe_eval
+
+from odoo.addons.poultry_management.models.poultry_account_report import PoultryRatioNumber
 
 
 @tagged('post_install', '-at_install')
@@ -50,3 +54,27 @@ class TestPoultryAccountReport(TransactionCase):
         self.assertAlmostEqual(
             self._cajones('2031-03-01', '2031-03-31', all_entries=True) - before, 11.5,
             msg='Con "incluir borradores" suma la factura en borrador')
+
+    def test_ratio_number_divide_by_zero(self):
+        n = PoultryRatioNumber
+        self.assertEqual(n(5) / n(0), 0.0)
+        self.assertEqual(5 / n(0), 0.0)
+        self.assertEqual(n(5) / (n(2) - n(2)) * 100, 0.0, 'Protege divisores calculados')
+        self.assertAlmostEqual(-n(30) / (n(10) + n(20)) * 100, -100.0)
+        self.assertAlmostEqual(safe_eval('balance / sales * 100', {'balance': n(25), 'sales': n(200)}), 12.5)
+        self.assertEqual(safe_eval('balance / sales * 100', {'balance': n(25), 'sales': n(0)}), 0.0)
+
+    def test_ratio_unknown_name(self):
+        line = self.env['account.report.line'].create({
+            'report_id': self.report.id, 'name': 'Gastos', 'code': 'gastos_test',
+            'expression_ids': [
+                (0, 0, {'label': 'balance', 'engine': 'domain', 'formula': "[('id', '=', 0)]",
+                        'subformula': 'sum'}),
+                (0, 0, {'label': 'pct', 'engine': 'custom',
+                        'formula': '_report_custom_engine_poultry_ratio',
+                        'subformula': 'balance / no_existe * 100'}),
+            ],
+        })
+        pct = line.expression_ids.filtered(lambda e: e.label == 'pct')
+        with self.assertRaisesRegex(UserError, 'no_existe'):
+            self.report._report_custom_engine_poultry_ratio(pct, {}, 'strict_range', None, None)
