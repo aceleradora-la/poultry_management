@@ -9,3 +9,4 @@ from . import test_poultry_purchase_cost
 from . import test_poultry_order_partner
 from . import test_poultry_weight_plan
 from . import test_poultry_account_report
+from . import test_unbuild_restore_origin

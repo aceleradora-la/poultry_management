@@ -1,10 +1,28 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models
+from odoo import fields, models
 
 
 class MrpUnbuild(models.Model):
     _inherit = 'mrp.unbuild'
+
+    restore_components_origin_location = fields.Boolean(
+        string='Devolver componentes a su ubicación de origen',
+        help='Si está marcado, cada componente vuelve a la ubicación de la que se '
+        'consumió en la orden de fabricación, en lugar de ir a la ubicación destino.',
+    )
+
+    def _prepare_move_line_vals(self, move, origin_move_line, taken_quantity):
+        vals = super()._prepare_move_line_vals(move, origin_move_line, taken_quantity)
+        if (
+            self.restore_components_origin_location
+            and self.mo_id
+            and origin_move_line.move_id.raw_material_production_id == self.mo_id
+        ):
+            origin_location = origin_move_line.location_id
+            if origin_location.usage == 'internal' and origin_location.active:
+                vals['location_dest_id'] = origin_location.id
+        return vals
 
     def _revert_coop_close_if_needed(self):
         """Si la OF desmantelada pertenece a un cierre de galpón, revertir"""

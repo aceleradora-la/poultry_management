@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mrp_unbuild_form_view_restore_origin" model="ir.ui.view">
+        <field name="name">mrp.unbuild.form.restore.origin</field>
+        <field name="model">mrp.unbuild</field>
+        <field name="inherit_id" ref="mrp.mrp_unbuild_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='location_dest_id']" position="after">
+                <field name="restore_components_origin_location"
+                       invisible="not mo_id"
+                       readonly="state == 'done'"
+                       groups="stock.group_stock_multi_locations"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="mrp_unbuild_form_view_simplified_restore_origin" model="ir.ui.view">
+        <field name="name">mrp.unbuild.form.simplified.restore.origin</field>
+        <field name="model">mrp.unbuild</field>
+        <field name="inherit_id" ref="mrp.mrp_unbuild_form_view_simplified"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='location_dest_id']" position="after">
+                <field name="restore_components_origin_location"
+                       invisible="not mo_id"
+                       readonly="state == 'done'"
+                       groups="stock.group_stock_multi_locations"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
