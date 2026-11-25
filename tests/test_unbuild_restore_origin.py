@@ -124,3 +124,15 @@ class TestUnbuildRestoreOrigin(TransactionCase):
         # 1 unidad de comp: sale de la primera línea consumida
         self.assertEqual(sum(comp_lines.mapped("quantity")), 1.0)
         self.assertTrue(comp_lines.location_dest_id <= (self.loc_a | self.loc_b))
+
+    def test_coop_close_cancel_restores_origin(self):
+        """Cancelar un Cierre de Galpón desmantela la OF devolviendo los insumos a su origen."""
+        mo = self._make_mo()
+        self.env["poultry.coop.close"]._unbuild_production(mo)
+        unbuild = self.env["mrp.unbuild"].search([("mo_id", "=", mo.id)])
+        self.assertTrue(unbuild.restore_components_origin_location)
+        self.assertEqual(unbuild.state, "done")
+        self.assertEqual(
+            self._lines(unbuild, self.comp).location_dest_id, self.loc_a | self.loc_b
+        )
+        self.assertEqual(self._lines(unbuild, self.comp_lot).location_dest_id, self.loc_b)

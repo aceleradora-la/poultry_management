@@ -211,6 +211,8 @@ class PoultryCoopClose(models.Model):
             'product_qty': qty,
             'location_id': loc.id,
             'location_dest_id': loc.id,
+            # Cada insumo vuelve a la ubicación de la que se consumió en la OF.
+            'restore_components_origin_location': True,
         }
         Unbuild = self.env['mrp.unbuild']
         if 'company_id' in Unbuild._fields and getattr(production, 'company_id', False):
