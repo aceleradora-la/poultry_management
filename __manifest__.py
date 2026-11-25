@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.126.0',
+    'version': '19.0.1.127.0',
     'category': 'Agriculture',
     'summary': 'Gestión de Granjas de Huevos y Pollos',
     'description': """
@@ -77,6 +77,7 @@
         'views/poultry_genetics_standard_views.xml',
         'views/mrp_bom_views.xml',
         'views/mrp_production_views.xml',
+        'views/mrp_unbuild_views.xml',
         'views/poultry_zero_mortality_wizard_views.xml',
         'views/poultry_batch_movement_views.xml',
         'views/poultry_menus.xml',

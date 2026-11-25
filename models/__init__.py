@@ -42,6 +42,7 @@ from . import mrp_bom
 from . import mrp_bom_line
 from . import mrp_production
 from . import mrp_unbuild
+from . import stock_move_line
 from . import poultry_stock_move
 from . import poultry_account_move_line
 from . import poultry_account_invoice_report
