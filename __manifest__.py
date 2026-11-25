@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Poultry Management',
-    'version': '19.0.1.128.0',
+    'version': '19.0.1.129.0',
     'category': 'Agriculture',
-    'summary': 'Gestión de Granjas de Huevos y Pollos',
+    'summary': 'Granjas de huevos y pollos: lotes, producción, pesaje, sanidad y costos',
     'description': """
-        Módulo para la gestión completa de granjas avícolas
-        - Gestión de Galpones con capacidad y tamaño
-        - Gestión de Lotes de Aves con genética y asignación
-        - Lista de Materiales de Alimento Balanceado por galpón
-        - Integración con Órdenes de Fabricación
+Gestión Avícola
+===============
+Galpones y lotes de aves, recolección de huevos, cierres de galpón con órdenes de
+fabricación, pesaje por semana de vida, sanidad, estándares de genética e indicadores
+de costo y venta por cajón. Ver static/description/index.html.
     """,
-    'author': 'aceleradora.la',
-    'website': 'https://www.tuempresa.com',
+    'author': 'Aceleradora',
+    'maintainer': 'Aceleradora',
+    'website': 'https://aceleradora.la',
+    'icon': '/poultry_management/static/description/icon.svg',
     'depends': ['base', 'mrp', 'product', 'mail', 'hr', 'web', 'stock', 'purchase_stock', 'stock_landed_costs', 'account', 'sale'],
     'assets': {
         'web.assets_backend': [
@@ -98,7 +100,6 @@
     'external_dependencies': {
         'python': ['xlsxwriter'],
     },
-    'images': ['static/description/icon.svg'],
     'post_init_hook': 'post_init_renumber_collections',
 }
 
